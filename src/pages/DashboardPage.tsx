@@ -84,7 +84,7 @@ export function DashboardPage() {
               <Alert type="warning" message="Could not load revenue report" showIcon />
             ) : (
               <Line
-                data={revenueQuery.data ?? []}
+                data={revenueQuery.data?.daily ?? []}
                 xField="date"
                 yField="revenue"
                 height={280}
@@ -104,7 +104,7 @@ export function DashboardPage() {
               <Column
                 data={topProductsQuery.data ?? []}
                 xField="productName"
-                yField="quantitySold"
+                yField="totalQuantity"
                 height={280}
               />
             )}

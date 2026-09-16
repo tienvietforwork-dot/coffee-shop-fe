@@ -1,13 +1,13 @@
 import apiClient from './client'
-import type { RevenuePoint, TopProduct } from '@/types'
+import type { RevenueReport, TopProduct } from '@/types'
 
 export interface DateRangeParams {
   from: string // ISO date, e.g. 2026-09-01
   to: string
 }
 
-export async function getRevenueReport(params: DateRangeParams): Promise<RevenuePoint[]> {
-  const { data } = await apiClient.get<RevenuePoint[]>('/reports/revenue', { params })
+export async function getRevenueReport(params: DateRangeParams): Promise<RevenueReport> {
+  const { data } = await apiClient.get<RevenueReport>('/reports/revenue', { params })
   return data
 }
 

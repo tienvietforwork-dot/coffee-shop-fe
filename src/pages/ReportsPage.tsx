@@ -56,7 +56,7 @@ export function ReportsPage() {
 
       <Card title="Revenue by date" style={{ marginBottom: 16 }}>
         <Line
-          data={revenueQuery.data ?? []}
+          data={revenueQuery.data?.daily ?? []}
           xField="date"
           yField="revenue"
           height={280}
@@ -86,10 +86,10 @@ export function ReportsPage() {
               dataSource={topProductsQuery.data}
               columns={[
                 { title: 'Product', dataIndex: 'productName' },
-                { title: 'Quantity sold', dataIndex: 'quantitySold' },
+                { title: 'Quantity sold', dataIndex: 'totalQuantity' },
                 {
                   title: 'Revenue',
-                  dataIndex: 'revenue',
+                  dataIndex: 'totalRevenue',
                   render: (v: number) => v.toLocaleString('vi-VN') + ' ₫',
                 },
               ]}

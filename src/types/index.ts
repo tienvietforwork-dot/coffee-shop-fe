@@ -112,14 +112,22 @@ export interface Shipment {
 export interface RevenuePoint {
   date: string
   revenue: number
-  orderCount: number
+  orders: number
+}
+
+export interface RevenueReport {
+  from: string
+  to: string
+  totalRevenue: number
+  totalOrders: number
+  daily: RevenuePoint[]
 }
 
 export interface TopProduct {
   productId: number
   productName: string
-  quantitySold: number
-  revenue: number
+  totalQuantity: number
+  totalRevenue: number
 }
 
 export interface Paged<T> {
