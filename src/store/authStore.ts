@@ -1,31 +1,30 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User } from '@/types'
+import type { LoginResponse, PermissionInfo, User } from '@/api/types'
 
 interface AuthState {
   token: string | null
   user: User | null
+  /** Screens / actions this account may use (permissions of all its roles). */
+  permissions: PermissionInfo[]
   isAuthenticated: boolean
-  setAuth: (token: string, user: User) => void
+  setSession: (r: LoginResponse) => void
+  setMe: (user: User, permissions: PermissionInfo[]) => void
   logout: () => void
 }
 
-/**
- * Simple auth store. We persist the JWT + user profile to localStorage so a
- * page refresh doesn't force a re-login. The axios interceptor (see
- * src/api/client.ts) reads the token straight from this store.
- */
+/** One session for everyone (Quản lý, Nhân viên, Khách hàng) – JWT from app-core /api/auth/login. */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
       user: null,
+      permissions: [],
       isAuthenticated: false,
-      setAuth: (token, user) => set({ token, user, isAuthenticated: true }),
-      logout: () => set({ token: null, user: null, isAuthenticated: false }),
+      setSession: (r) => set({ token: r.token, user: r.user, permissions: r.permissions, isAuthenticated: true }),
+      setMe: (user, permissions) => set({ user, permissions }),
+      logout: () => set({ token: null, user: null, permissions: [], isAuthenticated: false }),
     }),
-    {
-      name: 'coffee-shop-auth',
-    },
+    { name: 'coffeeholic-auth' },
   ),
 )
