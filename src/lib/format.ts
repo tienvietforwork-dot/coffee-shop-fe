@@ -50,9 +50,10 @@ export const WORK_STATUS: Record<WorkStatus, Label> = {
 }
 export const TX_TYPE: Record<MaterialTransactionType, Label> = {
   IMPORT: L('Nhập', 'green'), EXPORT: L('Xuất', 'orange'), SALE: L('Bán', 'blue'), ADJUSTMENT: L('Điều chỉnh', 'purple'),
+  PRODUCTION_USE: L('Xuất chế biến', 'gold'), PRODUCE: L('Nhập chế biến', 'cyan'),
 }
 export const BATCH_STATUS: Record<BatchStatus, Label> = {
-  AVAILABLE: L('Còn hàng', 'green'), DEPLETED: L('Đã hết', 'default'), EXPIRED: L('Hết hạn', 'red'),
+  PREPARING: L('Đang chế biến', 'gold'), AVAILABLE: L('Còn hàng', 'green'), DEPLETED: L('Đã hết', 'default'), EXPIRED: L('Hết hạn', 'red'),
 }
 export const INCIDENT_TYPE: Record<IncidentType, string> = {
   WRONG_ITEM: 'Sai món', QUALITY: 'Chất lượng', LATE: 'Trễ đơn', SPILLED: 'Đổ / hư hỏng', MISSING_ITEM: 'Thiếu món', OTHER: 'Khác',
@@ -66,3 +67,17 @@ export const INCIDENT_STATUS: Record<IncidentStatus, Label> = {
 
 export const options = <K extends string>(m: Record<K, string | Label>) =>
   (Object.keys(m) as K[]).map((k) => ({ value: k, label: typeof m[k] === 'string' ? (m[k] as string) : (m[k] as Label).text }))
+
+export const BREW_METHOD = [{ value: 'PHIN', label: 'Phin' }, { value: 'MACHINE', label: 'Máy espresso' }, { value: 'COLD_BREW', label: 'Cold brew' }, { value: 'POUR_OVER', label: 'Pour over' }]
+
+const API_ORIGIN = String(import.meta.env.VITE_API_URL ?? '').replace(/\/api\/?$/, '')
+/** Uploaded images are stored as API-relative paths (/api/public/images/12); external links pass through. */
+export const imageSrc = (v?: string | null) => (v?.startsWith('/api/') ? API_ORIGIN + v : v || undefined)
+
+/** Minutes as "45 phút", "18 giờ", "7 ngày" (or "1 giờ 30 phút"). */
+export const duration = (min?: number | null) => {
+  if (min == null) return '—'
+  if (min % 1440 === 0) return `${min / 1440} ngày`
+  if (min % 60 === 0) return `${min / 60} giờ`
+  return min > 60 ? `${Math.floor(min / 60)} giờ ${min % 60} phút` : `${min} phút`
+}

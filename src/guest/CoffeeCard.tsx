@@ -1,18 +1,19 @@
 import { PlusOutlined } from '@ant-design/icons'
 import type { MenuCoffee } from '@/api/types'
-import { money } from '@/lib/format'
+import { imageSrc, money } from '@/lib/format'
 
 const FALLBACK = 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&q=80'
 
-export function CoffeeCard({ coffee, onPick }: { coffee: MenuCoffee; onPick: () => void }) {
+/** `soldOut` also covers stock already taken by the cart. */
+export function CoffeeCard({ coffee, soldOut = !coffee.available, onPick }: { coffee: MenuCoffee; soldOut?: boolean; onPick: () => void }) {
   const onSale = coffee.salePrice != null && coffee.salePrice < coffee.price
   const off = onSale ? Math.round((1 - coffee.salePrice! / coffee.price) * 100) : 0
   return (
-    <article className={`g-card ${coffee.available ? '' : 'is-out'}`} onClick={coffee.available ? onPick : undefined}>
+    <article className={`g-card ${soldOut ? 'is-out' : ''}`} onClick={soldOut ? undefined : onPick}>
       <div className="g-card-img">
-        <img src={coffee.imageUrl || FALLBACK} alt={coffee.name} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK }} />
+        <img src={imageSrc(coffee.imageUrl) || FALLBACK} alt={coffee.name} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK }} />
         {onSale && <span className="g-badge-sale">-{off}%</span>}
-        {!coffee.available && <span className="g-badge-out">Tạm hết</span>}
+        {soldOut && <span className="g-badge-out">Tạm hết</span>}
       </div>
       <div className="g-card-body">
         <h3>{coffee.name}</h3>
@@ -24,7 +25,7 @@ export function CoffeeCard({ coffee, onPick }: { coffee: MenuCoffee; onPick: () 
           </div>
           <button
             className="g-add"
-            disabled={!coffee.available}
+            disabled={soldOut}
             aria-label={`Thêm ${coffee.name}`}
             onClick={(e) => { e.stopPropagation(); onPick() }}
           >

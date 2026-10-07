@@ -8,12 +8,15 @@ import { money, date } from '@/lib/format'
 import { CoffeeCard } from './CoffeeCard'
 import { AddToCartModal } from './AddToCartModal'
 import { useGuestStore } from '@/store/guestStore'
+import { useAddableCups } from '@/lib/stock'
+import { useCart } from './useCart'
 
 export function MenuPage() {
   const { data: menu, isLoading } = useQuery({ queryKey: ['menu'], queryFn: publicApi.menu })
   const [search, setSearch] = useState('')
   const [active, setActive] = useState<number | null>(null)
   const [picked, setPicked] = useState<MenuCoffee | null>(null)
+  const addable = useAddableCups(useCart().lines)
   const tableNo = useGuestStore((s) => s.tableNo)
   const sectionRefs = useRef<Record<number, HTMLElement | null>>({})
 
@@ -94,7 +97,7 @@ export function MenuPage() {
             </div>
             <div className="g-grid">
               {c.coffees.map((coffee) => (
-                <CoffeeCard key={coffee.id} coffee={coffee} onPick={() => setPicked(coffee)} />
+                <CoffeeCard key={coffee.id} coffee={coffee} soldOut={!coffee.available || addable(coffee.id) < 1} onPick={() => setPicked(coffee)} />
               ))}
             </div>
           </section>

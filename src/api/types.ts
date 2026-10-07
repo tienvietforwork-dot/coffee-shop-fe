@@ -11,8 +11,9 @@ export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'E_WALLET' | 'CARD'
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
 export type ShipmentStatus = 'PENDING' | 'BOOKED' | 'DRIVER_ACCEPTED' | 'DELIVERING' | 'DELIVERED' | 'FAILED'
 export type MaterialStatus = 'ACTIVE' | 'INACTIVE'
-export type BatchStatus = 'AVAILABLE' | 'DEPLETED' | 'EXPIRED'
-export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT'
+export type BatchStatus = 'PREPARING' | 'AVAILABLE' | 'DEPLETED' | 'EXPIRED'
+export type MaterialKind = 'RAW' | 'PREPARED'
+export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCE'
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'INACTIVE'
 export type WorkStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED'
 export type IncidentType = 'WRONG_ITEM' | 'QUALITY' | 'LATE' | 'SPILLED' | 'MISSING_ITEM' | 'OTHER'
@@ -105,11 +106,27 @@ export interface Coffee {
   categoryId: number
   categoryName: string
   name: string
+  /** uploaded photo (images.id); imageUrl is then its /api/public/images/… path */
+  imageId?: number
   imageUrl?: string
   price: number
   description?: string
   status: CoffeeStatus
+  /** SOLD_OUT set by stock, reopens by itself when stock is back */
+  autoSoldOut?: boolean
   hasRecipe: boolean
+  /** cups the stock allows (null = not limited) */
+  servings?: number | null
+  stock?: StockLine[]
+}
+
+export interface StockLine {
+  materialId: number
+  materialName: string
+  unit: string
+  stock: number
+  perCup: number
+  cups: number
 }
 
 export interface MenuCoffee {
@@ -121,6 +138,10 @@ export interface MenuCoffee {
   salePrice?: number
   promotionName?: string
   available: boolean
+  /** cups the stock allows (null = not limited) */
+  servings?: number | null
+  /** material id → quantity per cup of the active recipe */
+  perCup?: Record<string, number>
 }
 
 export interface Menu {
@@ -133,6 +154,8 @@ export interface Menu {
     minOrderAmount?: number
     endDate: string
   }[]
+  /** material id → current stock, for every material used by an active recipe */
+  stock?: Record<string, number>
 }
 
 export interface Recipe {
@@ -146,6 +169,8 @@ export interface Recipe {
   active: boolean
   materials: { materialId: number; materialName: string; unit: string; quantity: number; note?: string }[]
   steps: { stepNo: number; instruction: string }[]
+  updatedAt?: string
+  updatedBy?: string
 }
 
 export interface Material {
@@ -156,6 +181,18 @@ export interface Material {
   minStock: number
   status: MaterialStatus
   lowStock: boolean
+  kind: MaterialKind
+  /** PREPARED: one batch of the formula yields this much */
+  yieldQuantity?: number
+  /** minutes */
+  prepMinutes?: number
+  /** minutes after the lot is finished */
+  shelfLifeMinutes?: number
+  components?: { componentId: number; name: string; unit: string; quantity: number }[]
+  /** how to make one standard batch */
+  instructions?: string
+  /** coffees (per cup) and prepared materials (per standard batch) that use this material */
+  usedIn?: { kind: 'COFFEE' | 'PREPARED'; id: number; name: string; quantity: number }[]
 }
 
 export interface Batch {
@@ -168,6 +205,13 @@ export interface Batch {
   unitCost?: number
   expiryDate?: string
   status: BatchStatus
+  createdAt?: string
+  /** PREPARING: expected ready time; finished: when it was finished */
+  readyAt?: string
+  /** prepared lot: exact expiry */
+  expiresAt?: string
+  /** prepared-material batch: the raw batches it was made from */
+  inputs?: { batchId: number; materialName: string; unit: string; quantity: number }[]
 }
 
 export interface MaterialTransaction {
@@ -178,6 +222,8 @@ export interface MaterialTransaction {
   unit: string
   staffName?: string
   orderItemId?: number
+  /** PRODUCTION_USE: the prepared-material batch it went into */
+  producedBatchId?: number
   type: MaterialTransactionType
   quantity: number
   note?: string

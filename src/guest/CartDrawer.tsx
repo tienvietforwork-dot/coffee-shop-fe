@@ -2,11 +2,13 @@ import { Drawer, Empty } from 'antd'
 import { DeleteOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from './useCart'
-import { money } from '@/lib/format'
+import { useAddableCups } from '@/lib/stock'
+import { imageSrc, money } from '@/lib/format'
 import { useGuestStore } from '@/store/guestStore'
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { cart, update, remove } = useCart()
+  const { cart, lines, update, remove } = useCart()
+  const addable = useAddableCups(lines)
   const tableNo = useGuestStore((s) => s.tableNo)
   const navigate = useNavigate()
   const items = cart?.items ?? []
@@ -41,7 +43,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         <ul className="g-cart-list">
           {items.map((i) => (
             <li key={i.id} className={i.available ? '' : 'is-out'}>
-              {i.imageUrl && <img src={i.imageUrl} alt="" />}
+              {i.imageUrl && <img src={imageSrc(i.imageUrl)} alt="" />}
               <div className="g-cart-info">
                 <strong>{i.coffeeName}</strong>
                 {i.note && <span className="g-muted small">{i.note}</span>}
@@ -55,7 +57,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                       <MinusOutlined />
                     </button>
                     <span>{i.quantity}</span>
-                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} aria-label="Tăng">
+                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} disabled={addable(i.coffeeId) < 1} aria-label="Tăng">
                       <PlusOutlined />
                     </button>
                   </div>

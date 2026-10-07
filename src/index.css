@@ -255,6 +255,21 @@ img { max-width: 100%; }
 .a-steps { margin: 8px 0 0; padding-left: 20px; }
 .a-perm-group { margin: 6px 0 8px; font-weight: 700; color: var(--caramel); text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; }
 .a-recipe-mats { display: flex; flex-wrap: wrap; gap: 6px; }
+.a-step-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; padding: 2px; border-radius: 10px; position: relative; }
+.a-step-row.is-placeholder { background: #f6eee5; outline: 2px dashed #c9a27e; outline-offset: -2px; }
+.a-step-row.is-placeholder > * { visibility: hidden; }
+.a-step-handle { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 32px; border-radius: 6px; color: #a08b78; cursor: grab; touch-action: none; transition: background 0.15s, color 0.15s; }
+.a-step-handle:hover { background: #f1e8de; color: var(--caramel); }
+.a-step-overlay { align-items: center; background: #fff; box-shadow: 0 12px 28px -10px rgba(60, 35, 20, 0.45), 0 0 0 1px #e6d9cb; cursor: grabbing; padding: 6px 12px 6px 2px; }
+.a-step-overlay .a-step-handle { cursor: grabbing; color: var(--caramel); }
+.a-step-overlay .a-step-no { padding-top: 0; }
+.a-step-overlay-text { flex: 1; white-space: pre-wrap; }
+.a-step-no { min-width: 22px; padding-top: 5px; }
+.a-step-row textarea { resize: none; overflow: hidden; }
+.a-print-recipes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+.a-print-preview { background: #e9e3dc; border-radius: 10px; height: 470px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.a-print-preview iframe { width: 100%; height: 100%; border: 0; }
+@media (max-width: 760px) { .a-print-recipes { grid-template-columns: 1fr; } }
 
 .a-board { display: grid; grid-template-columns: repeat(5, minmax(240px, 1fr)); gap: 14px; overflow-x: auto; padding-bottom: 8px; }
 .a-col { background: #efe8df; border-radius: 14px; padding: 10px; min-height: 60vh; }
@@ -308,3 +323,29 @@ img { max-width: 100%; }
   .a-qr-print, .a-qr-print * { visibility: visible; }
   .a-qr-print { position: fixed; inset: 0; }
 }
+
+.a-image-box { width: 100%; aspect-ratio: 1; border-radius: 14px; overflow: hidden; position: relative; }
+.a-image-upload .ant-upload-wrapper .ant-upload-drag.a-image-box { height: auto; background: #faf6f1; }
+.a-image-upload .ant-upload-drag.a-image-box .ant-upload-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 12px; }
+.a-image-box-icon { font-size: 30px; color: var(--caramel); margin-bottom: 8px; }
+.a-image-box-text { font-weight: 600; font-size: 13px; line-height: 1.3; }
+.a-image-box-hint { color: #9a8573; font-size: 11.5px; margin-top: 6px; line-height: 1.45; }
+.a-image-box.has-image { border: 1px solid #ece4da; }
+.a-image-box.has-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.a-image-box-overlay { position: absolute; inset: auto 0 0 0; display: flex; gap: 6px; justify-content: center; padding: 10px; background: linear-gradient(transparent, rgba(30, 18, 10, 0.55)); opacity: 0; transition: opacity 0.15s; }
+.a-image-box.has-image:hover .a-image-box-overlay { opacity: 1; }
+.a-coffee-form { display: grid; grid-template-columns: 200px 1fr; gap: 0 20px; }
+@media (max-width: 640px) { .a-coffee-form { grid-template-columns: 1fr; } }
+.g-stock-hint { color: #b45309; font-size: 13px; margin: 10px 0 0; font-weight: 600; }
+.a-servings-cell { cursor: pointer; display: inline-block; }
+.a-servings { width: 440px; max-width: 80vw; }
+.a-servings-formula { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: #f6efe7; border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
+.a-servings .is-limit td { background: #fff3e0 !important; font-weight: 600; }
+.a-limit { color: #b45309; font-weight: 700; }
+.a-produce-guide-title { font-weight: 600; margin: 10px 0 2px; }
+.a-produce-guide { white-space: pre-wrap; font-size: 13px; }
+.a-warn-text { color: #b45309; font-size: 12px; margin-top: 4px; }
+.a-prepared-expanded { display: grid; grid-template-columns: minmax(240px, 1fr) 1.4fr; gap: 20px; padding: 4px 8px; }
+@media (max-width: 900px) { .a-prepared-expanded { grid-template-columns: 1fr; } }
+.a-used-in { display: flex; flex-wrap: wrap; gap: 4px; } .a-used-in .ant-tag { margin: 0; }
+.a-produce-amount { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 12px; } .a-produce-amount > .a-muted { flex-basis: 100%; }

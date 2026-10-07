@@ -6,7 +6,8 @@ import { coreApi } from '@/api/core'
 import { publicApi } from '@/api/public'
 import { errorMessage } from '@/api/client'
 import type { OrderType, PaymentMethod } from '@/api/types'
-import { PAYMENT_METHOD, money, options } from '@/lib/format'
+import { PAYMENT_METHOD, imageSrc, money, options } from '@/lib/format'
+import { useAddableCups } from '@/lib/stock'
 import { PageHeader } from '../components/PageHeader'
 
 interface Line { key: string; coffeeId: number; name: string; price: number; quantity: number; note?: string }
@@ -61,6 +62,7 @@ export function PosPage() {
       const ex = ls.find((l) => l.coffeeId === id && !l.note)
       return ex ? ls.map((l) => (l === ex ? { ...l, quantity: l.quantity + 1 } : l)) : [...ls, { key: `${id}-${Date.now()}`, coffeeId: id, name, price, quantity: 1 }]
     })
+  const addable = useAddableCups(lines)
   const patch = (key: string, p: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...p } : l)))
 
   const submit = () => form.validateFields().then((v) => create.mutate({
@@ -84,11 +86,11 @@ export function PosPage() {
             </Space>
             <div className="a-pos-grid">
               {coffees.map((c) => (
-                <button key={c.id} className="a-pos-item" disabled={!c.available} onClick={() => add(c.id, c.name, c.salePrice ?? c.price)}>
-                  {c.imageUrl && <img src={c.imageUrl} alt="" />}
+                <button key={c.id} className="a-pos-item" disabled={!c.available || addable(c.id) < 1} onClick={() => add(c.id, c.name, c.salePrice ?? c.price)}>
+                  {c.imageUrl && <img src={imageSrc(c.imageUrl)} alt="" />}
                   <b>{c.name}</b>
                   <span>{money(c.salePrice ?? c.price)}{c.salePrice != null && <s> {money(c.price)}</s>}</span>
-                  {!c.available && <Tag>Hết</Tag>}
+                  {!c.available || addable(c.id) < 1 ? <Tag>Hết</Tag> : addable(c.id) < 10 && <Tag color="orange">Còn {addable(c.id)} ly</Tag>}
                 </button>
               ))}
             </div>
@@ -101,7 +103,7 @@ export function PosPage() {
                 <div className="a-pos-line-top">
                   <b>{l.name}</b>
                   <Space>
-                    <InputNumber min={1} max={99} size="small" value={l.quantity} onChange={(v) => v && patch(l.key, { quantity: v })} />
+                    <InputNumber min={1} max={Math.min(99, l.quantity + addable(l.coffeeId))} size="small" value={l.quantity} onChange={(v) => v && patch(l.key, { quantity: v })} />
                     <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} />
                   </Space>
                 </div>

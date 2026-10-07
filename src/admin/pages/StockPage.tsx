@@ -12,7 +12,10 @@ import { StatusTag } from '../components/StatusTag'
 
 type Mode = 'import' | 'export' | 'adjust'
 
-/** Phiếu nhập / xuất / kiểm kê (BPMN-03). Xuất tự chọn lô hạn dùng gần nhất (FEFO). Người thực hiện = tài khoản đăng nhập. */
+/**
+ * Phiếu nhập / xuất / kiểm kê (BPMN-03). Xuất tự chọn lô hạn dùng gần nhất (FEFO). Người thực hiện = tài khoản đăng nhập.
+ * Bán thành phẩm không nhập mua: chế biến ở Nguyên liệu & lô › Bán thành phẩm.
+ */
 export function StockPage() {
   const { can } = usePerm()
   const [mode, setMode] = useState<Mode>('import')
@@ -21,7 +24,7 @@ export function StockPage() {
   const materialId = Form.useWatch('materialId', form) as number | undefined
   const { data: batches = [] } = useQuery({ queryKey: ['batches', materialId], queryFn: () => coreApi.batches(materialId!), enabled: !!materialId })
   const material = materials.find((m) => m.id === materialId)
-  const keys = [['materials'], ['batches', materialId], ['alerts'], ['transactions']]
+  const keys = [['materials'], ['batches', materialId], ['alerts'], ['transactions'], ['coffees'], ['menu']]
   const imp = useAction(coreApi.importStock, keys, 'Đã nhập kho')
   const exp = useAction(coreApi.exportStock, keys, 'Đã xuất kho')
   const adj = useAction(coreApi.adjustStock, keys, 'Đã điều chỉnh tồn kho')
@@ -39,15 +42,18 @@ export function StockPage() {
       <Row gutter={16}>
         <Col xs={24} lg={11}>
           <Card>
-            <Segmented block value={mode} onChange={(v) => setMode(v as Mode)} style={{ marginBottom: 16 }}
+            <Segmented block value={mode} onChange={(v) => { setMode(v as Mode); form.resetFields() }} style={{ marginBottom: 16 }}
               options={[
                 { value: 'import', label: 'Phiếu nhập' },
                 { value: 'export', label: 'Phiếu xuất' },
                 ...(can(P.MATERIALS_EDIT) ? [{ value: 'adjust', label: 'Kiểm kê' }] : []),
               ]} />
             <Form form={form} layout="vertical" onFinish={submit}>
-              <Form.Item name="materialId" label="Nguyên liệu" rules={[{ required: true }]}>
-                <Select showSearch optionFilterProp="label" options={materials.filter((m) => m.status === 'ACTIVE').map((m) => ({ value: m.id, label: `${m.name} — tồn ${num(m.stockQuantity)} ${m.unit}` }))} />
+              <Form.Item name="materialId" label="Nguyên liệu" rules={[{ required: true }]}
+                extra={mode === 'import' ? 'Bán thành phẩm chế biến ở Nguyên liệu & lô › Bán thành phẩm' : undefined}>
+                <Select showSearch optionFilterProp="label"
+                  options={materials.filter((m) => m.status === 'ACTIVE' && (mode !== 'import' || m.kind === 'RAW'))
+                    .map((m) => ({ value: m.id, label: `${m.name} — tồn ${num(m.stockQuantity)} ${m.unit}` }))} />
               </Form.Item>
               {mode !== 'adjust' && (
                 <Form.Item name="quantity" label={`Số lượng${material ? ` (${material.unit})` : ''}`} rules={[{ required: true }]}>
@@ -65,7 +71,7 @@ export function StockPage() {
               {mode === 'adjust' && (
                 <div className="a-grid-2">
                   <Form.Item name="batchId" label="Lô" rules={[{ required: true }]}>
-                    <Select options={batches.filter((b) => b.status !== 'EXPIRED').map((b) => ({ value: b.id, label: `#${b.id} · còn ${num(b.remainingQuantity)} · HSD ${date(b.expiryDate)}` }))} />
+                    <Select options={batches.filter((b) => b.status === 'AVAILABLE' || b.status === 'DEPLETED').map((b) => ({ value: b.id, label: `#${b.id} · còn ${num(b.remainingQuantity)} · HSD ${date(b.expiryDate)}` }))} />
                   </Form.Item>
                   <Form.Item name="actualQuantity" label="Số lượng thực tế" rules={[{ required: true }]}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
                 </div>

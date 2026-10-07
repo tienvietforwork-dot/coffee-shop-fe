@@ -1,7 +1,7 @@
 import apiClient from './client'
 import type {
   Batch, Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
-  IncidentSeverity, IncidentType, InventoryAlerts, Material, MaterialStatus, MaterialTransaction,
+  IncidentSeverity, IncidentType, InventoryAlerts, Material, MaterialKind, MaterialStatus, MaterialTransaction,
   Order, OrderChannel, OrderStatus, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
   Staff, TableStatus, User, WorkStatus,
 } from './types'
@@ -14,14 +14,19 @@ const del = (url: string) => apiClient.delete(url).then(() => undefined)
 
 export interface CategoryPayload { name: string; description?: string; displayOrder?: number }
 export interface CoffeePayload {
-  categoryId: number; name: string; imageUrl?: string; price: number; description?: string; status?: CoffeeStatus
+  categoryId: number; name: string; imageId?: number; imageUrl?: string; price: number; description?: string; status?: CoffeeStatus
 }
 export interface RecipePayload {
   brewMethod?: string; description?: string; brewTimeMin?: number; activate?: boolean
   materials: { materialId: number; quantity: number; note?: string }[]
   steps: string[]
 }
-export interface MaterialPayload { name: string; unit: string; minStock?: number; status?: MaterialStatus }
+export interface MaterialPayload {
+  name: string; unit: string; minStock?: number; status?: MaterialStatus; kind?: MaterialKind
+  yieldQuantity?: number; prepMinutes?: number; shelfLifeMinutes?: number
+  components?: { componentId: number; quantity: number }[]
+  instructions?: string
+}
 export interface StaffPayload {
   fullName: string; position?: string; phone: string; email?: string; hireDate?: string
   workStatus?: WorkStatus
@@ -45,6 +50,12 @@ export interface CounterOrderPayload {
 }
 
 export const coreApi = {
+  // multipart header stops the instance's JSON default from serialising the FormData; the browser adds the boundary
+  uploadImage: (file: Blob) => {
+    const body = new FormData()
+    body.append('file', file, 'image')
+    return apiClient.post<{ id: number; url: string }>('/images', body, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data)
+  },
   dashboard: () => get<Dashboard>('/dashboard'),
 
   categories: () => get<Category[]>('/categories'),
@@ -56,6 +67,7 @@ export const coreApi = {
   createCoffee: (b: CoffeePayload) => post<Coffee>('/coffees', b),
   updateCoffee: (id: number, b: CoffeePayload) => put<Coffee>(`/coffees/${id}`, b),
   setCoffeeStatus: (id: number, status: CoffeeStatus) => patch<Coffee>(`/coffees/${id}/status`, { status }),
+  activeRecipes: () => get<Recipe[]>('/recipes'),
   recipes: (coffeeId: number) => get<Recipe[]>(`/coffees/${coffeeId}/recipes`),
   createRecipe: (coffeeId: number, b: RecipePayload) => post<Recipe>(`/coffees/${coffeeId}/recipes`, b),
   updateRecipe: (id: number, b: RecipePayload) => put<Recipe>(`/recipes/${id}`, b),
@@ -75,6 +87,9 @@ export const coreApi = {
     post<MaterialTransaction[]>('/inventory/export', b),
   adjustStock: (b: { batchId: number; actualQuantity: number; note?: string }) =>
     post<MaterialTransaction>('/inventory/adjust', b),
+  produce: (b: { materialId: number; batches: number; note?: string }) => post<Batch>('/inventory/produce', b),
+  finishBatch: (id: number, b: { actualQuantity: number; expiresAt?: string; note?: string }) => post<Batch>(`/inventory/batches/${id}/finish`, b),
+  discardBatch: (id: number, note?: string) => post<Batch>(`/inventory/batches/${id}/discard`, { note }),
 
   staff: () => get<Staff[]>('/staff'),
   createStaff: (b: StaffPayload) => post<Staff>('/staff', b),

@@ -5,7 +5,7 @@ import { App } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { usePerm } from '@/lib/perm'
-import type { Material, Order } from '@/api/types'
+import type { CoffeeStatus, Material, Order } from '@/api/types'
 
 const RealtimeContext = createContext({ connected: false })
 export const useRealtime = () => useContext(RealtimeContext)
@@ -52,6 +52,16 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           })
           qc.invalidateQueries({ queryKey: ['materials'] })
           qc.invalidateQueries({ queryKey: ['alerts'] })
+        })
+        client.subscribe('/topic/menu', (m) => {
+          const changes = JSON.parse(m.body) as { coffeeId: number; name: string; status: CoffeeStatus }[]
+          changes.forEach((c) => notification.info({
+            message: c.status === 'SOLD_OUT' ? `${c.name}: tự chuyển Hết món` : `${c.name}: bán lại`,
+            description: c.status === 'SOLD_OUT' ? 'Không đủ nguyên liệu để pha thêm ly nào' : 'Kho đã đủ nguyên liệu',
+            placement: 'bottomRight',
+          }))
+          qc.invalidateQueries({ queryKey: ['coffees'] })
+          qc.invalidateQueries({ queryKey: ['menu'] })
         })
       },
       onWebSocketClose: () => setConnected(false),

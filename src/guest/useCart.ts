@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App } from 'antd'
 import { publicApi } from '@/api/public'
@@ -59,5 +60,6 @@ export function useCart() {
 
   const cart = cartCode ? query.data ?? null : null
   const count = cart?.items.reduce((n, i) => n + i.quantity, 0) ?? 0
-  return { cart, count, loading: query.isLoading, add, update, remove }
+  const lines = useMemo(() => cart?.items.map((i) => ({ coffeeId: i.coffeeId, quantity: i.quantity })) ?? [], [cart])
+  return { cart, count, lines, loading: query.isLoading, add, update, remove }
 }
