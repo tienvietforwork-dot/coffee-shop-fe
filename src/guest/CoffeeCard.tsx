@@ -4,8 +4,10 @@ import { imageSrc, money } from '@/lib/format'
 
 const FALLBACK = 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&q=80'
 
-/** `soldOut` also covers stock already taken by the cart. */
-export function CoffeeCard({ coffee, soldOut = !coffee.available, onPick }: { coffee: MenuCoffee; soldOut?: boolean; onPick: () => void }) {
+/** `soldOut` also covers stock already taken by the cart; the "+" adds one cup straight away (onQuickAdd). */
+export function CoffeeCard({ coffee, soldOut = !coffee.available, onPick, onQuickAdd }: {
+  coffee: MenuCoffee; soldOut?: boolean; onPick: () => void; onQuickAdd?: (photo: HTMLImageElement | null) => void
+}) {
   const onSale = coffee.salePrice != null && coffee.salePrice < coffee.price
   const off = onSale ? Math.round((1 - coffee.salePrice! / coffee.price) * 100) : 0
   return (
@@ -27,7 +29,11 @@ export function CoffeeCard({ coffee, soldOut = !coffee.available, onPick }: { co
             className="g-add"
             disabled={soldOut}
             aria-label={`Thêm ${coffee.name}`}
-            onClick={(e) => { e.stopPropagation(); onPick() }}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (onQuickAdd) onQuickAdd(e.currentTarget.closest('.g-card')?.querySelector('img') ?? null)
+              else onPick()
+            }}
           >
             <PlusOutlined />
           </button>

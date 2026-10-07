@@ -9,6 +9,7 @@ import { errorMessage } from '@/api/client'
 import type { OrderType, PaymentMethod } from '@/api/types'
 import { money } from '@/lib/format'
 import { useCart } from './useCart'
+import { VoucherPicker } from './VoucherPicker'
 import { useGuestStore } from '@/store/guestStore'
 import { useAuthStore } from '@/store/authStore'
 
@@ -29,8 +30,9 @@ export function CheckoutPage() {
   const [form] = Form.useForm()
 
   const [orderType, setOrderType] = useState<OrderType>(store.tableQr ? 'DINE_IN' : 'TAKE_AWAY')
-  const [voucher, setVoucher] = useState('')
-  const [appliedVoucher, setAppliedVoucher] = useState<string | undefined>()
+  // the voucher picked in the cart (or here) is remembered with the cart
+  const appliedVoucher = store.voucherCode ?? undefined
+  const setAppliedVoucher = (code?: string) => store.setVoucher(code ?? null)
   const phone = Form.useWatch('customerPhone', form) as string | undefined
 
   const quote = useQuery({
@@ -49,6 +51,7 @@ export function CheckoutPage() {
     onSuccess: (order) => {
       store.addOrder(order.orderCode)
       store.setCart(null)
+      store.setVoucher(null)
       navigate(`/order/${order.orderCode}`, { replace: true })
     },
     onError: (e) => message.error(errorMessage(e)),
@@ -180,7 +183,7 @@ export function CheckoutPage() {
           <ul className="g-sum-lines">
             {(q?.lines ?? cart.items.map((i) => ({ ...i, lineTotal: i.subtotal, listPrice: i.unitPrice, promotionName: undefined }))).map((l, idx) => (
               <li key={idx}>
-                <span><b>{l.quantity}×</b> {l.coffeeName}{l.note && <small>{l.note}</small>}</span>
+                <span><b>{l.quantity}×</b> {l.coffeeName}</span>
                 <span>
                   {l.unitPrice < l.listPrice && <s>{money(l.listPrice * l.quantity)}</s>}
                   {money(l.lineTotal)}
@@ -189,17 +192,8 @@ export function CheckoutPage() {
             ))}
           </ul>
 
-          <div className="g-voucher">
-            <Input
-              placeholder="Mã voucher"
-              value={voucher}
-              onChange={(e) => setVoucher(e.target.value.toUpperCase())}
-              onPressEnter={() => setAppliedVoucher(voucher || undefined)}
-            />
-            <button type="button" className="g-btn-ghost" onClick={() => setAppliedVoucher(voucher || undefined)}>
-              Áp dụng
-            </button>
-          </div>
+          <VoucherPicker subtotal={q?.subtotal ?? cart.subtotal} applied={appliedVoucher} promotionName={q?.promotionName}
+            voucherDiscount={q?.voucherDiscount} onApply={setAppliedVoucher} />
           {q?.voucherMessage && <Alert type="warning" showIcon message={q.voucherMessage} />}
 
           <div className="g-totals">

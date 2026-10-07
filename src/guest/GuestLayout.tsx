@@ -77,7 +77,7 @@ export function GuestLayout() {
               </Button>
             )}
             <Badge count={count} size="small" offset={[-4, 4]}>
-              <Button type="primary" shape="round" icon={<ShoppingOutlined />} onClick={() => setCartOpen(true)}>
+              <Button data-cart-target type="primary" shape="round" icon={<ShoppingOutlined />} onClick={() => setCartOpen(true)}>
                 <span className="g-hide-sm">Giỏ hàng</span>
               </Button>
             </Badge>
@@ -90,7 +90,7 @@ export function GuestLayout() {
       </main>
 
       {count > 0 && (
-        <button className="g-fab" onClick={() => setCartOpen(true)}>
+        <button data-cart-target className="g-fab" onClick={() => setCartOpen(true)}>
           <ShoppingOutlined /> {count} món · Xem giỏ
         </button>
       )}

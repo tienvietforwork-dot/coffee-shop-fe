@@ -77,7 +77,7 @@ export function OrderTrackingPage() {
         <ul className="g-sum-lines">
           {order.items.map((i) => (
             <li key={i.id}>
-              <span><b>{i.quantity}×</b> {i.coffeeName}{i.note && <small>{i.note}</small>}</span>
+              <span><b>{i.quantity}×</b> {i.coffeeName}</span>
               <span>{money(i.lineTotal)}</span>
             </li>
           ))}

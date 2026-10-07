@@ -9,6 +9,8 @@ interface GuestState {
   tableNo: string | null
   /** Orders placed from this browser, newest first – for "Đơn của tôi". */
   orders: { code: string; at: string }[]
+  /** Voucher picked in the cart, carried to checkout. */
+  voucherCode: string | null
   /** Last contact details, pre-filled at checkout. */
   name: string
   phone: string
@@ -16,6 +18,7 @@ interface GuestState {
   setTable: (qr: string | null, no: string | null) => void
   addOrder: (code: string) => void
   setContact: (name: string, phone: string) => void
+  setVoucher: (code: string | null) => void
 }
 
 export const useGuestStore = create<GuestState>()(
@@ -25,6 +28,7 @@ export const useGuestStore = create<GuestState>()(
       tableQr: null,
       tableNo: null,
       orders: [],
+      voucherCode: null,
       name: '',
       phone: '',
       setCart: (cartCode) => set({ cartCode }),
@@ -32,6 +36,7 @@ export const useGuestStore = create<GuestState>()(
       addOrder: (code) =>
         set((s) => ({ orders: [{ code, at: new Date().toISOString() }, ...s.orders.filter((o) => o.code !== code)].slice(0, 20) })),
       setContact: (name, phone) => set({ name, phone }),
+      setVoucher: (voucherCode) => set({ voucherCode }),
     }),
     { name: 'coffeeholic-guest' },
   ),

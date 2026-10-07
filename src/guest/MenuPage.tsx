@@ -10,13 +10,19 @@ import { AddToCartModal } from './AddToCartModal'
 import { useGuestStore } from '@/store/guestStore'
 import { useAddableCups } from '@/lib/stock'
 import { useCart } from './useCart'
+import { flyToCart } from '@/lib/flyToCart'
 
 export function MenuPage() {
   const { data: menu, isLoading } = useQuery({ queryKey: ['menu'], queryFn: publicApi.menu })
   const [search, setSearch] = useState('')
   const [active, setActive] = useState<number | null>(null)
   const [picked, setPicked] = useState<MenuCoffee | null>(null)
-  const addable = useAddableCups(useCart().lines)
+  const { lines, add } = useCart()
+  const addable = useAddableCups(lines)
+  const quickAdd = (coffee: MenuCoffee, photo: HTMLImageElement | null) => {
+    flyToCart(photo, photo?.currentSrc)
+    add.mutate({ coffeeId: coffee.id, quantity: 1 })
+  }
   const tableNo = useGuestStore((s) => s.tableNo)
   const sectionRefs = useRef<Record<number, HTMLElement | null>>({})
 
@@ -39,7 +45,7 @@ export function MenuPage() {
           <div className="g-hero-text">
             <span className="g-eyebrow">{tableNo ? `Bạn đang ngồi bàn ${tableNo}` : 'Rang mộc · Pha tay · Mỗi ngày'}</span>
             <h1>Một ly cà phê<br /><em>đúng gu</em> của bạn.</h1>
-            <p>Chọn món, ghi chú theo khẩu vị và đặt ngay — uống tại bàn, mang đi hay giao tận nơi.</p>
+            <p>Chọn món và đặt ngay — uống tại bàn, mang đi hay giao tận nơi.</p>
             <button className="g-cta" onClick={() => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })}>
               Xem thực đơn
             </button>
@@ -97,7 +103,8 @@ export function MenuPage() {
             </div>
             <div className="g-grid">
               {c.coffees.map((coffee) => (
-                <CoffeeCard key={coffee.id} coffee={coffee} soldOut={!coffee.available || addable(coffee.id) < 1} onPick={() => setPicked(coffee)} />
+                <CoffeeCard key={coffee.id} coffee={coffee} soldOut={!coffee.available || addable(coffee.id) < 1}
+                  onPick={() => setPicked(coffee)} onQuickAdd={(photo) => quickAdd(coffee, photo)} />
               ))}
             </div>
           </section>

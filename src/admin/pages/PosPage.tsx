@@ -10,9 +10,9 @@ import { PAYMENT_METHOD, imageSrc, money, options } from '@/lib/format'
 import { useAddableCups } from '@/lib/stock'
 import { PageHeader } from '../components/PageHeader'
 
-interface Line { key: string; coffeeId: number; name: string; price: number; quantity: number; note?: string }
+interface Line { key: string; coffeeId: number; name: string; price: number; quantity: number }
 
-/** Order tại quầy (BPMN-01, nhánh "Tại quầy"): nhập món, ghi chú, thu tiền. */
+/** Order tại quầy (BPMN-01, nhánh "Tại quầy"): nhập món, thu tiền. */
 export function PosPage() {
   const { message, modal } = App.useApp()
   const qc = useQueryClient()
@@ -34,7 +34,7 @@ export function PosPage() {
     .flatMap((c) => c.coffees)
     .filter((c) => !search || c.name.toLowerCase().includes(search.toLowerCase())), [menu, cat, search])
 
-  const items = lines.map((l) => ({ coffeeId: l.coffeeId, quantity: l.quantity, note: l.note }))
+  const items = lines.map((l) => ({ coffeeId: l.coffeeId, quantity: l.quantity }))
   const quote = useQuery({
     queryKey: ['pos-quote', items, orderType, voucher, phone],
     queryFn: () => coreApi.quote({ items, orderType, voucherCode: voucher || undefined, customerPhone: phone || undefined }),
@@ -59,7 +59,7 @@ export function PosPage() {
 
   const add = (id: number, name: string, price: number) =>
     setLines((ls) => {
-      const ex = ls.find((l) => l.coffeeId === id && !l.note)
+      const ex = ls.find((l) => l.coffeeId === id)
       return ex ? ls.map((l) => (l === ex ? { ...l, quantity: l.quantity + 1 } : l)) : [...ls, { key: `${id}-${Date.now()}`, coffeeId: id, name, price, quantity: 1 }]
     })
   const addable = useAddableCups(lines)
@@ -107,7 +107,6 @@ export function PosPage() {
                     <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} />
                   </Space>
                 </div>
-                <Input size="small" placeholder="Ghi chú (ít đá, ít đường…)" value={l.note} onChange={(e) => patch(l.key, { note: e.target.value })} />
               </div>
             ))}
 
