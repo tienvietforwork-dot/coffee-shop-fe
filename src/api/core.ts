@@ -22,7 +22,7 @@ export interface RecipePayload {
   steps: string[]
 }
 export interface MaterialPayload {
-  name: string; unit: string; minStock?: number; status?: MaterialStatus; kind?: MaterialKind
+  name: string; unit: string; minStock?: number; expiryWarningDays?: number; status?: MaterialStatus; kind?: MaterialKind
   yieldQuantity?: number; shelfLifeMinutes?: number
   components?: { componentId: number; quantity: number }[]
   instructions?: string

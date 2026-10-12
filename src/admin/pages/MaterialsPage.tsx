@@ -1,27 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Button, Drawer, Form, Input, InputNumber, Select, Space, Table, Tabs, Tag } from 'antd'
-import { MinusCircleOutlined, PlusOutlined, WarningOutlined } from '@ant-design/icons'
+import { Button, Drawer, Empty, Form, Input, InputNumber, Segmented, Select, Space, Table, Tabs, Tag } from 'antd'
+import { MinusCircleOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { coreApi, type MaterialPayload } from '@/api/core'
 import type { Batch, Material, MaterialKind } from '@/api/types'
-import { BATCH_STATUS, date, dateTime, money, num } from '@/lib/format'
+import { BATCH_STATUS, date, dateTime, duration, money, num } from '@/lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { StatusTag } from '../components/StatusTag'
 import { useAction } from '../components/useCrud'
 import { DurationInput } from '../components/DurationInput'
 import { UsedInCell } from '../components/UsedInCell'
 import { P, usePerm } from '@/lib/perm'
-import { PreparedMaterialsTab } from './PreparedMaterialsTab'
+import { ProduceModal } from './ProduceModal'
 
 const UNITS = ['g', 'kg', 'ml', 'l', 'quả', 'gói', 'hộp', 'chai']
+
+/** needs attention: below min stock, or its next lot is inside the expiry warning window */
+const warn = (m: Material) => m.lowStock || !!m.expiringSoon
 
 export function MaterialsPage() {
   const { can } = usePerm()
   const isAdmin = can(P.MATERIALS_EDIT)
+  const canProduce = can(P.STOCK)
   const { data = [], isLoading } = useQuery({ queryKey: ['materials'], queryFn: coreApi.materials })
-  const { data: alerts } = useQuery({ queryKey: ['alerts'], queryFn: coreApi.alerts })
   const [tab, setTab] = useState<MaterialKind>('RAW')
+  // quick filters on the loaded list: name search + only the ones needing attention
+  const [search, setSearch] = useState('')
+  const [onlyWarn, setOnlyWarn] = useState(false)
+  const ofTab = data.filter((m) => m.kind === tab)
+  const q = search.trim().toLowerCase()
+  const rows = ofTab.filter((m) => (!q || m.name.toLowerCase().includes(q)) && (!onlyWarn || warn(m)))
+  const [producing, setProducing] = useState<Material | null>(null)
+
   // "Xem chi tiết": the material's info (editable with MATERIALS_EDIT, saved with Lưu) + its lots; no id = adding a new one
   const [detail, setDetail] = useState<Partial<Material> | null>(null)
   const kind = detail?.kind ?? tab
@@ -34,6 +45,13 @@ export function MaterialsPage() {
   const unit = Form.useWatch('unit', form)
   const raws = data.filter((m) => m.kind === 'RAW' && m.id !== detail?.id)
   const noun = prepared ? 'bán thành phẩm' : 'nguyên liệu'
+  const warnDays = detail?.expiryWarningDays ?? 7 // raw lots: same window as the backend (shop default 7)
+  // fill the form every time the drawer opens (and after Lưu), not only on its first mount
+  useEffect(() => {
+    if (!detail) return
+    form.resetFields()
+    form.setFieldsValue({ ...detail, components: detail.components?.map((c) => ({ componentId: c.componentId, quantity: c.quantity })) ?? [{}] })
+  }, [detail, form])
 
   return (
     <>
@@ -43,26 +61,29 @@ export function MaterialsPage() {
             {tab === 'RAW' ? 'Thêm nguyên liệu' : 'Thêm bán thành phẩm'}
           </Button>
         )} />
-      {!!alerts?.expiringBatches.length && (
-        <Alert type="warning" showIcon style={{ marginBottom: 12 }}
-          message={`${alerts.expiringBatches.length} lô sắp hết hạn trong 7 ngày: ${alerts.expiringBatches.map((b) => `${b.materialName} (${date(b.expiryDate)})`).join(', ')}`} />
-      )}
       <Tabs activeKey={tab} onChange={(k) => setTab(k as MaterialKind)} items={[
         { key: 'RAW', label: `Nguyên liệu thô (${data.filter((m) => m.kind === 'RAW').length})` },
         { key: 'PREPARED', label: `Bán thành phẩm (${data.filter((m) => m.kind === 'PREPARED').length})` },
       ]} />
-      {tab === 'PREPARED' ? (
-        <PreparedMaterialsTab materials={data} canProduce={can(P.STOCK)} onDetail={setDetail} />
-      ) : (
-      <Table
+      <Space wrap style={{ marginBottom: 12 }}>
+        <Input allowClear prefix={<SearchOutlined />} placeholder={tab === 'RAW' ? 'Tìm nguyên liệu' : 'Tìm bán thành phẩm'}
+          value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 240 }} />
+        <Segmented value={onlyWarn ? 'warn' : 'all'} onChange={(v) => setOnlyWarn(v === 'warn')} options={[
+          { value: 'all', label: 'Tất cả' },
+          { value: 'warn', label: `Đang cảnh báo (${ofTab.filter(warn).length})` },
+        ]} />
+      </Space>
+      <Table<Material>
         rowKey="id"
         loading={isLoading}
-        dataSource={data.filter((m) => m.kind === 'RAW')}
-        rowClassName={(m) => (m.lowStock ? 'a-row-warn' : '')}
+        dataSource={rows}
+        rowClassName={(m) => (warn(m) ? 'a-row-warn' : '')}
+        locale={{ emptyText: <Empty description={ofTab.length ? 'Không có kết quả phù hợp' : tab === 'RAW' ? 'Chưa có nguyên liệu' : 'Chưa có bán thành phẩm — bấm Thêm để khai báo (VD: cốt cold brew, nước đường)'} /> }}
+        scroll={{ x: 900 }}
         columns={[
           {
-            title: 'Nguyên liệu', dataIndex: 'name', render: (v, m) => <>
-              {v} {m.lowStock && <Tag color="red" icon={<WarningOutlined />}>Sắp hết</Tag>} {m.status === 'INACTIVE' && <Tag>Ngưng dùng</Tag>}
+            title: tab === 'RAW' ? 'Nguyên liệu' : 'Bán thành phẩm', dataIndex: 'name', render: (v, m) => <>
+              {v} {m.lowStock && <Tag color="red">Sắp hết</Tag>} {m.expiringSoon && <Tag color="red">Sắp hết hạn</Tag>} {m.status === 'INACTIVE' && <Tag>Ngưng dùng</Tag>}
             </>,
           },
           { title: 'Tồn kho', render: (_, m) => <b>{num(m.stockQuantity)} {m.unit}</b>, sorter: (a, b) => a.stockQuantity / Math.max(a.minStock, 1) - b.stockQuantity / Math.max(b.minStock, 1) },
@@ -70,31 +91,46 @@ export function MaterialsPage() {
           {
             title: 'HSD gần nhất', sorter: (a, b) => (a.nextExpiryDate ?? '9999').localeCompare(b.nextExpiryDate ?? '9999'),
             render: (_, m) => (m.nextExpiryDate
-              ? <span style={{ color: dayjs(m.nextExpiryDate).diff(dayjs(), 'day') <= 7 ? '#cf1322' : undefined }}>{date(m.nextExpiryDate)}</span>
+              ? <span style={{ color: m.expiringSoon ? '#cf1322' : undefined, fontWeight: m.expiringSoon ? 600 : undefined }}>{date(m.nextExpiryDate)}</span>
               : '—'),
           },
+          ...(tab === 'PREPARED' ? [{ title: 'Hạn dùng chuẩn', render: (_: unknown, m: Material) => duration(m.shelfLifeMinutes) }] : []),
           { title: 'Dùng cho', render: (_, m) => <UsedInCell material={m} /> },
-          { title: '', width: 120, render: (_, m) => <Button size="small" onClick={() => setDetail(m)}>Xem chi tiết</Button> },
+          {
+            title: '', width: tab === 'PREPARED' && canProduce ? 190 : 120, render: (_, m) => (
+              <Space>
+                {tab === 'PREPARED' && canProduce && (
+                  <Button type="primary" size="small" disabled={m.status === 'INACTIVE'} onClick={() => setProducing(m)}>Chế biến</Button>
+                )}
+                <Button size="small" onClick={() => setDetail(m)}>Xem chi tiết</Button>
+              </Space>
+            ),
+          },
         ]}
       />
-      )}
+      {producing && <ProduceModal material={producing} materials={data} onClose={() => setProducing(null)} />}
       <Drawer open={!!detail} onClose={() => setDetail(null)} destroyOnHidden width={prepared ? 860 : 720}
         title={detail?.id ? `${detail.name} · chi tiết` : `Thêm ${noun}`}>
         <Form form={form} layout="vertical" preserve={false} disabled={!isAdmin}
-          initialValues={{ ...detail, components: detail?.components?.map((c) => ({ componentId: c.componentId, quantity: c.quantity })) ?? [{}] }}
           onFinish={(v) => save.mutate({ ...v, kind, id: detail?.id }, { onSuccess: (m) => setDetail(m) })}>
           <div className="a-grid-2">
             <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input placeholder={prepared ? 'VD: Cốt cold brew' : ''} /></Form.Item>
             <Form.Item name="status" label="Trạng thái"><Select options={[{ value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngưng dùng' }]} /></Form.Item>
             <Form.Item name="unit" label="Đơn vị tính" rules={[{ required: true }]}><Select options={UNITS.map((u) => ({ value: u, label: u }))} /></Form.Item>
             <Form.Item name="minStock" label="Mức tồn tối thiểu"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="expiryWarningDays" label="Cảnh báo trước khi hết hạn"
+              extra={prepared ? 'Để trống = không cảnh báo · 1 = cảnh báo lô hết hạn trong ngày mai' : 'Để trống = mặc định 7 ngày · 0 = không cảnh báo (hàng tiêu thụ nhanh)'}>
+              <InputNumber min={0} precision={0} addonAfter="ngày" placeholder={prepared ? '' : '7'} style={{ width: '100%' }} />
+            </Form.Item>
+            {prepared && (
+              <Form.Item name="shelfLifeMinutes" label="Hạn dùng sau khi chế biến"><DurationInput defaultUnit={1440} /></Form.Item>
+            )}
           </div>
           {prepared && (
             <>
-              <div className="a-grid-2">
-                <Form.Item name="yieldQuantity" label={`Định lượng chuẩn${unit ? ` (${unit})` : ''}`} rules={[{ required: true }]}><InputNumber min={0.01} style={{ width: '100%' }} /></Form.Item>
-                <Form.Item name="shelfLifeMinutes" label="Hạn dùng sau khi chế biến"><DurationInput defaultUnit={1440} /></Form.Item>
-              </div>
+              <Form.Item name="yieldQuantity" label={`Định lượng chuẩn${unit ? ` (${unit})` : ''}`} rules={[{ required: true }]}>
+                <InputNumber min={0.01} style={{ width: '50%' }} />
+              </Form.Item>
               <h4>Nguyên liệu cho định lượng chuẩn</h4>
               <Form.List name="components" rules={[{ validator: async (_, v) => { if (!v?.length) throw new Error('Cần ít nhất 1 nguyên liệu') } }]}>
                 {(fields, { add, remove }, { errors }) => (
@@ -143,7 +179,7 @@ export function MaterialsPage() {
                   title: 'Hạn dùng', dataIndex: 'expiryDate',
                   render: (v, b) => prepared
                     ? <span style={{ color: b.expiresAt && dayjs(b.expiresAt).diff(dayjs(), 'hour') < 12 ? '#cf1322' : undefined }}>{dateTime(b.expiresAt)}</span>
-                    : <span style={{ color: v && dayjs(v).diff(dayjs(), 'day') <= 7 ? '#cf1322' : undefined }}>{date(v)}</span>,
+                    : <span style={{ color: v && warnDays > 0 && dayjs(v).diff(dayjs().startOf('day'), 'day') <= warnDays ? '#cf1322' : undefined }}>{date(v)}</span>,
                 },
                 { title: 'Trạng thái', render: (_, b) => <StatusTag label={BATCH_STATUS[b.status]} /> },
               ]} />

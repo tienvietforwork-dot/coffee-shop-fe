@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { Button, DatePicker, Empty, InputNumber, Modal, Space, Table, Tag } from 'antd'
+import { Button, DatePicker, InputNumber, Modal, Space, Table } from 'antd'
 import { WarningOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
 import type { Material } from '@/api/types'
 import { duration, num } from '@/lib/format'
 import { useAction } from '../components/useCrud'
-import { UsedInCell } from '../components/UsedInCell'
 
 const KEYS = [['materials'], ['batches'], ['alerts'], ['transactions'], ['coffees'], ['menu']]
 
@@ -20,61 +19,11 @@ function maxOf(m: Material, materials: Material[]) {
   return { max: limit ? Math.floor(limit.times * (m.yieldQuantity ?? 0) * 100) / 100 : 0, limit }
 }
 
-/** Bán thành phẩm: one row per prepared material; "Chế biến" opens the popup that works out the deduction. */
-export function PreparedMaterialsTab({ materials, canProduce, onDetail }: {
-  materials: Material[]; canProduce: boolean; onDetail: (m: Material) => void
-}) {
-  const rows = materials.filter((m) => m.kind === 'PREPARED')
-  const [producing, setProducing] = useState<Material | null>(null)
-
-  if (!rows.length) return <Empty description="Chưa có bán thành phẩm — bấm Thêm để khai báo (VD: cốt cold brew, nước đường)" />
-
-  return (
-    <>
-      <Table<Material>
-        rowKey="id"
-        dataSource={rows}
-        pagination={false}
-        scroll={{ x: 900 }}
-        columns={[
-          {
-            title: 'Bán thành phẩm', width: 170, render: (_, m) => <>
-              <b>{m.name}</b>
-              {m.status === 'INACTIVE' && <div><Tag>Ngưng dùng</Tag></div>}
-            </>,
-          },
-          {
-            title: 'Tồn kho', width: 110, align: 'right', sorter: (a, b) => a.stockQuantity - b.stockQuantity,
-            render: (_, m) => <>
-              <b>{num(m.stockQuantity)} {m.unit}</b>
-              {m.lowStock && <div><Tag color="red" style={{ margin: 0 }}>Sắp hết</Tag></div>}
-            </>,
-          },
-          { title: 'Tồn tối thiểu', width: 110, align: 'right', render: (_, m) => `${num(m.minStock)} ${m.unit}` },
-          { title: 'Hạn dùng', width: 90, align: 'right', render: (_, m) => duration(m.shelfLifeMinutes) },
-          { title: 'Dùng cho', render: (_, m) => <UsedInCell material={m} /> },
-          {
-            title: '', width: 170, render: (_, m) => (
-              <Space>
-                {canProduce && (
-                  <Button type="primary" size="small" disabled={m.status === 'INACTIVE'} onClick={() => setProducing(m)}>Chế biến</Button>
-                )}
-                <Button size="small" onClick={() => onDetail(m)}>Xem chi tiết</Button>
-              </Space>
-            ),
-          },
-        ]}
-      />
-      {producing && <ProduceModal material={producing} materials={materials} onClose={() => setProducing(null)} />}
-    </>
-  )
-}
-
 /**
  * Chế biến popup: amount starts at the standard quantity (cut down to what the stock allows),
  * the deduction of every input is worked out from it, and confirming puts the lot in stock at once.
  */
-function ProduceModal({ material: m, materials, onClose }: { material: Material; materials: Material[]; onClose: () => void }) {
+export function ProduceModal({ material: m, materials, onClose }: { material: Material; materials: Material[]; onClose: () => void }) {
   const std = m.yieldQuantity ?? 0
   const { max, limit } = maxOf(m, materials)
   const [want, setWant] = useState(std)

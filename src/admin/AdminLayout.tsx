@@ -29,6 +29,7 @@ const GROUPS: { label: string; items: Entry[] }[] = [
       { key: '/admin/pos', icon: <ShopOutlined />, label: 'Order tại quầy', perm: P.POS },
       { key: '/admin/shipments', icon: <CarOutlined />, label: 'Giao hàng', perm: P.SHIPMENTS },
       { key: '/admin/incidents', icon: <WarningOutlined />, label: 'Sự cố đơn hàng', perm: P.INCIDENTS },
+      { key: '/admin/tables', icon: <TableOutlined />, label: 'Bàn & mã QR', perm: P.TABLES },
     ],
   },
   {
@@ -38,7 +39,6 @@ const GROUPS: { label: string; items: Entry[] }[] = [
       { key: '/admin/materials', icon: <ExperimentOutlined />, label: 'Nguyên liệu & lô', perm: P.MATERIALS },
       { key: '/admin/stock', icon: <InboxOutlined />, label: 'Nhập / xuất kho', perm: P.STOCK },
       { key: '/admin/stock-history', icon: <HistoryOutlined />, label: 'Lịch sử kho', perm: P.STOCK_HISTORY },
-      { key: '/admin/tables', icon: <TableOutlined />, label: 'Bàn & mã QR', perm: P.TABLES },
     ],
   },
   {

@@ -193,6 +193,10 @@ export interface Material {
   usedIn?: { kind: 'COFFEE' | 'PREPARED'; id: number; name: string; quantity: number }[]
   /** earliest expiry among the lots still in stock (the lot used next) */
   nextExpiryDate?: string
+  /** the next lot is inside the warning window */
+  expiringSoon?: boolean
+  /** warn this many days before a lot expires; empty = shop default (7), 0 = never */
+  expiryWarningDays?: number
 }
 
 export interface Batch {
