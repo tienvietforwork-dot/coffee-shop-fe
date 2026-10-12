@@ -69,8 +69,9 @@ export function OrdersBoardPage() {
                       {ORDER_TYPE[o.orderType]}{o.tableNo && ` · Bàn ${o.tableNo}`}
                     </div>
                     <ul>
-                      {o.items.map((i) => <li key={i.id}><b>{i.quantity}×</b> {i.coffeeName}{i.note && <em> — {i.note}</em>}</li>)}
+                      {o.items.slice(0, 3).map((i) => <li key={i.id}><b>{i.quantity}×</b> {i.coffeeName}{i.note && <em> — {i.note}</em>}</li>)}
                     </ul>
+                    {o.items.length > 3 && <div className="a-ticket-meta">+{o.items.length - 3} món khác · {o.items.reduce((n, i) => n + i.quantity, 0)} ly</div>}
                     <div className="a-ticket-foot">
                       <span>{money(o.totalAmount)} {o.paid ? <Tag color="green" bordered={false}>Đã TT</Tag> : <Tag color="gold" bordered={false}>Chưa TT</Tag>}</span>
                     </div>

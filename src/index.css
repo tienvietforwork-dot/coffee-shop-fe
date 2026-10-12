@@ -269,9 +269,10 @@ img { max-width: 100%; }
 @media (max-width: 760px) { .a-print-recipes { grid-template-columns: 1fr; } }
 
 .a-board { display: grid; grid-template-columns: repeat(4, minmax(240px, 1fr)); gap: 14px; overflow-x: auto; padding-bottom: 8px; }
-.a-col { background: #efe8df; border-radius: 14px; padding: 10px; min-height: 60vh; }
+/* each column scrolls on its own; the header stays */
+.a-col { background: #efe8df; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; height: calc(100vh - 240px); min-height: 360px; }
 .a-col-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 10px; }
-.a-col-body { display: flex; flex-direction: column; gap: 10px; }
+.a-col-body { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex: 1; padding-right: 2px; }
 .a-ticket { background: #fff; border-radius: 12px; padding: 12px; cursor: pointer; border: 1px solid #ece4da; box-shadow: 0 2px 6px -3px rgba(0, 0, 0, 0.12); transition: box-shadow 0.15s; }
 .a-ticket:hover { box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.3); }
 .a-ticket.is-new { border-left: 4px solid var(--caramel); animation: a-pulse 2s ease-in-out 3; }

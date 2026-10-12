@@ -22,6 +22,8 @@ export function OrderDetailDrawer({ orderId, onClose }: { orderId: number | null
   const [refundAmount, setRefundAmount] = useState<number | null>(null)
 
   const { data: order } = useQuery({ queryKey: ['order', orderId], queryFn: () => coreApi.order(orderId!), enabled: !!orderId })
+  // under ['order', id] so the realtime refresh of the order also refreshes its history
+  const { data: history = [] } = useQuery({ queryKey: ['order', orderId, 'history'], queryFn: () => coreApi.orderHistory(orderId!), enabled: !!orderId })
   const { data: incidents = [] } = useQuery({
     queryKey: ['order-incidents', orderId], queryFn: () => coreApi.orderIncidents(orderId!), enabled: !!orderId,
   })
@@ -129,6 +131,17 @@ export function OrderDetailDrawer({ orderId, onClose }: { orderId: number | null
                 ),
               }))} />
             )}
+          </div>
+
+          <div>
+            <h4>Lịch sử trạng thái</h4>
+            <Timeline items={history.map((h) => ({
+              children: <>
+                <b>{h.fromStatus ? `${ORDER_STATUS[h.fromStatus].text} → ${ORDER_STATUS[h.toStatus].text}` : 'Đặt đơn'}</b>
+                <div className="a-muted small">{dateTime(h.at)} · {h.by}</div>
+                {h.note && <div>{h.note}</div>}
+              </>,
+            }))} />
           </div>
         </Space>
       )}

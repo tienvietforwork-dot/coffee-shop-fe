@@ -199,6 +199,17 @@ export interface Material {
   expiryWarningDays?: number
 }
 
+/** one status change of an order; fromStatus empty = the order was placed */
+export interface OrderStatusChange {
+  id: number
+  fromStatus?: OrderStatus
+  toStatus: OrderStatus
+  /** staff name, or the account (customer, guest, system) */
+  by: string
+  note?: string
+  at: string
+}
+
 export interface Batch {
   id: number
   materialId: number

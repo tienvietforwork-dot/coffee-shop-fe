@@ -2,7 +2,7 @@ import apiClient from './client'
 import type {
   Batch, Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
   IncidentSeverity, IncidentType, InventoryAlerts, Material, MaterialKind, MaterialStatus, MaterialTransaction,
-  Order, OrderChannel, OrderStatus, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
+  Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
   Staff, TableStatus, User, WorkStatus,
 } from './types'
 
@@ -107,6 +107,7 @@ export const coreApi = {
 
   orders: (p: { status?: OrderStatus; channel?: OrderChannel; from?: string; to?: string }) => get<Order[]>('/orders', p),
   order: (id: number) => get<Order>(`/orders/${id}`),
+  orderHistory: (id: number) => get<OrderStatusChange[]>(`/orders/${id}/history`),
   quote: (b: { items: { coffeeId: number; quantity: number }[]; orderType: OrderType; customerPhone?: string; voucherCode?: string }) =>
     post<PriceQuote>('/orders/quote', b),
   createOrder: (b: CounterOrderPayload) => post<Order>('/orders', b),
