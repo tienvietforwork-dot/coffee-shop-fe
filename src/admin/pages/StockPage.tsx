@@ -37,6 +37,9 @@ export function StockPage() {
   const quantity = Form.useWatch('quantity', form) as number | undefined
   const totalCost = Form.useWatch('totalCost', form) as number | undefined
   const unitCostOf = (total?: number, qty?: number) => (total != null && qty ? Math.round((total / qty) * 100) / 100 : undefined)
+  // same order the backend takes stock in (FEFO): earliest expiry first, lots without expiry last, then oldest lot
+  const fefo = batches.filter((b) => b.status === 'AVAILABLE' && b.remainingQuantity > 0)
+    .sort((a, b) => (a.expiryDate ?? '9999').localeCompare(b.expiryDate ?? '9999') || a.id - b.id)
   const keys = [['materials'], ['batches', materialId], ['alerts'], ['transactions'], ['coffees'], ['menu']]
   const imp = useAction(coreApi.importStock, keys, 'Đã nhập kho')
   const exp = useAction(coreApi.exportStock, keys, 'Đã xuất kho')
@@ -108,7 +111,7 @@ export function StockPage() {
         </Col>
         <Col xs={24} lg={13}>
           <Card title={material ? `Lô hiện có · ${material.name}` : 'Chọn nguyên liệu để xem lô'}>
-            <Table rowKey="id" size="small" pagination={false} dataSource={batches.filter((b) => b.status === 'AVAILABLE')}
+            <Table rowKey="id" size="small" pagination={false} dataSource={fefo}
               columns={[
                 { title: 'Lô', dataIndex: 'id', render: (v, _, i) => <>#{v} {i === 0 && mode === 'export' && <StatusTag label={{ text: 'Xuất trước', color: 'blue' }} />}</> },
                 { title: 'Còn lại', render: (_, b) => `${num(b.remainingQuantity)} ${b.unit}` },
