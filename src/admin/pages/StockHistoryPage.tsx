@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Select, Table } from 'antd'
 import { coreApi } from '@/api/core'
-import { TX_TYPE, dateTime, num } from '@/lib/format'
+import { TX_REASON, TX_TYPE, dateTime, num } from '@/lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { StatusTag } from '../components/StatusTag'
 
@@ -19,7 +19,7 @@ export function StockHistoryPage() {
       <Table rowKey="id" loading={isLoading} dataSource={data}
         columns={[
           { title: 'Thời gian', dataIndex: 'createdAt', render: dateTime },
-          { title: 'Loại', render: (_, t) => <StatusTag label={TX_TYPE[t.type]} /> },
+          { title: 'Loại', render: (_, t) => <><StatusTag label={TX_TYPE[t.type]} />{t.reason && <div className="a-muted small">{TX_REASON[t.reason]}</div>}</> },
           { title: 'Nguyên liệu', dataIndex: 'materialName' },
           { title: 'Lô', dataIndex: 'batchId', render: (v) => `#${v}` },
           { title: 'Số lượng', render: (_, t) => <b style={{ color: t.quantity < 0 ? '#cf1322' : '#389e0d' }}>{t.quantity > 0 ? '+' : ''}{num(t.quantity)} {t.unit}</b>, align: 'right' },

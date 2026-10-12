@@ -2,7 +2,7 @@ import apiClient from './client'
 import type {
   Batch, Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
   IncidentSeverity, IncidentType, InventoryAlerts, Material, MaterialKind, MaterialStatus, MaterialTransaction,
-  Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
+  Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus, TransactionReason,
   Staff, TableStatus, User, WorkStatus,
 } from './types'
 
@@ -25,6 +25,7 @@ export interface MaterialPayload {
   name: string; unit: string; minStock?: number; expiryWarningDays?: number; status?: MaterialStatus; kind?: MaterialKind
   yieldQuantity?: number; shelfLifeMinutes?: number
   components?: { componentId: number; quantity: number }[]
+  packages?: { name: string; size: number }[]
   instructions?: string
 }
 export interface StaffPayload {
@@ -81,10 +82,15 @@ export const coreApi = {
   batches: (materialId: number) => get<Batch[]>(`/materials/${materialId}/batches`),
   transactions: (materialId?: number) => get<MaterialTransaction[]>('/inventory/transactions', { materialId }),
   alerts: () => get<InventoryAlerts>('/inventory/alerts'),
-  importStock: (b: { materialId: number; quantity: number; unitCost?: number; expiryDate?: string; note?: string }) =>
+  /** packageId + packageCount, or a loose quantity in the material's unit */
+  importStock: (b: { materialId: number; packageId?: number; packageCount?: number; quantity?: number; unitCost?: number; expiryDate?: string; note?: string }) =>
     post<Batch>('/inventory/import', b),
-  exportStock: (b: { materialId: number; quantity: number; note?: string }) =>
-    post<MaterialTransaction[]>('/inventory/export', b),
+  /** phiếu hủy */
+  disposeStock: (b: { batchId: number; quantity: number; reason: TransactionReason; note?: string }) =>
+    post<MaterialTransaction>('/inventory/dispose', b),
+  /** xuất khác */
+  exportStock: (b: { batchId: number; quantity: number; reason: TransactionReason; note?: string }) =>
+    post<MaterialTransaction>('/inventory/export', b),
   adjustStock: (b: { batchId: number; actualQuantity: number; note?: string }) =>
     post<MaterialTransaction>('/inventory/adjust', b),
   /** lots: input material id -> lot to take it from first (default FEFO) */

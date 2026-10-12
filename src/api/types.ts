@@ -13,7 +13,15 @@ export type ShipmentStatus = 'PENDING' | 'BOOKED' | 'DRIVER_ACCEPTED' | 'DELIVER
 export type MaterialStatus = 'ACTIVE' | 'INACTIVE'
 export type BatchStatus = 'PREPARING' | 'AVAILABLE' | 'DEPLETED' | 'EXPIRED'
 export type MaterialKind = 'RAW' | 'PREPARED'
-export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCE'
+export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCE' | 'DISPOSAL'
+/** phiếu hủy: EXPIRED … OTHER_DISPOSAL; xuất khác: RETURN_SUPPLIER, INTERNAL_USE */
+export type TransactionReason = 'EXPIRED' | 'SPOILED' | 'SPILLED' | 'BREW_FAILED' | 'OTHER_DISPOSAL' | 'RETURN_SUPPLIER' | 'INTERNAL_USE'
+/** how a raw material is bought: name "Hộp 1 L", size in the material's unit (1000) */
+export interface MaterialPackage {
+  id: number
+  name: string
+  size: number
+}
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'INACTIVE'
 export type WorkStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED'
 export type IncidentType = 'WRONG_ITEM' | 'QUALITY' | 'LATE' | 'SPILLED' | 'MISSING_ITEM' | 'OTHER'
@@ -187,6 +195,8 @@ export interface Material {
   /** minutes after the lot is made */
   shelfLifeMinutes?: number
   components?: { componentId: number; name: string; unit: string; quantity: number }[]
+  /** raw materials: packaging they are bought in */
+  packages?: MaterialPackage[]
   /** how to make one standard batch */
   instructions?: string
   /** coffees (per cup) and prepared materials (per standard batch) that use this material */
@@ -225,6 +235,10 @@ export interface Batch {
   readyAt?: string
   /** prepared lot: exact expiry */
   expiresAt?: string
+  /** packaging at import: packageCount × packageName (packageSize each) */
+  packageName?: string
+  packageSize?: number
+  packageCount?: number
   /** prepared-material batch: the raw batches it was made from */
   inputs?: { batchId: number; materialName: string; unit: string; quantity: number }[]
 }
@@ -240,6 +254,7 @@ export interface MaterialTransaction {
   /** PRODUCTION_USE: the prepared-material batch it went into */
   producedBatchId?: number
   type: MaterialTransactionType
+  reason?: TransactionReason
   quantity: number
   note?: string
   createdAt: string
