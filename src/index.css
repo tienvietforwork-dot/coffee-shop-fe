@@ -339,11 +339,7 @@ img { max-width: 100%; }
 .a-servings-formula { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: #f6efe7; border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
 .a-servings .is-limit td { background: #fff3e0 !important; font-weight: 600; }
 .a-limit { color: #b45309; font-weight: 700; }
-.a-produce-guide-title { font-weight: 600; margin: 10px 0 2px; }
-.a-produce-guide { white-space: pre-wrap; font-size: 13px; }
 .a-warn-text { color: #b45309; font-size: 12px; margin-top: 4px; }
-.a-prepared-expanded { display: grid; grid-template-columns: minmax(240px, 1fr) 1.4fr; gap: 20px; padding: 4px 8px; }
-@media (max-width: 900px) { .a-prepared-expanded { grid-template-columns: 1fr; } }
 .a-used-in { display: flex; flex-wrap: wrap; gap: 4px; } .a-used-in .ant-tag { margin: 0; }
 .a-produce-amount { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 12px; } .a-produce-amount > .a-muted { flex-basis: 100%; }
 

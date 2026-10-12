@@ -184,9 +184,7 @@ export interface Material {
   kind: MaterialKind
   /** PREPARED: one batch of the formula yields this much */
   yieldQuantity?: number
-  /** minutes */
-  prepMinutes?: number
-  /** minutes after the lot is finished */
+  /** minutes after the lot is made */
   shelfLifeMinutes?: number
   components?: { componentId: number; name: string; unit: string; quantity: number }[]
   /** how to make one standard batch */
@@ -206,7 +204,7 @@ export interface Batch {
   expiryDate?: string
   status: BatchStatus
   createdAt?: string
-  /** PREPARING: expected ready time; finished: when it was finished */
+  /** prepared lot: when it was made */
   readyAt?: string
   /** prepared lot: exact expiry */
   expiresAt?: string

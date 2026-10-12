@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Segmented, Select, Table } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
@@ -24,6 +24,18 @@ export function StockPage() {
   const materialId = Form.useWatch('materialId', form) as number | undefined
   const { data: batches = [] } = useQuery({ queryKey: ['batches', materialId], queryFn: () => coreApi.batches(materialId!), enabled: !!materialId })
   const material = materials.find((m) => m.id === materialId)
+  // Phiếu nhập: đơn giá + hạn dùng gợi ý theo lần nhập gần nhất (batches đã sắp mới nhất trước).
+  // Hạn dùng giữ nguyên số ngày bảo quản của lô đó, tính từ hôm nay.
+  const lastImport = batches.find((b) => b.materialId === materialId)
+  const shelfDays = lastImport?.expiryDate && lastImport.createdAt
+    ? dayjs(lastImport.expiryDate).diff(dayjs(lastImport.createdAt).startOf('day'), 'day') : undefined
+  useEffect(() => {
+    if (mode !== 'import' || !lastImport) return
+    form.setFieldsValue({
+      unitCost: lastImport.unitCost ?? undefined,
+      expiryDate: shelfDays != null && shelfDays >= 0 ? dayjs().startOf('day').add(shelfDays, 'day') : undefined,
+    })
+  }, [mode, lastImport?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const keys = [['materials'], ['batches', materialId], ['alerts'], ['transactions'], ['coffees'], ['menu']]
   const imp = useAction(coreApi.importStock, keys, 'Đã nhập kho')
   const exp = useAction(coreApi.exportStock, keys, 'Đã xuất kho')
@@ -59,6 +71,12 @@ export function StockPage() {
                 <Form.Item name="quantity" label={`Số lượng${material ? ` (${material.unit})` : ''}`} rules={[{ required: true }]}>
                   <InputNumber min={0.01} max={mode === 'export' ? material?.stockQuantity : undefined} style={{ width: '100%' }} />
                 </Form.Item>
+              )}
+              {mode === 'import' && lastImport && (
+                <div style={{ marginTop: -8, marginBottom: 12, color: '#8c8c8c', fontSize: 13 }}>
+                  Gợi ý theo lần nhập gần nhất ({date(lastImport.createdAt)}, lô #{lastImport.id}
+                  {shelfDays != null && ` · bảo quản ${shelfDays} ngày`}) — có thể sửa lại
+                </div>
               )}
               {mode === 'import' && (
                 <div className="a-grid-2">

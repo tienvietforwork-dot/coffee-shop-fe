@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Button, Drawer, Form, Input, InputNumber, Modal, Segmented, Select, Space, Table, Tabs, Tag } from 'antd'
+import { Alert, Button, Drawer, Form, Input, InputNumber, Select, Space, Table, Tabs, Tag } from 'antd'
 import { MinusCircleOutlined, PlusOutlined, WarningOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { coreApi, type MaterialPayload } from '@/api/core'
@@ -21,24 +21,25 @@ export function MaterialsPage() {
   const isAdmin = can(P.MATERIALS_EDIT)
   const { data = [], isLoading } = useQuery({ queryKey: ['materials'], queryFn: coreApi.materials })
   const { data: alerts } = useQuery({ queryKey: ['alerts'], queryFn: coreApi.alerts })
-  const [edit, setEdit] = useState<Partial<Material> | null>(null)
-  const [batchesOf, setBatchesOf] = useState<Material | null>(null)
+  const [tab, setTab] = useState<MaterialKind>('RAW')
+  // "Xem chi tiết": the material's info (editable with MATERIALS_EDIT, saved with Lưu) + its lots; no id = adding a new one
+  const [detail, setDetail] = useState<Partial<Material> | null>(null)
+  const kind = detail?.kind ?? tab
+  const prepared = kind === 'PREPARED'
   const { data: batches = [], isLoading: bLoading } = useQuery({
-    queryKey: ['batches', batchesOf?.id], queryFn: () => coreApi.batches(batchesOf!.id), enabled: !!batchesOf,
+    queryKey: ['batches', detail?.id], queryFn: () => coreApi.batches(detail!.id!), enabled: !!detail?.id,
   })
   const save = useAction((v: MaterialPayload & { id?: number }) => (v.id ? coreApi.updateMaterial(v.id, v) : coreApi.createMaterial(v)), [['materials']])
   const [form] = Form.useForm()
-  const kind = Form.useWatch('kind', form) ?? edit?.kind ?? 'RAW'
   const unit = Form.useWatch('unit', form)
-  const raws = data.filter((m) => m.kind === 'RAW' && m.id !== edit?.id)
-  const prepared = batchesOf?.kind === 'PREPARED'
-  const [tab, setTab] = useState<MaterialKind>('RAW')
+  const raws = data.filter((m) => m.kind === 'RAW' && m.id !== detail?.id)
+  const noun = prepared ? 'bán thành phẩm' : 'nguyên liệu'
 
   return (
     <>
       <PageHeader title="Nguyên liệu & lô" subtitle="Tồn kho = tổng số lượng còn lại của các lô · bán thành phẩm tự chế biến từ nguyên liệu thô"
         extra={isAdmin && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setEdit({ unit: tab === 'RAW' ? 'g' : 'ml', status: 'ACTIVE', kind: tab })}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setDetail({ unit: tab === 'RAW' ? 'g' : 'ml', status: 'ACTIVE', kind: tab })}>
             {tab === 'RAW' ? 'Thêm nguyên liệu' : 'Thêm bán thành phẩm'}
           </Button>
         )} />
@@ -51,7 +52,7 @@ export function MaterialsPage() {
         { key: 'PREPARED', label: `Bán thành phẩm (${data.filter((m) => m.kind === 'PREPARED').length})` },
       ]} />
       {tab === 'PREPARED' ? (
-        <PreparedMaterialsTab materials={data} canEdit={isAdmin} canProduce={can(P.STOCK)} onEdit={setEdit} onBatches={setBatchesOf} />
+        <PreparedMaterialsTab materials={data} canProduce={can(P.STOCK)} onDetail={setDetail} />
       ) : (
       <Table
         rowKey="id"
@@ -67,35 +68,26 @@ export function MaterialsPage() {
           { title: 'Tồn kho', render: (_, m) => <b>{num(m.stockQuantity)} {m.unit}</b>, sorter: (a, b) => a.stockQuantity / Math.max(a.minStock, 1) - b.stockQuantity / Math.max(b.minStock, 1) },
           { title: 'Tồn tối thiểu', render: (_, m) => `${num(m.minStock)} ${m.unit}` },
           { title: 'Dùng cho', render: (_, m) => <UsedInCell material={m} /> },
-          {
-            title: '', width: 160, render: (_, m) => (
-              <Space>
-                <Button size="small" onClick={() => setBatchesOf(m)}>Các lô</Button>
-                {isAdmin && <Button size="small" onClick={() => setEdit(m)}>Sửa</Button>}
-              </Space>
-            ),
-          },
+          { title: '', width: 120, render: (_, m) => <Button size="small" onClick={() => setDetail(m)}>Xem chi tiết</Button> },
         ]}
       />
       )}
-      <Modal open={!!edit} title={edit?.id ? 'Sửa nguyên liệu' : 'Thêm nguyên liệu'} footer={null} onCancel={() => setEdit(null)} destroyOnHidden width={kind === 'PREPARED' ? 760 : 520}>
-        <Form form={form} layout="vertical" preserve={false}
-          initialValues={{ ...edit, components: edit?.components?.map((c) => ({ componentId: c.componentId, quantity: c.quantity })) ?? [{}] }}
-          onFinish={(v) => save.mutate({ ...v, id: edit?.id }, { onSuccess: () => setEdit(null) })}>
-          <Form.Item name="kind">
-            <Segmented block options={[{ value: 'RAW', label: 'Nguyên liệu thô (nhập mua)' }, { value: 'PREPARED', label: 'Bán thành phẩm (tự chế biến)' }]} />
-          </Form.Item>
-          <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input placeholder={kind === 'PREPARED' ? 'VD: Cốt cold brew' : ''} /></Form.Item>
+      <Drawer open={!!detail} onClose={() => setDetail(null)} destroyOnHidden width={prepared ? 860 : 720}
+        title={detail?.id ? `${detail.name} · chi tiết` : `Thêm ${noun}`}>
+        <Form form={form} layout="vertical" preserve={false} disabled={!isAdmin}
+          initialValues={{ ...detail, components: detail?.components?.map((c) => ({ componentId: c.componentId, quantity: c.quantity })) ?? [{}] }}
+          onFinish={(v) => save.mutate({ ...v, kind, id: detail?.id }, { onSuccess: (m) => setDetail(m) })}>
           <div className="a-grid-2">
+            <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input placeholder={prepared ? 'VD: Cốt cold brew' : ''} /></Form.Item>
+            <Form.Item name="status" label="Trạng thái"><Select options={[{ value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngưng dùng' }]} /></Form.Item>
             <Form.Item name="unit" label="Đơn vị tính" rules={[{ required: true }]}><Select options={UNITS.map((u) => ({ value: u, label: u }))} /></Form.Item>
             <Form.Item name="minStock" label="Mức tồn tối thiểu"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
           </div>
-          {kind === 'PREPARED' && (
+          {prepared && (
             <>
-              <div className="a-grid-3">
+              <div className="a-grid-2">
                 <Form.Item name="yieldQuantity" label={`Định lượng chuẩn${unit ? ` (${unit})` : ''}`} rules={[{ required: true }]}><InputNumber min={0.01} style={{ width: '100%' }} /></Form.Item>
-                <Form.Item name="prepMinutes" label="Thời gian chế biến"><DurationInput defaultUnit={60} /></Form.Item>
-                <Form.Item name="shelfLifeMinutes" label="Hạn dùng sau khi xong"><DurationInput defaultUnit={1440} /></Form.Item>
+                <Form.Item name="shelfLifeMinutes" label="Hạn dùng sau khi chế biến"><DurationInput defaultUnit={1440} /></Form.Item>
               </div>
               <h4>Nguyên liệu cho định lượng chuẩn</h4>
               <Form.List name="components" rules={[{ validator: async (_, v) => { if (!v?.length) throw new Error('Cần ít nhất 1 nguyên liệu') } }]}>
@@ -109,47 +101,46 @@ export function MaterialsPage() {
                         <Form.Item name={[f.name, 'quantity']} rules={[{ required: true, message: 'Nhập' }]}>
                           <InputNumber min={0.01} placeholder="Số lượng" style={{ width: 140 }} />
                         </Form.Item>
-                        <MinusCircleOutlined onClick={() => remove(f.name)} />
+                        {isAdmin && <MinusCircleOutlined onClick={() => remove(f.name)} />}
                       </Space>
                     ))}
-                    <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add()}>Thêm nguyên liệu</Button>
+                    {isAdmin && <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add()}>Thêm nguyên liệu</Button>}
                     <Form.ErrorList errors={errors} />
                   </>
                 )}
               </Form.List>
-              <h4 style={{ marginTop: 16 }}>Hướng dẫn chế biến</h4>
-              <Form.Item name="instructions"><Input.TextArea autoSize={{ minRows: 4 }} placeholder={'1. …\n2. …'} /></Form.Item>
+              <h4 style={{ marginTop: 16 }}>Ghi chú cách làm</h4>
+              <Form.Item name="instructions"><Input.TextArea autoSize={{ minRows: 3 }} placeholder={'1. …\n2. …'} /></Form.Item>
             </>
           )}
-          <Form.Item name="status" label="Trạng thái" style={{ marginTop: 16 }}><Select options={[{ value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngưng dùng' }]} /></Form.Item>
-          <Button type="primary" htmlType="submit" block loading={save.isPending}>Lưu</Button>
+          {isAdmin && <Button type="primary" htmlType="submit" loading={save.isPending}>Lưu</Button>}
         </Form>
-      </Modal>
-      <Drawer open={!!batchesOf} onClose={() => setBatchesOf(null)} width={prepared ? 860 : 720} title={`Các lô · ${batchesOf?.name ?? ''}`}>
-        <Table<Batch> rowKey="id" size="small" loading={bLoading} dataSource={batches} pagination={false}
-          expandable={prepared ? {
-            rowExpandable: (b) => !!b.inputs?.length,
-            expandedRowRender: (b) => (
-              <span className="a-muted small">Làm từ: {b.inputs!.map((i) => `${num(i.quantity)} ${i.unit} ${i.materialName} (lô #${i.batchId})`).join(' · ')}</span>
-            ),
-          } : undefined}
-          columns={[
-            { title: 'Lô', dataIndex: 'id', render: (v) => `#${v}` },
-            ...(prepared ? [
-              { title: 'Bắt đầu', render: (_: unknown, b: Batch) => dateTime(b.createdAt) },
-              { title: 'Xong', render: (_: unknown, b: Batch) => (b.status === 'PREPARING' ? <span className="a-muted">dự kiến {dateTime(b.readyAt)}</span> : dateTime(b.readyAt)) },
-            ] : []),
-            { title: prepared ? 'Sản lượng' : 'Nhập', render: (_, b) => `${num(b.importQuantity)} ${b.unit}` },
-            { title: 'Còn lại', render: (_, b) => <b>{num(b.remainingQuantity)} {b.unit}</b> },
-            { title: prepared ? `Giá vốn / ${batchesOf?.unit}` : 'Đơn giá nhập', dataIndex: 'unitCost', render: (v) => (prepared ? (v == null ? '—' : `${num(v)}đ`) : money(v)) },
-            {
-              title: 'Hạn dùng', dataIndex: 'expiryDate',
-              render: (v, b) => prepared
-                ? <span style={{ color: b.expiresAt && dayjs(b.expiresAt).diff(dayjs(), 'hour') < 12 ? '#cf1322' : undefined }}>{dateTime(b.expiresAt) }</span>
-                : <span style={{ color: v && dayjs(v).diff(dayjs(), 'day') <= 7 ? '#cf1322' : undefined }}>{date(v)}</span>,
-            },
-            { title: 'Trạng thái', render: (_, b) => <StatusTag label={BATCH_STATUS[b.status]} /> },
-          ]} />
+        {detail?.id && (
+          <>
+            <h4 style={{ marginTop: 24 }}>Các lô</h4>
+            <Table<Batch> rowKey="id" size="small" loading={bLoading} dataSource={batches} pagination={false}
+              expandable={prepared ? {
+                rowExpandable: (b) => !!b.inputs?.length,
+                expandedRowRender: (b) => (
+                  <span className="a-muted small">Làm từ: {b.inputs!.map((i) => `${num(i.quantity)} ${i.unit} ${i.materialName} (lô #${i.batchId})`).join(' · ')}</span>
+                ),
+              } : undefined}
+              columns={[
+                { title: 'Lô', dataIndex: 'id', render: (v) => `#${v}` },
+                { title: prepared ? 'Chế biến lúc' : 'Ngày nhập', render: (_, b) => (prepared ? dateTime(b.createdAt) : date(b.createdAt)) },
+                { title: prepared ? 'Sản lượng' : 'Nhập', render: (_, b) => `${num(b.importQuantity)} ${b.unit}` },
+                { title: 'Còn lại', render: (_, b) => <b>{num(b.remainingQuantity)} {b.unit}</b> },
+                { title: prepared ? `Giá vốn / ${detail.unit}` : 'Đơn giá nhập', dataIndex: 'unitCost', render: (v) => (prepared ? (v == null ? '—' : `${num(v)}đ`) : money(v)) },
+                {
+                  title: 'Hạn dùng', dataIndex: 'expiryDate',
+                  render: (v, b) => prepared
+                    ? <span style={{ color: b.expiresAt && dayjs(b.expiresAt).diff(dayjs(), 'hour') < 12 ? '#cf1322' : undefined }}>{dateTime(b.expiresAt)}</span>
+                    : <span style={{ color: v && dayjs(v).diff(dayjs(), 'day') <= 7 ? '#cf1322' : undefined }}>{date(v)}</span>,
+                },
+                { title: 'Trạng thái', render: (_, b) => <StatusTag label={BATCH_STATUS[b.status]} /> },
+              ]} />
+          </>
+        )}
       </Drawer>
     </>
   )

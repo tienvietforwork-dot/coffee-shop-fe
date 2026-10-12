@@ -23,7 +23,7 @@ export interface RecipePayload {
 }
 export interface MaterialPayload {
   name: string; unit: string; minStock?: number; status?: MaterialStatus; kind?: MaterialKind
-  yieldQuantity?: number; prepMinutes?: number; shelfLifeMinutes?: number
+  yieldQuantity?: number; shelfLifeMinutes?: number
   components?: { componentId: number; quantity: number }[]
   instructions?: string
 }
@@ -87,9 +87,7 @@ export const coreApi = {
     post<MaterialTransaction[]>('/inventory/export', b),
   adjustStock: (b: { batchId: number; actualQuantity: number; note?: string }) =>
     post<MaterialTransaction>('/inventory/adjust', b),
-  produce: (b: { materialId: number; batches: number; note?: string }) => post<Batch>('/inventory/produce', b),
-  finishBatch: (id: number, b: { actualQuantity: number; expiresAt?: string; note?: string }) => post<Batch>(`/inventory/batches/${id}/finish`, b),
-  discardBatch: (id: number, note?: string) => post<Batch>(`/inventory/batches/${id}/discard`, { note }),
+  produce: (b: { materialId: number; batches: number; expiresAt?: string; note?: string }) => post<Batch>('/inventory/produce', b),
 
   staff: () => get<Staff[]>('/staff'),
   createStaff: (b: StaffPayload) => post<Staff>('/staff', b),

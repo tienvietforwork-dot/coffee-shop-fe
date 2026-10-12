@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Button, DatePicker, Empty, InputNumber, Modal, Popconfirm, Space, Table, Tag } from 'antd'
+import { Button, DatePicker, Empty, InputNumber, Modal, Space, Table, Tag } from 'antd'
 import { WarningOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
-import type { Batch, Material } from '@/api/types'
-import { dateTime, duration, num } from '@/lib/format'
+import type { Material } from '@/api/types'
+import { duration, num } from '@/lib/format'
 import { useAction } from '../components/useCrud'
 import { UsedInCell } from '../components/UsedInCell'
 
@@ -22,9 +21,8 @@ function maxOf(m: Material, materials: Material[]) {
 }
 
 /** Bán thành phẩm: one row per prepared material; "Chế biến" opens the popup that works out the deduction. */
-export function PreparedMaterialsTab({ materials, canEdit, canProduce, onEdit, onBatches }: {
-  materials: Material[]; canEdit: boolean; canProduce: boolean
-  onEdit: (m: Material) => void; onBatches: (m: Material) => void
+export function PreparedMaterialsTab({ materials, canProduce, onDetail }: {
+  materials: Material[]; canProduce: boolean; onDetail: (m: Material) => void
 }) {
   const rows = materials.filter((m) => m.kind === 'PREPARED')
   const [producing, setProducing] = useState<Material | null>(null)
@@ -37,8 +35,7 @@ export function PreparedMaterialsTab({ materials, canEdit, canProduce, onEdit, o
         rowKey="id"
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 1000 }}
-        expandable={{ expandedRowRender: (m) => <Expanded material={m} canProduce={canProduce} />, rowExpandable: () => true }}
+        scroll={{ x: 900 }}
         columns={[
           {
             title: 'Bán thành phẩm', width: 170, render: (_, m) => <>
@@ -53,7 +50,6 @@ export function PreparedMaterialsTab({ materials, canEdit, canProduce, onEdit, o
               {m.lowStock && <div><Tag color="red" style={{ margin: 0 }}>Sắp hết</Tag></div>}
             </>,
           },
-          { title: 'TG chế biến', width: 100, align: 'right', render: (_, m) => duration(m.prepMinutes) },
           { title: 'Hạn dùng', width: 90, align: 'right', render: (_, m) => duration(m.shelfLifeMinutes) },
           {
             title: 'Định lượng chuẩn', width: 210, render: (_, m) => <>
@@ -63,15 +59,12 @@ export function PreparedMaterialsTab({ materials, canEdit, canProduce, onEdit, o
           },
           { title: 'Dùng cho', render: (_, m) => <UsedInCell material={m} /> },
           {
-            title: '', width: 150, render: (_, m) => (
-              <Space direction="vertical" size={4}>
+            title: '', width: 170, render: (_, m) => (
+              <Space>
                 {canProduce && (
-                  <Button type="primary" size="small" block disabled={m.status === 'INACTIVE'} onClick={() => setProducing(m)}>Chế biến</Button>
+                  <Button type="primary" size="small" disabled={m.status === 'INACTIVE'} onClick={() => setProducing(m)}>Chế biến</Button>
                 )}
-                <Space>
-                  <Button size="small" onClick={() => onBatches(m)}>Các lô</Button>
-                  {canEdit && <Button size="small" onClick={() => onEdit(m)}>Sửa</Button>}
-                </Space>
+                <Button size="small" onClick={() => onDetail(m)}>Xem chi tiết</Button>
               </Space>
             ),
           },
@@ -84,7 +77,7 @@ export function PreparedMaterialsTab({ materials, canEdit, canProduce, onEdit, o
 
 /**
  * Chế biến popup: amount starts at the standard quantity (cut down to what the stock allows),
- * the deduction of every input is worked out from it, and confirming starts the lot.
+ * the deduction of every input is worked out from it, and confirming puts the lot in stock at once.
  */
 function ProduceModal({ material: m, materials, onClose }: { material: Material; materials: Material[]; onClose: () => void }) {
   const std = m.yieldQuantity ?? 0
@@ -94,13 +87,15 @@ function ProduceModal({ material: m, materials, onClose }: { material: Material;
   const clamped = want > max
   const factor = std ? Math.floor((amount / std) * 10000) / 10000 : 0
   const tooSmall = factor < 0.1
-  const produce = useAction(coreApi.produce, KEYS, 'Đã bắt đầu chế biến')
+  // standard shelf life from now; can be changed for this lot
+  const [expiresAt, setExpiresAt] = useState<Dayjs | null>(m.shelfLifeMinutes ? dayjs().add(m.shelfLifeMinutes, 'minute') : null)
+  const produce = useAction(coreApi.produce, KEYS, 'Đã chế biến, lô đã vào kho')
   const stockOf = (id: number) => materials.find((x) => x.id === id)?.stockQuantity ?? 0
 
   return (
-    <Modal open title={`Chế biến · ${m.name}`} onCancel={onClose} width={620} okText="Bắt đầu chế biến"
+    <Modal open title={`Chế biến · ${m.name}`} onCancel={onClose} width={620} okText="Chế biến & nhập kho"
       okButtonProps={{ disabled: tooSmall, loading: produce.isPending }}
-      onOk={() => produce.mutate({ materialId: m.id, batches: factor }, { onSuccess: onClose })}>
+      onOk={() => produce.mutate({ materialId: m.id, batches: factor, expiresAt: expiresAt?.format('YYYY-MM-DDTHH:mm:ss') }, { onSuccess: onClose })}>
       <div className="a-produce-amount">
         <div>
           <div className="a-muted small">Lượng chế biến</div>
@@ -133,74 +128,11 @@ function ProduceModal({ material: m, materials, onClose }: { material: Material;
             ),
           },
         ]} />
-      <div className="a-muted small" style={{ marginTop: 8 }}>
-        {m.prepMinutes ? `Dự kiến xong ${dayjs().add(m.prepMinutes, 'minute').format('HH:mm DD/MM')}` : ''}
-        {m.shelfLifeMinutes ? ` · hạn dùng ${duration(m.shelfLifeMinutes)} sau khi xong` : ''}
+      <div style={{ margin: '12px 0 6px' }}>
+        Dự kiến hết hạn {m.shelfLifeMinutes ? <span className="a-muted small">(chuẩn: {duration(m.shelfLifeMinutes)} sau khi chế biến)</span> : null}
       </div>
-      {m.instructions && (
-        <>
-          <div className="a-produce-guide-title">Hướng dẫn (định lượng chuẩn {num(std)} {m.unit})</div>
-          <div className="a-produce-guide">{m.instructions}</div>
-        </>
-      )}
+      <DatePicker showTime={{ format: 'HH:mm' }} format="HH:mm DD/MM/YYYY" value={expiresAt} onChange={setExpiresAt} style={{ width: '100%' }}
+        disabledDate={(d) => d.isBefore(dayjs().startOf('day'))} />
     </Modal>
-  )
-}
-
-/** Expanded row: instructions + lots being prepared (finish / discard). */
-function Expanded({ material, canProduce }: { material: Material; canProduce: boolean }) {
-  const { data: batches = [] } = useQuery({ queryKey: ['batches', material.id], queryFn: () => coreApi.batches(material.id) })
-  const finish = useAction((v: { id: number; actualQuantity: number; expiresAt?: string }) => coreApi.finishBatch(v.id, { actualQuantity: v.actualQuantity, expiresAt: v.expiresAt }), KEYS, 'Đã hoàn tất lô')
-  const discard = useAction((id: number) => coreApi.discardBatch(id), KEYS, 'Đã hủy lô')
-  const [finishing, setFinishing] = useState<Batch | null>(null)
-  const [actual, setActual] = useState<number | null>(null)
-  const [expiresAt, setExpiresAt] = useState<Dayjs | null>(null)
-  const open = (b: Batch) => {
-    setFinishing(b)
-    setActual(b.importQuantity)
-    // standard shelf life from now; can be changed for this lot
-    setExpiresAt(material.shelfLifeMinutes ? dayjs().add(material.shelfLifeMinutes, 'minute') : null)
-  }
-  const preparing = batches.filter((b) => b.status === 'PREPARING')
-
-  return (
-    <div className="a-prepared-expanded">
-      <div>
-        <div className="a-produce-guide-title">Hướng dẫn chế biến (định lượng chuẩn {num(material.yieldQuantity)} {material.unit})</div>
-        <div className="a-produce-guide">{material.instructions || <span className="a-muted">Chưa có hướng dẫn</span>}</div>
-      </div>
-      <div>
-        <div className="a-produce-guide-title">Đang chế biến</div>
-        <Table<Batch> rowKey="id" size="small" pagination={false} dataSource={preparing} locale={{ emptyText: 'Không có lô nào đang chế biến' }}
-          columns={[
-            { title: 'Lô', dataIndex: 'id', render: (v) => `#${v}` },
-            { title: 'Bắt đầu', render: (_, b) => dateTime(b.createdAt) },
-            { title: 'Dự kiến xong', render: (_, b) => <>{dateTime(b.readyAt)} {dayjs(b.readyAt).isBefore(dayjs()) && <Tag color="green">Đủ giờ</Tag>}</> },
-            { title: 'Dự kiến', render: (_, b) => `${num(b.importQuantity)} ${b.unit}` },
-            ...(canProduce ? [{
-              title: '', render: (_: unknown, b: Batch) => (
-                <Space>
-                  <Button size="small" type="primary" onClick={() => open(b)}>Hoàn tất</Button>
-                  <Popconfirm title="Hủy lô này? Nguyên liệu đã dùng không được hoàn lại." onConfirm={() => discard.mutate(b.id)}>
-                    <Button size="small" danger>Hủy</Button>
-                  </Popconfirm>
-                </Space>
-              ),
-            }] : []),
-          ]} />
-      </div>
-      <Modal open={!!finishing} title={`Hoàn tất lô #${finishing?.id ?? ''} · ${material.name}`} onCancel={() => setFinishing(null)}
-        okText="Nhập kho" okButtonProps={{ disabled: !actual, loading: finish.isPending }}
-        onOk={() => finish.mutate({ id: finishing!.id, actualQuantity: actual!, expiresAt: expiresAt?.format('YYYY-MM-DDTHH:mm:ss') }, { onSuccess: () => setFinishing(null) })}>
-        <div style={{ marginBottom: 6 }}>Sản lượng thực tế ({material.unit}) · dự kiến {num(finishing?.importQuantity)}</div>
-        <InputNumber min={0.01} value={actual} onChange={setActual} style={{ width: '100%' }} autoFocus />
-        <div style={{ margin: '12px 0 6px' }}>Hạn dùng lô này {material.shelfLifeMinutes ? `(chuẩn: ${duration(material.shelfLifeMinutes)} sau khi xong)` : ''}</div>
-        <DatePicker showTime={{ format: 'HH:mm' }} format="HH:mm DD/MM/YYYY" value={expiresAt} onChange={setExpiresAt} style={{ width: '100%' }}
-          disabledDate={(d) => d.isBefore(dayjs().startOf('day'))} />
-        {finishing?.inputs?.length ? (
-          <div className="a-muted small" style={{ marginTop: 8 }}>Làm từ: {finishing.inputs.map((i) => `${num(i.quantity)} ${i.unit} ${i.materialName} (lô #${i.batchId})`).join(' · ')}</div>
-        ) : null}
-      </Modal>
-    </div>
   )
 }
