@@ -130,7 +130,9 @@ export function MaterialsPage() {
                 { title: prepared ? 'Chế biến lúc' : 'Ngày nhập', render: (_, b) => (prepared ? dateTime(b.createdAt) : date(b.createdAt)) },
                 { title: prepared ? 'Sản lượng' : 'Nhập', render: (_, b) => `${num(b.importQuantity)} ${b.unit}` },
                 { title: 'Còn lại', render: (_, b) => <b>{num(b.remainingQuantity)} {b.unit}</b> },
-                { title: prepared ? `Giá vốn / ${detail.unit}` : 'Đơn giá nhập', dataIndex: 'unitCost', render: (v) => (prepared ? (v == null ? '—' : `${num(v)}đ`) : money(v)) },
+                prepared
+                  ? { title: `Giá vốn / ${detail.unit}`, dataIndex: 'unitCost', render: (v) => (v == null ? '—' : `${num(v)}đ`) }
+                  : { title: 'Thành tiền', render: (_, b) => (b.unitCost == null ? '—' : money(b.importQuantity * b.unitCost)) },
                 {
                   title: 'Hạn dùng', dataIndex: 'expiryDate',
                   render: (v, b) => prepared

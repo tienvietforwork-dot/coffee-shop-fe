@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Segmented, Select, Table } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
-import { BATCH_STATUS, date, num } from '@/lib/format'
+import { BATCH_STATUS, date, money, num } from '@/lib/format'
 import { P, usePerm } from '@/lib/perm'
 import { PageHeader } from '../components/PageHeader'
 import { useAction } from '../components/useCrud'
@@ -24,26 +24,27 @@ export function StockPage() {
   const materialId = Form.useWatch('materialId', form) as number | undefined
   const { data: batches = [] } = useQuery({ queryKey: ['batches', materialId], queryFn: () => coreApi.batches(materialId!), enabled: !!materialId })
   const material = materials.find((m) => m.id === materialId)
-  // Phiếu nhập: đơn giá + hạn dùng gợi ý theo lần nhập gần nhất (batches đã sắp mới nhất trước).
-  // Hạn dùng giữ nguyên số ngày bảo quản của lô đó, tính từ hôm nay.
+  // Phiếu nhập: hạn dùng gợi ý theo lần nhập gần nhất (batches đã sắp mới nhất trước),
+  // giữ nguyên số ngày bảo quản của lô đó, tính từ hôm nay.
   const lastImport = batches.find((b) => b.materialId === materialId)
   const shelfDays = lastImport?.expiryDate && lastImport.createdAt
     ? dayjs(lastImport.expiryDate).diff(dayjs(lastImport.createdAt).startOf('day'), 'day') : undefined
   useEffect(() => {
     if (mode !== 'import' || !lastImport) return
-    form.setFieldsValue({
-      unitCost: lastImport.unitCost ?? undefined,
-      expiryDate: shelfDays != null && shelfDays >= 0 ? dayjs().startOf('day').add(shelfDays, 'day') : undefined,
-    })
+    form.setFieldsValue({ expiryDate: shelfDays != null && shelfDays >= 0 ? dayjs().startOf('day').add(shelfDays, 'day') : undefined })
   }, [mode, lastImport?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Nhập tổng tiền cả phiếu; đơn giá / đơn vị (giá vốn của lô) = thành tiền ÷ số lượng
+  const quantity = Form.useWatch('quantity', form) as number | undefined
+  const totalCost = Form.useWatch('totalCost', form) as number | undefined
+  const unitCostOf = (total?: number, qty?: number) => (total != null && qty ? Math.round((total / qty) * 100) / 100 : undefined)
   const keys = [['materials'], ['batches', materialId], ['alerts'], ['transactions'], ['coffees'], ['menu']]
   const imp = useAction(coreApi.importStock, keys, 'Đã nhập kho')
   const exp = useAction(coreApi.exportStock, keys, 'Đã xuất kho')
   const adj = useAction(coreApi.adjustStock, keys, 'Đã điều chỉnh tồn kho')
 
-  const submit = (v: { materialId: number; quantity: number; unitCost?: number; expiryDate?: Dayjs; note?: string; batchId?: number; actualQuantity?: number }) => {
-    const reset = { onSuccess: () => form.resetFields(['quantity', 'unitCost', 'expiryDate', 'note', 'batchId', 'actualQuantity']) }
-    if (mode === 'import') imp.mutate({ materialId: v.materialId, quantity: v.quantity, unitCost: v.unitCost, note: v.note, expiryDate: v.expiryDate?.format('YYYY-MM-DD') }, reset)
+  const submit = (v: { materialId: number; quantity: number; totalCost?: number; expiryDate?: Dayjs; note?: string; batchId?: number; actualQuantity?: number }) => {
+    const reset = { onSuccess: () => form.resetFields(['quantity', 'totalCost', 'expiryDate', 'note', 'batchId', 'actualQuantity']) }
+    if (mode === 'import') imp.mutate({ materialId: v.materialId, quantity: v.quantity, unitCost: unitCostOf(v.totalCost, v.quantity), note: v.note, expiryDate: v.expiryDate?.format('YYYY-MM-DD') }, reset)
     else if (mode === 'export') exp.mutate({ materialId: v.materialId, quantity: v.quantity, note: v.note }, reset)
     else adj.mutate({ batchId: v.batchId!, actualQuantity: v.actualQuantity!, note: v.note }, reset)
   }
@@ -74,13 +75,17 @@ export function StockPage() {
               )}
               {mode === 'import' && lastImport && (
                 <div style={{ marginTop: -8, marginBottom: 12, color: '#8c8c8c', fontSize: 13 }}>
-                  Gợi ý theo lần nhập gần nhất ({date(lastImport.createdAt)}, lô #{lastImport.id}
-                  {shelfDays != null && ` · bảo quản ${shelfDays} ngày`}) — có thể sửa lại
+                  Lần nhập gần nhất {date(lastImport.createdAt)} (lô #{lastImport.id}): {num(lastImport.importQuantity)} {lastImport.unit}
+                  {lastImport.unitCost != null && ` = ${money(lastImport.importQuantity * lastImport.unitCost)}`}
+                  {shelfDays != null && ` · bảo quản ${shelfDays} ngày`}
                 </div>
               )}
               {mode === 'import' && (
                 <div className="a-grid-2">
-                  <Form.Item name="unitCost" label={`Đơn giá nhập / ${material?.unit ?? 'đơn vị'}`}><MoneyInput step={1} /></Form.Item>
+                  <Form.Item name="totalCost" label="Thành tiền cả phiếu"
+                    extra={unitCostOf(totalCost, quantity) != null ? `≈ ${num(unitCostOf(totalCost, quantity))}đ / ${material?.unit ?? 'đơn vị'}` : undefined}>
+                    <MoneyInput step={1000} />
+                  </Form.Item>
                   <Form.Item name="expiryDate" label="Hạn sử dụng">
                     <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" disabledDate={(d) => d.isBefore(dayjs().startOf('day'))} />
                   </Form.Item>
