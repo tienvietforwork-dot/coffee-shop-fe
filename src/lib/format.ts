@@ -81,3 +81,6 @@ export const duration = (min?: number | null) => {
   if (min % 60 === 0) return `${min / 60} giờ`
   return min > 60 ? `${Math.floor(min / 60)} giờ ${min % 60} phút` : `${min} phút`
 }
+
+/** delivery carriers to book a ride with */
+export const CARRIERS = ['Grab', 'Be', 'Ahamove', 'Lalamove', 'Shipper cửa hàng']

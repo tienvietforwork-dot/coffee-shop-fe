@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Button, Form, Input, Modal, Select, Table } from 'antd'
 import { coreApi } from '@/api/core'
 import type { Shipment, ShipmentStatus } from '@/api/types'
-import { SHIPMENT_STATUS, dateTime, money, options } from '@/lib/format'
+import { CARRIERS, SHIPMENT_STATUS, dateTime, money, options } from '@/lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { StatusTag } from '../components/StatusTag'
 import { useAction } from '../components/useCrud'
@@ -45,7 +45,7 @@ export function ShipmentsPage() {
           <Form layout="vertical" initialValues={{ ...edit, status: NEXT[edit.status] }}
             onFinish={(v) => save.mutate({ id: edit.id, ...v }, { onSuccess: () => setEdit(null) })}>
             <Form.Item name="status" label="Trạng thái mới"><Select options={options(SHIPMENT_STATUS)} /></Form.Item>
-            <Form.Item name="carrier" label="Đơn vị vận chuyển"><Select allowClear options={['Grab', 'Be', 'Ahamove', 'Lalamove', 'Shipper cửa hàng'].map((x) => ({ value: x, label: x }))} /></Form.Item>
+            <Form.Item name="carrier" label="Đơn vị vận chuyển"><Select allowClear options={CARRIERS.map((x) => ({ value: x, label: x }))} /></Form.Item>
             <Form.Item name="trackingCode" label="Mã vận đơn"><Input /></Form.Item>
             <Form.Item name="note" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
             <Button type="primary" htmlType="submit" block loading={save.isPending}>Cập nhật</Button>
