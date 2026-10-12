@@ -191,6 +191,8 @@ export interface Material {
   instructions?: string
   /** coffees (per cup) and prepared materials (per standard batch) that use this material */
   usedIn?: { kind: 'COFFEE' | 'PREPARED'; id: number; name: string; quantity: number }[]
+  /** earliest expiry among the lots still in stock (the lot used next) */
+  nextExpiryDate?: string
 }
 
 export interface Batch {

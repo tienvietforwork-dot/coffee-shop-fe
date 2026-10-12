@@ -50,13 +50,8 @@ export function PreparedMaterialsTab({ materials, canProduce, onDetail }: {
               {m.lowStock && <div><Tag color="red" style={{ margin: 0 }}>Sắp hết</Tag></div>}
             </>,
           },
+          { title: 'Tồn tối thiểu', width: 110, align: 'right', render: (_, m) => `${num(m.minStock)} ${m.unit}` },
           { title: 'Hạn dùng', width: 90, align: 'right', render: (_, m) => duration(m.shelfLifeMinutes) },
-          {
-            title: 'Định lượng chuẩn', width: 210, render: (_, m) => <>
-              <b>{num(m.yieldQuantity)} {m.unit}</b>
-              {m.components?.map((c) => <div key={c.componentId} className="a-muted small">{c.name}: {num(c.quantity)} {c.unit}</div>)}
-            </>,
-          },
           { title: 'Dùng cho', render: (_, m) => <UsedInCell material={m} /> },
           {
             title: '', width: 170, render: (_, m) => (

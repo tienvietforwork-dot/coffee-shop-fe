@@ -67,6 +67,12 @@ export function MaterialsPage() {
           },
           { title: 'Tồn kho', render: (_, m) => <b>{num(m.stockQuantity)} {m.unit}</b>, sorter: (a, b) => a.stockQuantity / Math.max(a.minStock, 1) - b.stockQuantity / Math.max(b.minStock, 1) },
           { title: 'Tồn tối thiểu', render: (_, m) => `${num(m.minStock)} ${m.unit}` },
+          {
+            title: 'HSD gần nhất', sorter: (a, b) => (a.nextExpiryDate ?? '9999').localeCompare(b.nextExpiryDate ?? '9999'),
+            render: (_, m) => (m.nextExpiryDate
+              ? <span style={{ color: dayjs(m.nextExpiryDate).diff(dayjs(), 'day') <= 7 ? '#cf1322' : undefined }}>{date(m.nextExpiryDate)}</span>
+              : '—'),
+          },
           { title: 'Dùng cho', render: (_, m) => <UsedInCell material={m} /> },
           { title: '', width: 120, render: (_, m) => <Button size="small" onClick={() => setDetail(m)}>Xem chi tiết</Button> },
         ]}
