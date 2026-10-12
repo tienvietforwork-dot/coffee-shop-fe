@@ -31,7 +31,7 @@ export function OrderActions({ order, onDone, compact }: { order: Order; onDone:
   return (
     <Space wrap size={6} onClick={(e) => e.stopPropagation()}>
       {ops && s === 'PENDING' && <>
-        <Button size={size} type="primary" loading={loading} onClick={() => go(() => coreApi.confirm(order.id))}>Xác nhận</Button>
+        <Button size={size} type="primary" loading={loading} onClick={() => go(() => coreApi.confirm(order.id))}>Xác nhận & pha chế</Button>
         <Button size={size} danger onClick={() => setReasonFor('reject')}>Từ chối</Button>
       </>}
       {ops && s === 'CONFIRMED' && <>

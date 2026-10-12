@@ -11,7 +11,8 @@ import { StatusTag } from '../components/StatusTag'
 import { OrderActions } from '../components/OrderActions'
 import { OrderDetailDrawer } from '../components/OrderDetailDrawer'
 
-const COLUMNS: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERING']
+// Xác nhận = bắt đầu pha chế (one step); old CONFIRMED orders sit in the PREPARING column
+const COLUMNS: OrderStatus[] = ['PENDING', 'PREPARING', 'READY', 'DELIVERING']
 
 export function OrdersBoardPage() {
   const qc = useQueryClient()
@@ -29,7 +30,7 @@ export function OrdersBoardPage() {
   })
   const byStatus = useMemo(() => {
     const m: Record<string, Order[]> = {}
-    for (const o of orders) (m[o.status] ??= []).push(o)
+    for (const o of orders) (m[o.status === 'CONFIRMED' ? 'PREPARING' : o.status] ??= []).push(o)
     Object.values(m).forEach((l) => l.sort((a, b) => a.orderedAt.localeCompare(b.orderedAt)))
     return m
   }, [orders])
@@ -65,7 +66,7 @@ export function OrdersBoardPage() {
                       <span className="a-muted">{time(o.orderedAt)}</span>
                     </div>
                     <div className="a-ticket-meta">
-                      {ORDER_TYPE[o.orderType]}{o.tableNo && ` · Bàn ${o.tableNo}`}{o.staffName && ` · ${o.staffName}`}
+                      {ORDER_TYPE[o.orderType]}{o.tableNo && ` · Bàn ${o.tableNo}`}
                     </div>
                     <ul>
                       {o.items.map((i) => <li key={i.id}><b>{i.quantity}×</b> {i.coffeeName}{i.note && <em> — {i.note}</em>}</li>)}

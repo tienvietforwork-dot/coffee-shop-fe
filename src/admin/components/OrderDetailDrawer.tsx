@@ -58,7 +58,6 @@ export function OrderDetailDrawer({ orderId, onClose }: { orderId: number | null
             <Descriptions.Item label="Kênh"><StatusTag label={ORDER_CHANNEL[order.channel]} /></Descriptions.Item>
             <Descriptions.Item label="Hình thức">{ORDER_TYPE[order.orderType]}{order.tableNo && ` · Bàn ${order.tableNo}`}</Descriptions.Item>
             <Descriptions.Item label="Khách hàng">{order.customerName || order.customerPhone || 'Khách lẻ'}{order.customerName && order.customerPhone && ` · ${order.customerPhone}`}</Descriptions.Item>
-            <Descriptions.Item label="Barista">{order.staffName ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Đặt lúc">{dateTime(order.orderedAt)}</Descriptions.Item>
             <Descriptions.Item label="Hẹn nhận">{dateTime(order.pickupTime)}</Descriptions.Item>
             {order.note && <Descriptions.Item label="Ghi chú" span={2}>{order.note}</Descriptions.Item>}

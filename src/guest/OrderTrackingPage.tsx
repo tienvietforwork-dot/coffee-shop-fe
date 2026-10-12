@@ -10,7 +10,6 @@ import { ORDER_STATUS, ORDER_TYPE, PAYMENT_METHOD, PAYMENT_STATUS, SHIPMENT_STAT
 function steps(order: Order): { key: OrderStatus; title: string }[] {
   const s: { key: OrderStatus; title: string }[] = [
     { key: 'PENDING', title: 'Đã gửi đơn' },
-    { key: 'CONFIRMED', title: 'Đã xác nhận' },
     { key: 'PREPARING', title: 'Đang pha chế' },
     { key: 'READY', title: order.orderType === 'DINE_IN' ? 'Đang mang ra bàn' : 'Sẵn sàng' },
   ]
@@ -47,7 +46,7 @@ export function OrderTrackingPage() {
 
   const closed = order.status === 'CANCELLED' || order.status === 'REJECTED'
   const st = steps(order)
-  const current = Math.max(0, st.findIndex((s) => s.key === order.status))
+  const current = Math.max(0, st.findIndex((s) => s.key === (order.status === 'CONFIRMED' ? 'PREPARING' : order.status)))
 
   return (
     <div className="g-container g-page g-narrow">
