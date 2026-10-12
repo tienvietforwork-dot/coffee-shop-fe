@@ -44,7 +44,7 @@ export function MaterialsPage() {
   const [form] = Form.useForm()
   const unit = Form.useWatch('unit', form)
   const raws = data.filter((m) => m.kind === 'RAW' && m.id !== detail?.id)
-  const noun = prepared ? 'bán thành phẩm' : 'nguyên liệu'
+  const noun = prepared ? 'nguyên liệu chế biến' : 'nguyên liệu'
   const warnDays = detail?.expiryWarningDays ?? 7 // raw lots: same window as the backend (shop default 7)
   // fill the form every time the drawer opens (and after Lưu), not only on its first mount
   useEffect(() => {
@@ -55,18 +55,18 @@ export function MaterialsPage() {
 
   return (
     <>
-      <PageHeader title="Nguyên liệu & lô" subtitle="Tồn kho = tổng số lượng còn lại của các lô · bán thành phẩm tự chế biến từ nguyên liệu thô"
+      <PageHeader title="Nguyên liệu & lô" subtitle="Tồn kho = tổng số lượng còn lại của các lô · nguyên liệu chế biến / đang sử dụng làm từ nguyên liệu thô (cốt pha sẵn, hộp sữa đã mở…)"
         extra={isAdmin && (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setDetail({ unit: tab === 'RAW' ? 'g' : 'ml', status: 'ACTIVE', kind: tab })}>
-            {tab === 'RAW' ? 'Thêm nguyên liệu' : 'Thêm bán thành phẩm'}
+            {tab === 'RAW' ? 'Thêm nguyên liệu' : 'Thêm nguyên liệu chế biến'}
           </Button>
         )} />
       <Tabs activeKey={tab} onChange={(k) => setTab(k as MaterialKind)} items={[
         { key: 'RAW', label: `Nguyên liệu thô (${data.filter((m) => m.kind === 'RAW').length})` },
-        { key: 'PREPARED', label: `Bán thành phẩm (${data.filter((m) => m.kind === 'PREPARED').length})` },
+        { key: 'PREPARED', label: `Nguyên liệu chế biến / đang sử dụng (${data.filter((m) => m.kind === 'PREPARED').length})` },
       ]} />
       <Space wrap style={{ marginBottom: 12 }}>
-        <Input allowClear prefix={<SearchOutlined />} placeholder={tab === 'RAW' ? 'Tìm nguyên liệu' : 'Tìm bán thành phẩm'}
+        <Input allowClear prefix={<SearchOutlined />} placeholder={tab === 'RAW' ? 'Tìm nguyên liệu' : 'Tìm nguyên liệu chế biến'}
           value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 240 }} />
         <Segmented value={onlyWarn ? 'warn' : 'all'} onChange={(v) => setOnlyWarn(v === 'warn')} options={[
           { value: 'all', label: 'Tất cả' },
@@ -78,11 +78,11 @@ export function MaterialsPage() {
         loading={isLoading}
         dataSource={rows}
         rowClassName={(m) => (warn(m) ? 'a-row-warn' : '')}
-        locale={{ emptyText: <Empty description={ofTab.length ? 'Không có kết quả phù hợp' : tab === 'RAW' ? 'Chưa có nguyên liệu' : 'Chưa có bán thành phẩm — bấm Thêm để khai báo (VD: cốt cold brew, nước đường)'} /> }}
+        locale={{ emptyText: <Empty description={ofTab.length ? 'Không có kết quả phù hợp' : tab === 'RAW' ? 'Chưa có nguyên liệu' : 'Chưa có nguyên liệu chế biến — bấm Thêm để khai báo (VD: cốt cold brew, hộp sữa tươi đã mở)'} /> }}
         scroll={{ x: 900 }}
         columns={[
           {
-            title: tab === 'RAW' ? 'Nguyên liệu' : 'Bán thành phẩm', dataIndex: 'name', render: (v, m) => <>
+            title: tab === 'RAW' ? 'Nguyên liệu' : 'Nguyên liệu chế biến', dataIndex: 'name', render: (v, m) => <>
               {v} {m.lowStock && <Tag color="red">Sắp hết</Tag>} {m.expiringSoon && <Tag color="red">Sắp hết hạn</Tag>} {m.status === 'INACTIVE' && <Tag>Ngưng dùng</Tag>}
             </>,
           },
@@ -114,7 +114,7 @@ export function MaterialsPage() {
         <Form form={form} layout="vertical" preserve={false} disabled={!isAdmin}
           onFinish={(v) => save.mutate({ ...v, kind, id: detail?.id }, { onSuccess: (m) => setDetail(m) })}>
           <div className="a-grid-2">
-            <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input placeholder={prepared ? 'VD: Cốt cold brew' : ''} /></Form.Item>
+            <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input placeholder={prepared ? 'VD: Cốt cold brew, Sữa tươi (hộp đã mở)' : ''} /></Form.Item>
             <Form.Item name="status" label="Trạng thái"><Select options={[{ value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngưng dùng' }]} /></Form.Item>
             <Form.Item name="unit" label="Đơn vị tính" rules={[{ required: true }]}><Select options={UNITS.map((u) => ({ value: u, label: u }))} /></Form.Item>
             <Form.Item name="minStock" label="Mức tồn tối thiểu"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
@@ -123,7 +123,7 @@ export function MaterialsPage() {
               <InputNumber min={0} precision={0} addonAfter="ngày" placeholder={prepared ? '' : '7'} style={{ width: '100%' }} />
             </Form.Item>
             {prepared && (
-              <Form.Item name="shelfLifeMinutes" label="Hạn dùng sau khi chế biến"><DurationInput defaultUnit={1440} /></Form.Item>
+              <Form.Item name="shelfLifeMinutes" label="Hạn dùng sau khi chế biến / mở"><DurationInput defaultUnit={1440} /></Form.Item>
             )}
           </div>
           {prepared && (

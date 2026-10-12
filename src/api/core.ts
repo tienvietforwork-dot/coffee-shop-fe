@@ -87,7 +87,8 @@ export const coreApi = {
     post<MaterialTransaction[]>('/inventory/export', b),
   adjustStock: (b: { batchId: number; actualQuantity: number; note?: string }) =>
     post<MaterialTransaction>('/inventory/adjust', b),
-  produce: (b: { materialId: number; batches: number; expiresAt?: string; note?: string }) => post<Batch>('/inventory/produce', b),
+  /** lots: input material id -> lot to take it from first (default FEFO) */
+  produce: (b: { materialId: number; batches: number; expiresAt?: string; note?: string; lots?: Record<number, number> }) => post<Batch>('/inventory/produce', b),
 
   staff: () => get<Staff[]>('/staff'),
   createStaff: (b: StaffPayload) => post<Staff>('/staff', b),

@@ -14,7 +14,7 @@ type Mode = 'import' | 'export' | 'adjust'
 
 /**
  * Phiếu nhập / xuất / kiểm kê (BPMN-03). Xuất tự chọn lô hạn dùng gần nhất (FEFO). Người thực hiện = tài khoản đăng nhập.
- * Bán thành phẩm không nhập mua: chế biến ở Nguyên liệu & lô › Bán thành phẩm.
+ * Nguyên liệu chế biến / đang sử dụng không nhập mua: tạo bằng Chế biến ở Nguyên liệu & lô.
  */
 export function StockPage() {
   const { can } = usePerm()
@@ -66,7 +66,7 @@ export function StockPage() {
               ]} />
             <Form form={form} layout="vertical" onFinish={submit}>
               <Form.Item name="materialId" label="Nguyên liệu" rules={[{ required: true }]}
-                extra={mode === 'import' ? 'Bán thành phẩm chế biến ở Nguyên liệu & lô › Bán thành phẩm' : undefined}>
+                extra={mode === 'import' ? 'Nguyên liệu chế biến / đang sử dụng: tạo bằng Chế biến ở Nguyên liệu & lô' : undefined}>
                 <Select showSearch optionFilterProp="label"
                   options={materials.filter((m) => m.status === 'ACTIVE' && (mode !== 'import' || m.kind === 'RAW'))
                     .map((m) => ({ value: m.id, label: `${m.name} — tồn ${num(m.stockQuantity)} ${m.unit}` }))} />
