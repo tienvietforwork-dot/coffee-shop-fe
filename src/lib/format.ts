@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import type {
-  CoffeeStatus, IncidentSeverity, IncidentStatus, IncidentType, MaterialTransactionType, OrderChannel, OrderStatus,
+  CoffeeStatus, IncidentSeverity, IncidentStatus, IncidentType, MaterialTransactionType, OrderChannel, TransactionReason, OrderStatus,
   OrderType, PaymentMethod, PaymentStatus, ShipmentStatus, TableStatus, WorkStatus, BatchStatus,
 } from '@/api/types'
 
@@ -49,9 +49,17 @@ export const WORK_STATUS: Record<WorkStatus, Label> = {
   ACTIVE: L('Đang làm', 'green'), ON_LEAVE: L('Nghỉ phép', 'gold'), RESIGNED: L('Đã nghỉ', 'default'),
 }
 export const TX_TYPE: Record<MaterialTransactionType, Label> = {
-  IMPORT: L('Nhập', 'green'), EXPORT: L('Xuất', 'orange'), SALE: L('Bán', 'blue'), ADJUSTMENT: L('Điều chỉnh', 'purple'),
-  PRODUCTION_USE: L('Xuất chế biến', 'gold'), PRODUCE: L('Nhập chế biến', 'cyan'),
+  IMPORT: L('Nhập', 'green'), EXPORT: L('Xuất khác', 'orange'), SALE: L('Bán', 'blue'), ADJUSTMENT: L('Kiểm kê', 'purple'),
+  PRODUCTION_USE: L('Xuất chế biến', 'gold'), PRODUCE: L('Nhập chế biến', 'cyan'), DISPOSAL: L('Hủy', 'red'),
 }
+export const TX_REASON: Record<TransactionReason, string> = {
+  EXPIRED: 'Hết hạn', SPOILED: 'Hỏng / biến chất', SPILLED: 'Đổ vỡ / rơi vãi', BREW_FAILED: 'Pha hỏng', OTHER_DISPOSAL: 'Hủy khác',
+  RETURN_SUPPLIER: 'Trả nhà cung cấp', INTERNAL_USE: 'Dùng nội bộ / thử món',
+}
+export const DISPOSAL_REASONS: TransactionReason[] = ['EXPIRED', 'SPOILED', 'SPILLED', 'BREW_FAILED', 'OTHER_DISPOSAL']
+export const EXPORT_REASONS: TransactionReason[] = ['RETURN_SUPPLIER', 'INTERNAL_USE']
+/** "10 Hộp 500 ml" for a lot imported by package, empty otherwise */
+export const packaging = (b: { packageName?: string; packageCount?: number }) => (b.packageName && b.packageCount ? `${num(b.packageCount)} ${b.packageName}` : '')
 export const BATCH_STATUS: Record<BatchStatus, Label> = {
   PREPARING: L('Đang chế biến', 'gold'), AVAILABLE: L('Còn hàng', 'green'), DEPLETED: L('Đã hết', 'default'), EXPIRED: L('Hết hạn', 'red'),
 }

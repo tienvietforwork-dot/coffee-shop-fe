@@ -5,7 +5,7 @@ import { WarningOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
 import type { Batch, Material } from '@/api/types'
-import { date, duration, num } from '@/lib/format'
+import { date, duration, num, packaging } from '@/lib/format'
 import { useAction } from '../components/useCrud'
 
 const KEYS = [['materials'], ['batches'], ['alerts'], ['transactions'], ['coffees'], ['menu']]
@@ -49,6 +49,12 @@ export function ProduceModal({ material: m, materials, onClose }: { material: Ma
     const lots = lotsOf(componentId)
     return lots.find((b) => b.id === picked[componentId]) ?? lots[0]
   }
+  // made from one packaged input (e.g. opening a carton of milk): one package of the picked lot
+  const single = comps.length === 1 ? comps[0] : undefined
+  const singleLot = single && firstLot(single.componentId)
+  const openOne = single && singleLot?.packageSize && singleLot.packageName
+    ? { name: singleLot.packageName, amount: Math.round(singleLot.packageSize * (std / single.quantity) * 100) / 100 }
+    : undefined
   const lots = Object.fromEntries(comps.map((c) => [c.componentId, firstLot(c.componentId)?.id]).filter(([, id]) => id != null))
 
   return (
@@ -64,6 +70,9 @@ export function ProduceModal({ material: m, materials, onClose }: { material: Ma
           </Space.Compact>
         </div>
         <Space wrap>
+          {openOne && (
+            <Button size="small" type="primary" ghost onClick={() => setWant(openOne.amount)}>Mở 1 {openOne.name.toLowerCase()} ({num(openOne.amount)} {m.unit})</Button>
+          )}
           {[0.5, 1, 2].map((k) => <Button key={k} size="small" onClick={() => setWant(std * k)}>×{num(k)} chuẩn</Button>)}
         </Space>
         <div className="a-muted small">Định lượng chuẩn {num(std)} {m.unit} · tối đa theo kho {num(max)} {m.unit}</div>
@@ -90,7 +99,7 @@ export function ProduceModal({ material: m, materials, onClose }: { material: Ma
                   onChange={(id) => setPicked((p) => ({ ...p, [c.componentId]: id }))}
                   options={all.map((b) => ({
                     value: b.id,
-                    label: <>#{b.id} · HSD {date(b.expiryDate)} · còn {num(b.remainingQuantity)} {b.unit}
+                    label: <>#{b.id}{packaging(b) && ` · ${b.packageName}`} · HSD {date(b.expiryDate)} · còn {num(b.remainingQuantity)} {b.unit}
                       {all.some((o) => o.id !== b.id && o.expiryDate === b.expiryDate) && <Tag color="gold" bordered={false} style={{ marginLeft: 6 }}>cùng hạn</Tag>}</>,
                   }))} />
                 {lot && lot.remainingQuantity < need && (
