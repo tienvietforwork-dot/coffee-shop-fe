@@ -12,6 +12,8 @@ export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
 export type ShipmentStatus = 'PENDING' | 'BOOKED' | 'DRIVER_ACCEPTED' | 'DELIVERING' | 'DELIVERED' | 'FAILED'
 export type MaterialStatus = 'ACTIVE' | 'INACTIVE'
 export type BatchStatus = 'PREPARING' | 'AVAILABLE' | 'DEPLETED' | 'EXPIRED'
+export type SupplierStatus = 'ACTIVE' | 'INACTIVE'
+export type PurchaseOrderStatus = 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'COMPLETED' | 'CANCELLED'
 export type MaterialKind = 'RAW' | 'PREPARED'
 export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCE' | 'DISPOSAL'
 /** phiếu hủy: EXPIRED … OTHER_DISPOSAL; xuất khác: RETURN_SUPPLIER, INTERNAL_USE */
@@ -241,6 +243,89 @@ export interface Batch {
   packageCount?: number
   /** prepared-material batch: the raw batches it was made from */
   inputs?: { batchId: number; materialName: string; unit: string; quantity: number }[]
+  /** phiếu nhập that brought the lot in, and its supplier */
+  receiptCode?: string
+  supplierName?: string
+  purchaseOrderItemId?: number
+}
+
+/** materials a supplier sells; unitPrice = reference price per unit of the material */
+export interface SupplierMaterial {
+  materialId: number
+  materialName: string
+  unit: string
+  packageId?: number
+  packageName?: string
+  packageSize?: number
+  unitPrice?: number
+}
+
+export interface Supplier {
+  id: number
+  name: string
+  contactName?: string
+  phone?: string
+  email?: string
+  address?: string
+  taxCode?: string
+  note?: string
+  /** INACTIVE = ngừng hợp tác */
+  status: SupplierStatus
+  materials: SupplierMaterial[]
+}
+
+/** one line of a purchase order; quantities in the material's unit, unitPrice per unit of the material */
+export interface PurchaseOrderItem {
+  id: number
+  materialId: number
+  materialName: string
+  unit: string
+  packageName?: string
+  packageSize?: number
+  packageCount?: number
+  quantity: number
+  receivedQuantity: number
+  unitPrice?: number
+  amount: number
+  note?: string
+}
+
+/** phiếu nhập kho: one delivery; lines = the lots it brought in */
+export interface GoodsReceipt {
+  id: number
+  code: string
+  supplierId: number
+  supplierName: string
+  purchaseOrderId?: number
+  purchaseOrderCode?: string
+  staffName?: string
+  note?: string
+  createdAt: string
+  createdBy?: string
+  totalAmount: number
+  lines: Batch[]
+}
+
+/** phiếu đặt hàng nhà cung cấp; receipts only on the detail */
+export interface PurchaseOrder {
+  id: number
+  code: string
+  supplierId: number
+  supplierName: string
+  supplierPhone?: string
+  supplierAddress?: string
+  staffName?: string
+  status: PurchaseOrderStatus
+  expectedDate?: string
+  orderedAt?: string
+  completedAt?: string
+  note?: string
+  closeReason?: string
+  createdAt: string
+  createdBy?: string
+  totalAmount: number
+  items: PurchaseOrderItem[]
+  receipts?: GoodsReceipt[]
 }
 
 export interface MaterialTransaction {

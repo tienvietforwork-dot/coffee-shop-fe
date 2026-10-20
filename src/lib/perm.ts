@@ -19,6 +19,8 @@ export const P = {
   MATERIALS_EDIT: 'materials.edit',
   STOCK: 'stock',
   STOCK_HISTORY: 'stock-history',
+  SUPPLIERS: 'suppliers',
+  PURCHASE_ORDERS: 'purchase-orders',
   TABLES: 'tables',
   TABLES_EDIT: 'tables.edit',
   CRM_CUSTOMERS: 'crm.customers',

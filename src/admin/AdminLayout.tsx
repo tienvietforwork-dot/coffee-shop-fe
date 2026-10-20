@@ -6,7 +6,7 @@ import {
   AppstoreOutlined, ExperimentOutlined, InboxOutlined, HistoryOutlined, TableOutlined, TeamOutlined,
   UserOutlined, IdcardOutlined, MessageOutlined, CommentOutlined, ClusterOutlined, BarChartOutlined,
   GiftOutlined, TagsOutlined, FundOutlined, LineChartOutlined, LogoutOutlined, ArrowLeftOutlined,
-  SafetyCertificateOutlined, KeyOutlined,
+  SafetyCertificateOutlined, KeyOutlined, ShoppingCartOutlined, SolutionOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
@@ -39,6 +39,8 @@ const GROUPS: { label: string; items: Entry[] }[] = [
       { key: '/admin/materials', icon: <ExperimentOutlined />, label: 'Nguyên liệu & lô', perm: P.MATERIALS },
       { key: '/admin/stock', icon: <InboxOutlined />, label: 'Nhập / xuất kho', perm: P.STOCK },
       { key: '/admin/stock-history', icon: <HistoryOutlined />, label: 'Lịch sử kho', perm: P.STOCK_HISTORY },
+      { key: '/admin/purchase-orders', icon: <ShoppingCartOutlined />, label: 'Phiếu đặt hàng', perm: P.PURCHASE_ORDERS },
+      { key: '/admin/suppliers', icon: <SolutionOutlined />, label: 'Nhà cung cấp', perm: P.SUPPLIERS },
     ],
   },
   {

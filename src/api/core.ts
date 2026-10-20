@@ -3,7 +3,7 @@ import type {
   Batch, Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
   IncidentSeverity, IncidentType, InventoryAlerts, Material, MaterialKind, MaterialStatus, MaterialTransaction,
   Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus, TransactionReason,
-  Staff, TableStatus, User, WorkStatus,
+  Staff, TableStatus, User, WorkStatus, Supplier, SupplierStatus, PurchaseOrder, PurchaseOrderStatus, GoodsReceipt,
 } from './types'
 
 const get = <T,>(url: string, params?: object) => apiClient.get<T>(url, { params }).then((r) => r.data)
@@ -27,6 +27,22 @@ export interface MaterialPayload {
   components?: { componentId: number; quantity: number }[]
   packages?: { name: string; size: number }[]
   instructions?: string
+}
+export interface SupplierPayload {
+  name: string; contactName?: string; phone?: string; email?: string; address?: string; taxCode?: string; note?: string
+  status?: SupplierStatus
+  /** unitPrice: reference price per unit of the material */
+  materials?: { materialId: number; packageId?: number; unitPrice?: number }[]
+}
+/** each line: packageId + packageCount, or a loose quantity in the material's unit; unitPrice per unit of the material */
+export interface PurchaseOrderPayload {
+  supplierId: number; expectedDate?: string; note?: string
+  items: { materialId: number; packageId?: number; packageCount?: number; quantity?: number; unitPrice?: number; note?: string }[]
+}
+/** what arrived: packageCount (in the ordered packaging) or a loose quantity; unitPrice defaults to the ordered price */
+export interface GoodsReceiptPayload {
+  note?: string
+  lines: { itemId: number; packageCount?: number; quantity?: number; unitPrice?: number; expiryDate?: string }[]
 }
 export interface StaffPayload {
   fullName: string; position?: string; phone: string; email?: string; hireDate?: string
@@ -83,8 +99,27 @@ export const coreApi = {
   transactions: (materialId?: number) => get<MaterialTransaction[]>('/inventory/transactions', { materialId }),
   alerts: () => get<InventoryAlerts>('/inventory/alerts'),
   /** packageId + packageCount, or a loose quantity in the material's unit */
-  importStock: (b: { materialId: number; packageId?: number; packageCount?: number; quantity?: number; unitCost?: number; expiryDate?: string; note?: string }) =>
+  importStock: (b: { supplierId: number; materialId: number; packageId?: number; packageCount?: number; quantity?: number; unitCost?: number; expiryDate?: string; note?: string }) =>
     post<Batch>('/inventory/import', b),
+  /** phiếu nhập: loose ones (importStock) and those received against a purchase order (receive) */
+  goodsReceipts: (p?: { supplierId?: number; purchaseOrderId?: number }) => get<GoodsReceipt[]>('/goods-receipts', p),
+
+  suppliers: () => get<Supplier[]>('/suppliers'),
+  createSupplier: (b: SupplierPayload) => post<Supplier>('/suppliers', b),
+  updateSupplier: (id: number, b: SupplierPayload) => put<Supplier>(`/suppliers/${id}`, b),
+  /** ngừng hợp tác */
+  deleteSupplier: (id: number) => del(`/suppliers/${id}`),
+
+  purchaseOrders: (p?: { status?: PurchaseOrderStatus; supplierId?: number }) => get<PurchaseOrder[]>('/purchase-orders', p),
+  purchaseOrder: (id: number) => get<PurchaseOrder>(`/purchase-orders/${id}`),
+  createPurchaseOrder: (b: PurchaseOrderPayload) => post<PurchaseOrder>('/purchase-orders', b),
+  updatePurchaseOrder: (id: number, b: PurchaseOrderPayload) => put<PurchaseOrder>(`/purchase-orders/${id}`, b),
+  deletePurchaseOrder: (id: number) => del(`/purchase-orders/${id}`),
+  sendPurchaseOrder: (id: number) => post<PurchaseOrder>(`/purchase-orders/${id}/send`),
+  cancelPurchaseOrder: (id: number, reason: string) => post<PurchaseOrder>(`/purchase-orders/${id}/cancel`, { reason }),
+  closePurchaseOrder: (id: number, reason: string) => post<PurchaseOrder>(`/purchase-orders/${id}/close`, { reason }),
+  receive: (id: number, b: GoodsReceiptPayload) => post<GoodsReceipt>(`/purchase-orders/${id}/receipts`, b),
+
   /** phiếu hủy */
   disposeStock: (b: { batchId: number; quantity: number; reason: TransactionReason; note?: string }) =>
     post<MaterialTransaction>('/inventory/dispose', b),

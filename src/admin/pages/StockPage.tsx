@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Segmented, Select, Space, Table } from 'antd'
+import { Button, Card, Col, DatePicker, Empty, Form, Input, InputNumber, Row, Segmented, Select, Space, Table } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
-import type { Batch, TransactionReason } from '@/api/types'
-import { BATCH_STATUS, DISPOSAL_REASONS, EXPORT_REASONS, TX_REASON, date, money, num, packaging } from '@/lib/format'
+import type { Batch, PurchaseOrder, TransactionReason } from '@/api/types'
+import { BATCH_STATUS, DISPOSAL_REASONS, EXPORT_REASONS, PO_STATUS, TX_REASON, date, money, num, packaging } from '@/lib/format'
 import { P, usePerm } from '@/lib/perm'
 import { PageHeader } from '../components/PageHeader'
 import { useAction } from '../components/useCrud'
 import { MoneyInput } from '../components/MoneyInput'
 import { StatusTag } from '../components/StatusTag'
+import { ReceiveModal } from '../components/purchase'
 
 /**
- * import: phiếu nhập (by package: 10 × Hộp 500 ml, or loose); dispose: phiếu hủy (hết hạn, hỏng, đổ vỡ, pha hỏng);
+ * import: nhập lẻ, without a purchase order (by package: 10 × Hộp 500 ml, or loose; the supplier is required) — goods ordered
+ * on a phiếu đặt hàng are received from the list next to it; dispose: phiếu hủy (hết hạn, hỏng, đổ vỡ, pha hỏng);
  * export: xuất khác (trả nhà cung cấp, dùng nội bộ); adjust: kiểm kê.
  * Sales and production take stock by themselves, so there is no general "phiếu xuất".
  */
@@ -32,6 +34,10 @@ export function StockPage() {
   const materialId = Form.useWatch('materialId', form) as number | undefined
   const { data: batches = [] } = useQuery({ queryKey: ['batches', materialId], queryFn: () => coreApi.batches(materialId!), enabled: !!materialId })
   const material = materials.find((m) => m.id === materialId)
+  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: coreApi.suppliers, enabled: mode === 'import' })
+  const { data: orders = [] } = useQuery({ queryKey: ['purchase-orders', 'open'], queryFn: () => coreApi.purchaseOrders(), enabled: mode === 'import' })
+  const waiting = orders.filter((o) => o.status === 'ORDERED' || o.status === 'PARTIALLY_RECEIVED')
+  const [receiving, setReceiving] = useState<PurchaseOrder | null>(null)
   const packages = material?.packages ?? []
   // same order the backend takes stock in (FEFO): earliest expiry first, lots without expiry last, then oldest lot
   const fefo = batches.filter((b) => b.status === 'AVAILABLE' && b.remainingQuantity > 0)
@@ -67,20 +73,21 @@ export function StockPage() {
   const lot = batches.find((b) => b.id === batchId)
   const reason = Form.useWatch('reason', form) as TransactionReason | undefined
 
-  const keys = [['materials'], ['batches', materialId], ['alerts'], ['transactions'], ['coffees'], ['menu']]
+  const keys = [['materials'], ['batches', materialId], ['alerts'], ['transactions'], ['coffees'], ['menu'], ['goods-receipts']]
   const imp = useAction(coreApi.importStock, keys, 'Đã nhập kho')
   const dis = useAction(coreApi.disposeStock, keys, 'Đã hủy hàng')
   const exp = useAction(coreApi.exportStock, keys, 'Đã xuất kho')
   const adj = useAction(coreApi.adjustStock, keys, 'Đã điều chỉnh tồn kho')
 
   const submit = (v: {
-    materialId: number; packageId?: number; packageCount?: number; quantity?: number; totalCost?: number; expiryDate?: Dayjs
+    supplierId?: number; materialId: number; packageId?: number; packageCount?: number; quantity?: number; totalCost?: number; expiryDate?: Dayjs
     note?: string; batchId?: number; actualQuantity?: number; reason?: TransactionReason
   }) => {
     const reset = { onSuccess: () => form.resetFields(['packageCount', 'quantity', 'totalCost', 'note', 'batchId', 'actualQuantity', 'reason']) }
     if (mode === 'import') {
       const byPackage = !!v.packageId && v.packageId !== LOOSE
       imp.mutate({
+        supplierId: v.supplierId!,
         materialId: v.materialId,
         packageId: byPackage ? v.packageId : undefined,
         packageCount: byPackage ? v.packageCount : undefined,
@@ -97,23 +104,35 @@ export function StockPage() {
   const out = mode === 'dispose' || mode === 'export'
   return (
     <>
-      <PageHeader title="Nhập / xuất kho" subtitle="Bán hàng và chế biến tự trừ kho · ở đây: nhập mua, hủy hàng, xuất khác, kiểm kê" />
+      <PageHeader title="Nhập / xuất kho" subtitle="Bán hàng và chế biến tự trừ kho · ở đây: nhận hàng theo phiếu đặt, nhập lẻ, hủy hàng, xuất khác, kiểm kê" />
       <Row gutter={16}>
         <Col xs={24} lg={11}>
           <Card>
             <Segmented block value={mode} onChange={(v) => { setMode(v as Mode); form.resetFields() }} style={{ marginBottom: 16 }}
               options={[
-                { value: 'import', label: 'Phiếu nhập' },
+                { value: 'import', label: 'Nhập lẻ' },
                 { value: 'dispose', label: 'Phiếu hủy' },
                 { value: 'export', label: 'Xuất khác' },
                 ...(can(P.MATERIALS_EDIT) ? [{ value: 'adjust', label: 'Kiểm kê' }] : []),
               ]} />
             <Form form={form} layout="vertical" onFinish={submit}>
+              {mode === 'import' && (
+                <Form.Item name="supplierId" label="Nhà cung cấp" rules={[{ required: true }]}
+                  extra="Hàng đã đặt bằng phiếu đặt hàng: nhận ở danh sách bên cạnh">
+                  <Select showSearch optionFilterProp="label"
+                    options={suppliers.filter((s) => s.status === 'ACTIVE').map((s) => ({ value: s.id, label: s.name }))} />
+                </Form.Item>
+              )}
               <Form.Item name="materialId" label="Nguyên liệu" rules={[{ required: true }]}
                 extra={mode === 'import' ? 'Nguyên liệu chế biến / đang sử dụng: tạo bằng Chế biến ở Nguyên liệu & lô'
                   : mode === 'dispose' ? 'Hàng hết hạn được tự hủy mỗi ngày; phiếu hủy dùng cho hàng hỏng, đổ vỡ, pha hỏng'
                     : mode === 'export' ? 'Hàng rời kho không phải để bán / chế biến: trả nhà cung cấp, dùng nội bộ, thử món' : undefined}>
-                <Select showSearch optionFilterProp="label" onChange={() => form.resetFields(['batchId', 'packageId', 'packageCount', 'quantity'])}
+                <Select showSearch optionFilterProp="label" onChange={(id) => {
+                  form.resetFields(['batchId', 'packageId', 'packageCount', 'quantity'])
+                  if (mode === 'import' && !form.getFieldValue('supplierId')) {
+                    form.setFieldValue('supplierId', suppliers.find((s) => s.status === 'ACTIVE' && s.materials.some((m) => m.materialId === id))?.id)
+                  }
+                }}
                   options={materials.filter((m) => m.status === 'ACTIVE' && (mode !== 'import' || m.kind === 'RAW'))
                     .map((m) => ({ value: m.id, label: `${m.name} — tồn ${num(m.stockQuantity)} ${m.unit}` }))} />
               </Form.Item>
@@ -193,12 +212,25 @@ export function StockPage() {
                 <Input />
               </Form.Item>
               <Button type="primary" danger={mode === 'dispose'} htmlType="submit" block loading={imp.isPending || dis.isPending || exp.isPending || adj.isPending}>
-                {mode === 'import' ? 'Nhập kho' : mode === 'dispose' ? 'Hủy hàng' : mode === 'export' ? 'Xuất kho' : 'Cập nhật tồn kho'}
+                {mode === 'import' ? 'Nhập kho (lẻ)' : mode === 'dispose' ? 'Hủy hàng' : mode === 'export' ? 'Xuất kho' : 'Cập nhật tồn kho'}
               </Button>
             </Form>
           </Card>
         </Col>
         <Col xs={24} lg={13}>
+          {mode === 'import' && (
+            <Card title={`Phiếu đặt chờ nhận hàng (${waiting.length})`} style={{ marginBottom: 16 }}>
+              {waiting.length ? (
+                <Table<PurchaseOrder> rowKey="id" size="small" pagination={false} dataSource={waiting}
+                  columns={[
+                    { title: 'Phiếu', render: (_, o) => <><b>{o.code}</b><div className="a-muted small">{o.supplierName}</div></> },
+                    { title: 'Còn chờ', render: (_, o) => o.items.filter((i) => i.receivedQuantity < i.quantity).map((i) => <div key={i.id} className="small">{i.materialName}: {num(i.quantity - i.receivedQuantity)} {i.unit}</div>) },
+                    { title: 'Hẹn giao', dataIndex: 'expectedDate', render: date },
+                    { title: '', render: (_, o) => <><StatusTag label={PO_STATUS[o.status]} /><Button size="small" type="primary" onClick={() => setReceiving(o)}>Nhận hàng</Button></> },
+                  ]} />
+              ) : <Empty description="Không có phiếu đặt nào đang chờ giao" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+            </Card>
+          )}
           <Card title={material ? `Lô hiện có · ${material.name}` : 'Chọn nguyên liệu để xem lô'}>
             <Table rowKey="id" size="small" pagination={false} dataSource={fefo}
               columns={[
@@ -211,6 +243,7 @@ export function StockPage() {
           </Card>
         </Col>
       </Row>
+      <ReceiveModal order={receiving} onClose={() => setReceiving(null)} />
     </>
   )
 }

@@ -27,6 +27,8 @@ const CategoriesPage = lazy(() => import('@/admin/pages/CategoriesPage').then((m
 const MaterialsPage = lazy(() => import('@/admin/pages/MaterialsPage').then((m) => ({ default: m.MaterialsPage })))
 const StockPage = lazy(() => import('@/admin/pages/StockPage').then((m) => ({ default: m.StockPage })))
 const StockHistoryPage = lazy(() => import('@/admin/pages/StockHistoryPage').then((m) => ({ default: m.StockHistoryPage })))
+const SuppliersPage = lazy(() => import('@/admin/pages/SuppliersPage').then((m) => ({ default: m.SuppliersPage })))
+const PurchaseOrdersPage = lazy(() => import('@/admin/pages/PurchaseOrdersPage').then((m) => ({ default: m.PurchaseOrdersPage })))
 const TablesPage = lazy(() => import('@/admin/pages/TablesPage').then((m) => ({ default: m.TablesPage })))
 const StaffPage = lazy(() => import('@/admin/pages/StaffPage').then((m) => ({ default: m.StaffPage })))
 const RolesPage = lazy(() => import('@/admin/pages/RolesPage').then((m) => ({ default: m.RolesPage })))
@@ -89,6 +91,8 @@ export default function App() {
                   <Route path="/admin/materials" element={<Guard perm="materials"><MaterialsPage /></Guard>} />
                   <Route path="/admin/stock" element={<Guard perm="stock"><StockPage /></Guard>} />
                   <Route path="/admin/stock-history" element={<Guard perm="stock-history"><StockHistoryPage /></Guard>} />
+                  <Route path="/admin/suppliers" element={<Guard perm="suppliers"><SuppliersPage /></Guard>} />
+                  <Route path="/admin/purchase-orders" element={<Guard perm="purchase-orders"><PurchaseOrdersPage /></Guard>} />
                   <Route path="/admin/tables" element={<Guard perm="tables"><TablesPage /></Guard>} />
                   <Route path="/admin/crm/customers" element={<Guard perm="crm.customers"><CustomersPage /></Guard>} />
                   <Route path="/admin/crm/interactions" element={<Guard perm="crm.interactions"><InteractionsPage /></Guard>} />

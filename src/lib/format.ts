@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import type {
   CoffeeStatus, IncidentSeverity, IncidentStatus, IncidentType, MaterialTransactionType, OrderChannel, TransactionReason, OrderStatus,
-  OrderType, PaymentMethod, PaymentStatus, ShipmentStatus, TableStatus, WorkStatus, BatchStatus,
+  OrderType, PaymentMethod, PaymentStatus, ShipmentStatus, TableStatus, WorkStatus, BatchStatus, PurchaseOrderStatus, SupplierStatus,
 } from '@/api/types'
 
 const vnd = new Intl.NumberFormat('vi-VN')
@@ -60,6 +60,11 @@ export const DISPOSAL_REASONS: TransactionReason[] = ['EXPIRED', 'SPOILED', 'SPI
 export const EXPORT_REASONS: TransactionReason[] = ['RETURN_SUPPLIER', 'INTERNAL_USE']
 /** "10 Hộp 500 ml" for a lot imported by package, empty otherwise */
 export const packaging = (b: { packageName?: string; packageCount?: number }) => (b.packageName && b.packageCount ? `${num(b.packageCount)} ${b.packageName}` : '')
+export const SUPPLIER_STATUS: Record<SupplierStatus, Label> = { ACTIVE: L('Đang hợp tác', 'green'), INACTIVE: L('Ngừng hợp tác', 'default') }
+export const PO_STATUS: Record<PurchaseOrderStatus, Label> = {
+  DRAFT: L('Nháp', 'default'), ORDERED: L('Đã đặt', 'blue'), PARTIALLY_RECEIVED: L('Nhận một phần', 'gold'),
+  COMPLETED: L('Hoàn tất', 'green'), CANCELLED: L('Đã hủy', 'red'),
+}
 export const BATCH_STATUS: Record<BatchStatus, Label> = {
   PREPARING: L('Đang chế biến', 'gold'), AVAILABLE: L('Còn hàng', 'green'), DEPLETED: L('Đã hết', 'default'), EXPIRED: L('Hết hạn', 'red'),
 }
