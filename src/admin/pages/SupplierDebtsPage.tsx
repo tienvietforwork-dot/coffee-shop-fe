@@ -38,7 +38,8 @@ export function SupplierDebtsPage() {
 
   // phiếu chi
   const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(30, 'day'), dayjs()])
-  const payParams = { from: range[0].format('YYYY-MM-DD'), to: range[1].format('YYYY-MM-DD') }
+  const [paySupplier, setPaySupplier] = useState<number>()
+  const payParams = { supplierId: paySupplier, from: range[0].format('YYYY-MM-DD'), to: range[1].format('YYYY-MM-DD') }
   const { data: payments = [], isLoading: loadingPayments } = useQuery({ queryKey: ['supplier-payments', payParams], enabled: tab === 'payments',
     queryFn: () => coreApi.supplierPayments(payParams) })
   const [paying, setPaying] = useState<SupplierDebt | null>(null)
@@ -99,7 +100,11 @@ export function SupplierDebtsPage() {
       </>}
 
       {tab === 'payments' && <>
-        <DatePicker.RangePicker value={range} onChange={(v) => v && setRange([v[0]!, v[1]!])} format="DD/MM/YYYY" allowClear={false} />
+        <Space wrap>
+          <Select allowClear showSearch optionFilterProp="label" placeholder="Nhà cung cấp" style={{ width: 240 }} value={paySupplier} onChange={setPaySupplier}
+            options={debts.map((d) => ({ value: d.supplierId, label: d.supplierName }))} />
+          <DatePicker.RangePicker value={range} onChange={(v) => v && setRange([v[0]!, v[1]!])} format="DD/MM/YYYY" allowClear={false} />
+        </Space>
         <Table<SupplierPayment> rowKey="id" loading={loadingPayments} dataSource={payments} scroll={{ x: 900 }} style={{ marginTop: 12 }}
           columns={[
             { title: 'Số phiếu', dataIndex: 'code', render: (v) => <b>{v}</b> },

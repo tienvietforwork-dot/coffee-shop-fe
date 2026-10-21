@@ -335,6 +335,9 @@ img { max-width: 100%; }
 .a-coffee-form { display: grid; grid-template-columns: 200px 1fr; gap: 0 20px; }
 @media (max-width: 640px) { .a-coffee-form { grid-template-columns: 1fr; } }
 .g-stock-hint { color: #b45309; font-size: 13px; margin: 10px 0 0; font-weight: 600; }
+.g-note-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.g-note-picker .ant-input-affix-wrapper { margin-top: 2px; }
+.g-cart-note { color: var(--muted); font-size: 12px; }
 .a-servings-cell { cursor: pointer; display: inline-block; }
 .a-servings { width: 440px; max-width: 80vw; }
 .a-servings-formula { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: #f6efe7; border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
