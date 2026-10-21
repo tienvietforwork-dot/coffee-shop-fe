@@ -81,17 +81,18 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
               {i.imageUrl && <img src={imageSrc(i.imageUrl)} alt="" />}
               <div className="g-cart-info">
                 <strong>{i.coffeeName}</strong>
+                {i.note && <span className="g-cart-note">Ghi chú: {i.note}</span>}
                 {!i.available && <span className="g-out-text">Món này vừa hết</span>}
                 <div className="g-cart-row">
                   <div className="g-stepper g-stepper-sm">
                     <button
-                      onClick={() => (i.quantity > 1 ? update.mutate({ itemId: i.id, quantity: i.quantity - 1 }) : remove.mutate(i.id))}
+                      onClick={() => (i.quantity > 1 ? update.mutate({ itemId: i.id, quantity: i.quantity - 1, note: i.note }) : remove.mutate(i.id))}
                       aria-label="Giảm"
                     >
                       <MinusOutlined />
                     </button>
                     <span>{i.quantity}</span>
-                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1 })} disabled={addable(i.coffeeId) < 1} aria-label="Tăng">
+                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} disabled={addable(i.coffeeId) < 1} aria-label="Tăng">
                       <PlusOutlined />
                     </button>
                   </div>
