@@ -1,7 +1,8 @@
 import dayjs from 'dayjs'
 import type {
   CoffeeStatus, IncidentSeverity, IncidentStatus, IncidentType, MaterialTransactionType, OrderChannel, TransactionReason, OrderStatus,
-  OrderType, PaymentMethod, PaymentStatus, ShipmentStatus, TableStatus, WorkStatus, BatchStatus,
+  OrderType, PaymentMethod, PaymentStatus, ShipmentStatus, TableStatus, WorkStatus, BatchStatus, PurchaseOrderStatus, SupplierStatus,
+  GoodsReceiptStatus, SupplierReturnStatus, SupplierReturnSettlement, SupplierPaymentStatus, StocktakeStatus, StockQuality,
 } from '@/api/types'
 
 const vnd = new Intl.NumberFormat('vi-VN')
@@ -51,15 +52,36 @@ export const WORK_STATUS: Record<WorkStatus, Label> = {
 export const TX_TYPE: Record<MaterialTransactionType, Label> = {
   IMPORT: L('Nhập', 'green'), EXPORT: L('Xuất khác', 'orange'), SALE: L('Bán', 'blue'), ADJUSTMENT: L('Kiểm kê', 'purple'),
   PRODUCTION_USE: L('Xuất chế biến', 'gold'), PRODUCE: L('Nhập chế biến', 'cyan'), DISPOSAL: L('Hủy', 'red'),
+  IMPORT_CANCEL: L('Hủy phiếu nhập', 'volcano'), SUPPLIER_RETURN: L('Trả NCC', 'magenta'),
 }
 export const TX_REASON: Record<TransactionReason, string> = {
   EXPIRED: 'Hết hạn', SPOILED: 'Hỏng / biến chất', SPILLED: 'Đổ vỡ / rơi vãi', BREW_FAILED: 'Pha hỏng', OTHER_DISPOSAL: 'Hủy khác',
   RETURN_SUPPLIER: 'Trả nhà cung cấp', INTERNAL_USE: 'Dùng nội bộ / thử món',
 }
 export const DISPOSAL_REASONS: TransactionReason[] = ['EXPIRED', 'SPOILED', 'SPILLED', 'BREW_FAILED', 'OTHER_DISPOSAL']
-export const EXPORT_REASONS: TransactionReason[] = ['RETURN_SUPPLIER', 'INTERNAL_USE']
+/** xuất khác: trả nhà cung cấp has its own phiếu trả hàng nhập */
+export const EXPORT_REASONS: TransactionReason[] = ['INTERNAL_USE']
 /** "10 Hộp 500 ml" for a lot imported by package, empty otherwise */
 export const packaging = (b: { packageName?: string; packageCount?: number }) => (b.packageName && b.packageCount ? `${num(b.packageCount)} ${b.packageName}` : '')
+export const SUPPLIER_STATUS: Record<SupplierStatus, Label> = { ACTIVE: L('Đang hợp tác', 'green'), INACTIVE: L('Ngừng hợp tác', 'default') }
+export const PO_STATUS: Record<PurchaseOrderStatus, Label> = {
+  DRAFT: L('Nháp', 'default'), ORDERED: L('Đã đặt', 'blue'), PARTIALLY_RECEIVED: L('Nhận một phần', 'gold'),
+  COMPLETED: L('Hoàn tất', 'green'), CANCELLED: L('Đã hủy', 'red'),
+}
+export const RECEIPT_STATUS: Record<GoodsReceiptStatus, Label> = { COMPLETED: L('Đã nhập kho', 'green'), CANCELLED: L('Đã hủy', 'red') }
+export const RETURN_STATUS: Record<SupplierReturnStatus, Label> = {
+  DRAFT: L('Phiếu tạm', 'default'), COMPLETED: L('Đã trả hàng', 'green'), CANCELLED: L('Đã hủy', 'red'),
+}
+export const RETURN_SETTLEMENT: Record<SupplierReturnSettlement, string> = { DEBT: 'Trừ vào công nợ', REFUND: 'NCC hoàn tiền' }
+export const SUPPLIER_PAYMENT_STATUS: Record<SupplierPaymentStatus, Label> = { COMPLETED: L('Đã chi', 'green'), CANCELLED: L('Đã hủy', 'red') }
+/** trả nhà cung cấp: tiền mặt hoặc chuyển khoản */
+export const SUPPLIER_PAY_METHODS: PaymentMethod[] = ['CASH', 'BANK_TRANSFER']
+/** thuế suất GTGT hàng mua thường gặp; empty = không có hóa đơn GTGT */
+export const VAT_RATES = [{ value: 0, label: '0%' }, { value: 5, label: '5%' }, { value: 8, label: '8%' }, { value: 10, label: '10%' }]
+export const STOCKTAKE_STATUS: Record<StocktakeStatus, Label> = {
+  DRAFT: L('Đang kiểm', 'gold'), BALANCED: L('Đã cân bằng kho', 'green'), CANCELLED: L('Đã hủy', 'default'),
+}
+export const STOCK_QUALITY: Record<StockQuality, string> = { GOOD: 'Còn tốt', POOR: 'Kém phẩm chất', LOST: 'Mất phẩm chất' }
 export const BATCH_STATUS: Record<BatchStatus, Label> = {
   PREPARING: L('Đang chế biến', 'gold'), AVAILABLE: L('Còn hàng', 'green'), DEPLETED: L('Đã hết', 'default'), EXPIRED: L('Hết hạn', 'red'),
 }

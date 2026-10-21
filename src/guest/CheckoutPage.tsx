@@ -9,15 +9,16 @@ import { errorMessage } from '@/api/client'
 import type { OrderType, PaymentMethod } from '@/api/types'
 import { money } from '@/lib/format'
 import { useCart } from './useCart'
+import { DistrictSelect } from './DistrictSelect'
 import { VoucherPicker } from './VoucherPicker'
 import { useGuestStore } from '@/store/guestStore'
 import { useAuthStore } from '@/store/authStore'
 
 const PAYMENTS: { value: PaymentMethod; title: string; desc: string }[] = [
   { value: 'CASH', title: 'Tiền mặt', desc: 'Thanh toán khi nhận đồ uống' },
-  { value: 'E_WALLET', title: 'Ví điện tử', desc: 'MoMo / ZaloPay / VNPay' },
-  { value: 'BANK_TRANSFER', title: 'Chuyển khoản', desc: 'QR ngân hàng' },
-  { value: 'CARD', title: 'Thẻ', desc: 'Visa / Mastercard / ATM' },
+  { value: 'E_WALLET', title: 'Quét mã QR', desc: 'VNPAY-QR bằng app ngân hàng / ví' },
+  { value: 'BANK_TRANSFER', title: 'Thẻ ATM nội địa', desc: 'Internet Banking qua VNPAY' },
+  { value: 'CARD', title: 'Thẻ quốc tế', desc: 'Visa / Mastercard / JCB qua VNPAY' },
 ]
 
 export function CheckoutPage() {
@@ -34,12 +35,15 @@ export function CheckoutPage() {
   const appliedVoucher = store.voucherCode ?? undefined
   const setAppliedVoucher = (code?: string) => store.setVoucher(code ?? null)
   const phone = Form.useWatch('customerPhone', form) as string | undefined
+  const district = Form.useWatch('deliveryDistrict', form) as string | undefined
 
   const quote = useQuery({
-    queryKey: ['quote', cart?.sessionCode, cart?.subtotal, orderType, appliedVoucher, appliedVoucher ? phone : null],
+    queryKey: ['quote', cart?.sessionCode, cart?.subtotal, orderType, appliedVoucher, appliedVoucher ? phone : null, orderType === 'DELIVERY' ? district : null],
     enabled: !!cart && cart.items.length > 0,
     queryFn: () =>
-      publicApi.quote(cart!.sessionCode, { orderType, voucherCode: appliedVoucher, customerPhone: phone || undefined }),
+      publicApi.quote(cart!.sessionCode, { orderType, voucherCode: appliedVoucher, customerPhone: phone || undefined,
+        deliveryDistrict: orderType === 'DELIVERY' ? district : undefined }),
+    retry: false,
   })
 
   useEffect(() => {
@@ -48,10 +52,20 @@ export function CheckoutPage() {
 
   const checkout = useMutation({
     mutationFn: publicApi.checkout,
-    onSuccess: (order) => {
+    onSuccess: async (order) => {
       store.addOrder(order.orderCode)
       store.setCart(null)
       store.setVoucher(null)
+      // paid online: straight to VNPAY; the order waits there unpaid for 15 minutes
+      if (order.payments.some((p) => p.method !== 'CASH' && p.status === 'PENDING')) {
+        try {
+          const link = await publicApi.pay(order.orderCode)
+          window.location.href = link.paymentUrl
+          return
+        } catch (e) {
+          message.error(errorMessage(e))
+        }
+      }
       navigate(`/order/${order.orderCode}`, { replace: true })
     },
     onError: (e) => message.error(errorMessage(e)),
@@ -77,7 +91,7 @@ export function CheckoutPage() {
   }
 
   const submit = (v: {
-    customerName?: string; customerPhone?: string; recipientName?: string; address?: string
+    customerName?: string; customerPhone?: string; recipientName?: string; address?: string; deliveryDistrict?: string
     pickupTime?: Dayjs; paymentMethod: PaymentMethod; note?: string
   }) => {
     store.setContact(v.customerName ?? '', v.customerPhone ?? '')
@@ -89,6 +103,7 @@ export function CheckoutPage() {
       delivery: orderType === 'DELIVERY'
         ? { recipientName: v.recipientName || v.customerName || '', recipientPhone: v.customerPhone!, address: v.address! }
         : undefined,
+      deliveryDistrict: orderType === 'DELIVERY' ? v.deliveryDistrict : undefined,
       pickupTime: v.pickupTime ? v.pickupTime.format('YYYY-MM-DDTHH:mm:ss') : undefined,
       paymentMethod: v.paymentMethod,
       voucherCode: quote.data?.voucherMessage ? undefined : appliedVoucher,
@@ -143,6 +158,10 @@ export function CheckoutPage() {
 
           {orderType === 'DELIVERY' && (
             <>
+              <Form.Item name="deliveryDistrict" label="Quận / phường" rules={[{ required: true, message: 'Chọn quận / phường để tính phí ship' }]}
+                extra={quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span> : undefined}>
+                <DistrictSelect />
+              </Form.Item>
               <Form.Item name="address" label="Địa chỉ giao hàng" rules={[{ required: true, message: 'Nhập địa chỉ giao hàng' }]}>
                 <Input placeholder="Số nhà, đường, phường, quận" maxLength={255} />
               </Form.Item>

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Card, Checkbox, Col, Empty, Form, Input, InputNumber, Row, Segmented, Select, Space, Tag } from 'antd'
+import { Alert, App, Button, Card, Checkbox, Col, Empty, Form, Input, InputNumber, Row, Segmented, Select, Space, Tag } from 'antd'
+import { Link } from 'react-router-dom'
+import { P, usePerm } from '@/lib/perm'
 import { DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { coreApi } from '@/api/core'
 import { publicApi } from '@/api/public'
@@ -9,6 +11,7 @@ import type { OrderType, PaymentMethod } from '@/api/types'
 import { PAYMENT_METHOD, imageSrc, money, options } from '@/lib/format'
 import { useAddableCups } from '@/lib/stock'
 import { PageHeader } from '../components/PageHeader'
+import { DistrictSelect } from '@/guest/DistrictSelect'
 
 interface Line { key: string; coffeeId: number; name: string; price: number; quantity: number }
 
@@ -18,6 +21,9 @@ export function PosPage() {
   const qc = useQueryClient()
   const { data: menu } = useQuery({ queryKey: ['menu'], queryFn: publicApi.menu })
   const { data: tables = [] } = useQuery({ queryKey: ['tables'], queryFn: coreApi.tables })
+  const { can } = usePerm()
+  // cash taken at the counter belongs to the open cashier shift
+  const { data: shift, isFetched: shiftChecked } = useQuery({ queryKey: ['cash-shift'], queryFn: coreApi.currentShift, enabled: can(P.CASH_SHIFTS) || can(P.POS) })
   const [cat, setCat] = useState<number | 'all'>('all')
   const [search, setSearch] = useState('')
   const [lines, setLines] = useState<Line[]>([])
@@ -28,6 +34,7 @@ export function PosPage() {
   const [voucher, setVoucher] = useState('')
   const [form] = Form.useForm()
   const phone = Form.useWatch('customerPhone', form) as string | undefined
+  const district = Form.useWatch('deliveryDistrict', form) as string | undefined
 
   const coffees = useMemo(() => (menu?.categories ?? [])
     .filter((c) => cat === 'all' || c.id === cat)
@@ -36,8 +43,10 @@ export function PosPage() {
 
   const items = lines.map((l) => ({ coffeeId: l.coffeeId, quantity: l.quantity }))
   const quote = useQuery({
-    queryKey: ['pos-quote', items, orderType, voucher, phone],
-    queryFn: () => coreApi.quote({ items, orderType, voucherCode: voucher || undefined, customerPhone: phone || undefined }),
+    queryKey: ['pos-quote', items, orderType, voucher, phone, orderType === 'DELIVERY' ? district : null],
+    queryFn: () => coreApi.quote({ items, orderType, voucherCode: voucher || undefined, customerPhone: phone || undefined,
+      deliveryDistrict: orderType === 'DELIVERY' ? district : undefined }),
+    retry: false,
     enabled: lines.length > 0,
   })
 
@@ -69,13 +78,18 @@ export function PosPage() {
     items, orderType, tableId: orderType === 'DINE_IN' ? tableId : undefined,
     customerName: v.customerName || undefined, customerPhone: v.customerPhone || undefined,
     delivery: orderType === 'DELIVERY' ? { recipientName: v.customerName || 'Khách', recipientPhone: v.customerPhone, address: v.address } : undefined,
+    deliveryDistrict: orderType === 'DELIVERY' ? v.deliveryDistrict : undefined,
     paymentMethod: payment, paidNow, voucherCode: voucher || undefined, note: v.note || undefined,
   }))
 
   const q = quote.data
   return (
     <>
-      <PageHeader title="Order tại quầy" />
+      <PageHeader title="Order tại quầy" extra={shift && <Tag color="green">Ca {shift.code} · {shift.staffName}</Tag>} />
+      {shiftChecked && !shift && (
+        <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="Chưa mở ca thu ngân"
+          description={<>Tiền thu tại quầy được tính vào ca đang mở để chốt két cuối ca. <Link to="/admin/cash-shifts">Mở ca</Link></>} />
+      )}
       <Row gutter={16}>
         <Col xs={24} lg={14}>
           <Card>
@@ -125,7 +139,11 @@ export function PosPage() {
                 </Col>
                 <Col span={12}><Form.Item name="customerName" label="Tên khách"><Input /></Form.Item></Col>
               </Row>
-              {orderType === 'DELIVERY' && <Form.Item name="address" label="Địa chỉ giao" rules={[{ required: true }]}><Input /></Form.Item>}
+              {orderType === 'DELIVERY' && <>
+                <Form.Item name="deliveryDistrict" label="Quận / phường" rules={[{ required: true }]}
+                  extra={quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span> : undefined}><DistrictSelect /></Form.Item>
+                <Form.Item name="address" label="Địa chỉ giao" rules={[{ required: true }]}><Input /></Form.Item>
+              </>}
               <Form.Item name="note" label="Ghi chú đơn"><Input /></Form.Item>
               <Row gutter={8}>
                 <Col span={12}><Select style={{ width: '100%' }} value={payment} onChange={setPayment} options={options(PAYMENT_METHOD)} /></Col>

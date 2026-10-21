@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button, Drawer, Empty, Form, Input, InputNumber, Segmented, Select, Space, Table, Tabs, Tag } from 'antd'
-import { MinusCircleOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { MinusCircleOutlined, PlusOutlined, SearchOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { coreApi, type MaterialPayload } from '@/api/core'
 import type { Batch, Material, MaterialKind } from '@/api/types'
@@ -32,6 +33,9 @@ export function MaterialsPage() {
   const q = search.trim().toLowerCase()
   const rows = ofTab.filter((m) => (!q || m.name.toLowerCase().includes(q)) && (!onlyWarn || warn(m)))
   const [producing, setProducing] = useState<Material | null>(null)
+  const navigate = useNavigate()
+  // Lập yêu cầu nhập hàng: a draft purchase order for the raw materials below their minimum
+  const lowRaw = data.filter((m) => m.kind === 'RAW' && m.status === 'ACTIVE' && m.lowStock)
 
   // "Xem chi tiết": the material's info (editable with MATERIALS_EDIT, saved with Lưu) + its lots; no id = adding a new one
   const [detail, setDetail] = useState<Partial<Material> | null>(null)
@@ -60,11 +64,18 @@ export function MaterialsPage() {
   return (
     <>
       <PageHeader title="Nguyên liệu & lô" subtitle="Tồn kho = tổng số lượng còn lại của các lô · nguyên liệu chế biến / đang sử dụng làm từ nguyên liệu thô (cốt pha sẵn, hộp sữa đã mở…)"
-        extra={isAdmin && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setDetail({ unit: tab === 'RAW' ? 'g' : 'ml', status: 'ACTIVE', kind: tab })}>
-            {tab === 'RAW' ? 'Thêm nguyên liệu' : 'Thêm nguyên liệu chế biến'}
-          </Button>
-        )} />
+        extra={<Space>
+          {can(P.PURCHASE_ORDERS) && lowRaw.length > 0 && (
+            <Button icon={<ShoppingCartOutlined />} onClick={() => navigate('/admin/purchase-orders', { state: { materialIds: lowRaw.map((m) => m.id) } })}>
+              Lập phiếu đặt hàng ({lowRaw.length} sắp hết)
+            </Button>
+          )}
+          {isAdmin && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setDetail({ unit: tab === 'RAW' ? 'g' : 'ml', status: 'ACTIVE', kind: tab })}>
+              {tab === 'RAW' ? 'Thêm nguyên liệu' : 'Thêm nguyên liệu chế biến'}
+            </Button>
+          )}
+        </Space>} />
       <Tabs activeKey={tab} onChange={(k) => setTab(k as MaterialKind)} items={[
         { key: 'RAW', label: `Nguyên liệu thô (${data.filter((m) => m.kind === 'RAW').length})` },
         { key: 'PREPARED', label: `Nguyên liệu chế biến / đang sử dụng (${data.filter((m) => m.kind === 'PREPARED').length})` },
@@ -198,7 +209,13 @@ export function MaterialsPage() {
               } : undefined}
               columns={[
                 { title: 'Lô', dataIndex: 'id', render: (v) => `#${v}` },
-                ...(prepared ? [] : [{ title: 'Quy cách', render: (_: unknown, b: Batch) => packaging(b) || '—' }]),
+                ...(prepared ? [] : [
+                  { title: 'Quy cách', render: (_: unknown, b: Batch) => packaging(b) || '—' },
+                  {
+                    title: 'Phiếu nhập', render: (_: unknown, b: Batch) => (b.receiptCode
+                      ? <>{b.receiptCode}<div className="a-muted small">{b.supplierName}</div></> : '—'),
+                  },
+                ]),
                 { title: prepared ? 'Chế biến lúc' : 'Ngày nhập', render: (_, b) => (prepared ? dateTime(b.createdAt) : date(b.createdAt)) },
                 { title: prepared ? 'Sản lượng' : 'Nhập', render: (_, b) => `${num(b.importQuantity)} ${b.unit}` },
                 { title: 'Còn lại', render: (_, b) => <b>{num(b.remainingQuantity)} {b.unit}</b> },

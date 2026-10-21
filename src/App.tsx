@@ -9,6 +9,7 @@ import { GuestLayout } from '@/guest/GuestLayout'
 import { MenuPage } from '@/guest/MenuPage'
 import { CheckoutPage } from '@/guest/CheckoutPage'
 import { OrderTrackingPage } from '@/guest/OrderTrackingPage'
+import { PaymentResultPage } from '@/guest/PaymentResultPage'
 import { MyOrdersPage } from '@/guest/MyOrdersPage'
 import { TableEntryPage } from '@/guest/TableEntryPage'
 import { FeedbackPage } from '@/guest/FeedbackPage'
@@ -27,6 +28,21 @@ const CategoriesPage = lazy(() => import('@/admin/pages/CategoriesPage').then((m
 const MaterialsPage = lazy(() => import('@/admin/pages/MaterialsPage').then((m) => ({ default: m.MaterialsPage })))
 const StockPage = lazy(() => import('@/admin/pages/StockPage').then((m) => ({ default: m.StockPage })))
 const StockHistoryPage = lazy(() => import('@/admin/pages/StockHistoryPage').then((m) => ({ default: m.StockHistoryPage })))
+const SuppliersPage = lazy(() => import('@/admin/pages/SuppliersPage').then((m) => ({ default: m.SuppliersPage })))
+const PurchaseOrdersPage = lazy(() => import('@/admin/pages/PurchaseOrdersPage').then((m) => ({ default: m.PurchaseOrdersPage })))
+const GoodsReceiptsPage = lazy(() => import('@/admin/pages/GoodsReceiptsPage').then((m) => ({ default: m.GoodsReceiptsPage })))
+const SupplierReturnsPage = lazy(() => import('@/admin/pages/SupplierReturnsPage').then((m) => ({ default: m.SupplierReturnsPage })))
+const SupplierDebtsPage = lazy(() => import('@/admin/pages/SupplierDebtsPage').then((m) => ({ default: m.SupplierDebtsPage })))
+const StocktakesPage = lazy(() => import('@/admin/pages/StocktakesPage').then((m) => ({ default: m.StocktakesPage })))
+const InventoryReportPage = lazy(() => import('@/admin/pages/InventoryReportPage').then((m) => ({ default: m.InventoryReportPage })))
+const CoffeeCostsPage = lazy(() => import('@/admin/pages/CoffeeCostsPage').then((m) => ({ default: m.CoffeeCostsPage })))
+const CashShiftsPage = lazy(() => import('@/admin/pages/CashShiftsPage').then((m) => ({ default: m.CashShiftsPage })))
+const WorkShiftsPage = lazy(() => import('@/admin/pages/WorkShiftsPage').then((m) => ({ default: m.WorkShiftsPage })))
+const AuditLogsPage = lazy(() => import('@/admin/pages/AuditLogsPage').then((m) => ({ default: m.AuditLogsPage })))
+const PaymentReconciliationPage = lazy(() => import('@/admin/pages/PaymentReconciliationPage').then((m) => ({ default: m.PaymentReconciliationPage })))
+const DeliveryZonesPage = lazy(() => import('@/admin/pages/DeliveryZonesPage').then((m) => ({ default: m.DeliveryZonesPage })))
+const InvoicesPage = lazy(() => import('@/admin/pages/InvoicesPage').then((m) => ({ default: m.InvoicesPage })))
+const NotificationsPage = lazy(() => import('@/admin/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })))
 const TablesPage = lazy(() => import('@/admin/pages/TablesPage').then((m) => ({ default: m.TablesPage })))
 const StaffPage = lazy(() => import('@/admin/pages/StaffPage').then((m) => ({ default: m.StaffPage })))
 const RolesPage = lazy(() => import('@/admin/pages/RolesPage').then((m) => ({ default: m.RolesPage })))
@@ -68,6 +84,7 @@ export default function App() {
                 <Route path="/" element={<MenuPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order/:code" element={<OrderTrackingPage />} />
+                <Route path="/payment/result" element={<PaymentResultPage />} />
                 <Route path="/orders" element={<MyOrdersPage />} />
                 <Route path="/feedback" element={<FeedbackPage />} />
                 <Route path="/account" element={<AccountPage />} />
@@ -89,6 +106,21 @@ export default function App() {
                   <Route path="/admin/materials" element={<Guard perm="materials"><MaterialsPage /></Guard>} />
                   <Route path="/admin/stock" element={<Guard perm="stock"><StockPage /></Guard>} />
                   <Route path="/admin/stock-history" element={<Guard perm="stock-history"><StockHistoryPage /></Guard>} />
+                  <Route path="/admin/suppliers" element={<Guard perm="suppliers"><SuppliersPage /></Guard>} />
+                  <Route path="/admin/purchase-orders" element={<Guard perm="purchase-orders"><PurchaseOrdersPage /></Guard>} />
+                  <Route path="/admin/goods-receipts" element={<Guard perm="stock"><GoodsReceiptsPage /></Guard>} />
+                  <Route path="/admin/supplier-returns" element={<Guard perm="supplier-returns"><SupplierReturnsPage /></Guard>} />
+                  <Route path="/admin/supplier-debts" element={<Guard perm="supplier-debts"><SupplierDebtsPage /></Guard>} />
+                  <Route path="/admin/stocktakes" element={<Guard perm="stocktakes"><StocktakesPage /></Guard>} />
+                  <Route path="/admin/inventory-report" element={<Guard perm="inventory-report"><InventoryReportPage /></Guard>} />
+                  <Route path="/admin/coffee-costs" element={<Guard perm="coffee-costs"><CoffeeCostsPage /></Guard>} />
+                  <Route path="/admin/cash-shifts" element={<Guard perm="cash-shifts"><CashShiftsPage /></Guard>} />
+                  <Route path="/admin/work-shifts" element={<Guard perm="work-shifts"><WorkShiftsPage /></Guard>} />
+                  <Route path="/admin/audit-logs" element={<Guard perm="audit-logs"><AuditLogsPage /></Guard>} />
+                  <Route path="/admin/payment-reconciliation" element={<Guard perm="payment-reconciliation"><PaymentReconciliationPage /></Guard>} />
+                  <Route path="/admin/delivery-zones" element={<Guard perm="delivery-zones"><DeliveryZonesPage /></Guard>} />
+                  <Route path="/admin/invoices" element={<Guard perm="invoices"><InvoicesPage /></Guard>} />
+                  <Route path="/admin/notifications" element={<Guard perm="notifications"><NotificationsPage /></Guard>} />
                   <Route path="/admin/tables" element={<Guard perm="tables"><TablesPage /></Guard>} />
                   <Route path="/admin/crm/customers" element={<Guard perm="crm.customers"><CustomersPage /></Guard>} />
                   <Route path="/admin/crm/interactions" element={<Guard perm="crm.interactions"><InteractionsPage /></Guard>} />
