@@ -14,8 +14,14 @@ export type MaterialStatus = 'ACTIVE' | 'INACTIVE'
 export type BatchStatus = 'PREPARING' | 'AVAILABLE' | 'DEPLETED' | 'EXPIRED'
 export type SupplierStatus = 'ACTIVE' | 'INACTIVE'
 export type PurchaseOrderStatus = 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'COMPLETED' | 'CANCELLED'
+export type GoodsReceiptStatus = 'COMPLETED' | 'CANCELLED'
+export type SupplierReturnStatus = 'DRAFT' | 'COMPLETED' | 'CANCELLED'
+/** DEBT = trừ vào công nợ; REFUND = nhà cung cấp hoàn tiền */
+export type SupplierReturnSettlement = 'DEBT' | 'REFUND'
+export type SupplierPaymentStatus = 'COMPLETED' | 'CANCELLED'
 export type MaterialKind = 'RAW' | 'PREPARED'
 export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCE' | 'DISPOSAL'
+  | 'IMPORT_CANCEL' | 'SUPPLIER_RETURN'
 /** phiếu hủy: EXPIRED … OTHER_DISPOSAL; xuất khác: RETURN_SUPPLIER, INTERNAL_USE */
 export type TransactionReason = 'EXPIRED' | 'SPOILED' | 'SPILLED' | 'BREW_FAILED' | 'OTHER_DISPOSAL' | 'RETURN_SUPPLIER' | 'INTERNAL_USE'
 /** how a raw material is bought: name "Hộp 1 L", size in the material's unit (1000) */
@@ -269,6 +275,8 @@ export interface Supplier {
   address?: string
   taxCode?: string
   note?: string
+  /** điều khoản thanh toán: số ngày được nợ kể từ ngày nhập (0 = trả ngay) */
+  paymentTermDays: number
   /** INACTIVE = ngừng hợp tác */
   status: SupplierStatus
   materials: SupplierMaterial[]
@@ -290,20 +298,70 @@ export interface PurchaseOrderItem {
   note?: string
 }
 
-/** phiếu nhập kho: one delivery; lines = the lots it brought in */
+/**
+ * dòng phiếu nhập; quantities in the material's unit: documentQuantity = SL theo chứng từ (phiếu giao của NCC),
+ * receivedQuantity = SL thực nhập (becomes lot batchId), rejectedQuantity = không nhận (rejectReason)
+ */
+export interface GoodsReceiptLine {
+  id: number
+  materialId: number
+  materialName: string
+  unit: string
+  purchaseOrderItemId?: number
+  batchId?: number
+  packageName?: string
+  packageSize?: number
+  documentQuantity: number
+  receivedQuantity: number
+  rejectedQuantity: number
+  /** giao thiếu so với chứng từ */
+  shortQuantity: number
+  rejectReason?: string
+  /** đơn giá chưa thuế / đơn vị gốc */
+  unitPrice?: number
+  amount: number
+  expiryDate?: string
+  temperature?: number
+  /** still in stock from the lot: what can still be returned */
+  remainingInLot: number
+  note?: string
+}
+
+/** phiếu nhập kho (mẫu 01-VT): one delivery, against a purchase order or loose */
 export interface GoodsReceipt {
   id: number
   code: string
+  status: GoodsReceiptStatus
   supplierId: number
   supplierName: string
+  supplierTaxCode?: string
+  supplierAddress?: string
   purchaseOrderId?: number
   purchaseOrderCode?: string
   staffName?: string
+  delivererName?: string
+  invoiceSeries?: string
+  invoiceNo?: string
+  invoiceDate?: string
+  documentImageId?: number
+  goodsAmount: number
+  discountAmount: number
+  vatRate?: number
+  vatAmount: number
+  shippingCost: number
+  /** cần trả nhà cung cấp = tiền hàng − giảm giá + thuế GTGT + chi phí nhập */
+  totalAmount: number
+  paidAmount: number
+  returnedAmount: number
+  remainingAmount: number
+  dueDate: string
+  overdue: boolean
   note?: string
+  cancelReason?: string
+  cancelledAt?: string
   createdAt: string
   createdBy?: string
-  totalAmount: number
-  lines: Batch[]
+  lines: GoodsReceiptLine[]
 }
 
 /** phiếu đặt hàng nhà cung cấp; receipts only on the detail */
@@ -323,7 +381,15 @@ export interface PurchaseOrder {
   closeReason?: string
   createdAt: string
   createdBy?: string
+  paymentTermDays: number
+  goodsAmount: number
+  discountAmount: number
+  vatRate?: number
+  vatAmount: number
+  shippingCost: number
+  /** tiền hàng − giảm giá + thuế GTGT + chi phí nhập */
   totalAmount: number
+  supplierTaxCode?: string
   items: PurchaseOrderItem[]
   receipts?: GoodsReceipt[]
 }
@@ -438,6 +504,19 @@ export interface Shipment {
   driverAcceptedAt?: string
   deliveredAt?: string
   note?: string
+  orderStatus?: OrderStatus
+  district?: string
+  zoneName?: string
+  /** AHAMOVE when booked through the partner; empty = gọi xe ngoài */
+  partner?: string
+  partnerOrderId?: string
+  partnerStatus?: string
+  /** what the shop pays the partner for the trip */
+  partnerFee?: number
+  trackingUrl?: string
+  driverName?: string
+  driverPhone?: string
+  distanceKm?: number
 }
 
 export interface OrderItem {
@@ -525,4 +604,310 @@ export interface DeliveryAddress {
   recipientName: string
   recipientPhone: string
   address: string
+}
+
+/** dòng phiếu trả hàng nhập; quantity in the material's unit */
+export interface SupplierReturnLine {
+  id: number
+  receiptItemId: number
+  batchId?: number
+  materialId: number
+  materialName: string
+  unit: string
+  packageName?: string
+  packageSize?: number
+  quantity: number
+  unitPrice: number
+  amount: number
+  note?: string
+}
+
+/** phiếu trả hàng nhập */
+export interface SupplierReturn {
+  id: number
+  code: string
+  status: SupplierReturnStatus
+  supplierId: number
+  supplierName: string
+  supplierTaxCode?: string
+  supplierAddress?: string
+  goodsReceiptId: number
+  goodsReceiptCode: string
+  receiptInvoiceNo?: string
+  staffName?: string
+  reason: string
+  settlement: SupplierReturnSettlement
+  refundMethod?: PaymentMethod
+  adjustmentInvoiceNo?: string
+  goodsAmount: number
+  vatRate?: number
+  vatAmount: number
+  totalAmount: number
+  completedAt?: string
+  cancelReason?: string
+  note?: string
+  createdAt: string
+  createdBy?: string
+  items: SupplierReturnLine[]
+}
+
+/** phiếu chi trả nhà cung cấp (mẫu 02-TT) */
+export interface SupplierPayment {
+  id: number
+  code: string
+  status: SupplierPaymentStatus
+  supplierId: number
+  supplierName: string
+  supplierAddress?: string
+  goodsReceiptId?: number
+  goodsReceiptCode?: string
+  purchaseOrderId?: number
+  purchaseOrderCode?: string
+  amount: number
+  method: PaymentMethod
+  reference?: string
+  payeeName?: string
+  paidAt: string
+  staffName?: string
+  documentImageId?: number
+  note?: string
+  cancelReason?: string
+  createdAt: string
+  createdBy?: string
+}
+
+/** công nợ phải trả của 1 nhà cung cấp; balance < 0 = đã trả trước */
+export interface SupplierDebt {
+  supplierId: number
+  supplierName: string
+  phone?: string
+  paymentTermDays: number
+  purchasedAmount: number
+  returnedAmount: number
+  paidAmount: number
+  balance: number
+  overdueAmount: number
+  openReceipts: number
+  nextDueDate?: string
+}
+
+/** sổ chi tiết công nợ; type RECEIPT (phiếu nhập), RETURN (trả hàng trừ nợ), PAYMENT (phiếu chi) */
+export interface SupplierLedger {
+  supplierId: number
+  supplierName: string
+  supplierTaxCode?: string
+  supplierAddress?: string
+  from?: string
+  to?: string
+  openingBalance: number
+  increase: number
+  decrease: number
+  closingBalance: number
+  rows: { date: string; type: 'RECEIPT' | 'RETURN' | 'PAYMENT'; documentId: number; code: string; description: string; increase: number; decrease: number; balance: number; dueDate?: string }[]
+}
+
+export type StocktakeStatus = 'DRAFT' | 'BALANCED' | 'CANCELLED'
+/** phẩm chất: còn tốt / kém phẩm chất / mất phẩm chất */
+export type StockQuality = 'GOOD' | 'POOR' | 'LOST'
+
+/** one lot on a phiếu kiểm kê; quantities in the material's unit */
+export interface StocktakeLine {
+  id: number
+  batchId: number
+  materialId: number
+  materialName: string
+  unit: string
+  expiryDate?: string
+  bookQuantity: number
+  countedQuantity?: number
+  /** thừa (+) / thiếu (−) */
+  difference: number
+  unitCost?: number
+  differenceValue: number
+  quality: StockQuality
+  reason?: string
+}
+
+/** phiếu kiểm kê (mẫu 05-VT) */
+export interface Stocktake {
+  id: number
+  code: string
+  status: StocktakeStatus
+  staffName?: string
+  members?: string
+  countedAt: string
+  balancedByName?: string
+  balancedAt?: string
+  resolution?: string
+  note?: string
+  lineCount: number
+  countedCount: number
+  surplusValue: number
+  shortageValue: number
+  createdAt: string
+  createdBy?: string
+  items?: StocktakeLine[]
+}
+
+/** báo cáo xuất – nhập – tồn: one material over the period */
+export interface InventoryReportRow {
+  materialId: number
+  materialName: string
+  unit: string
+  kind: MaterialKind
+  minStock: number
+  openingQuantity: number
+  openingValue: number
+  inPurchase: number
+  inProduce: number
+  inAdjust: number
+  inQuantity: number
+  inValue: number
+  outSale: number
+  outProduction: number
+  outDisposal: number
+  outReturn: number
+  outOther: number
+  outQuantity: number
+  outValue: number
+  closingQuantity: number
+  closingValue: number
+}
+export interface InventoryReport {
+  from: string
+  to: string
+  openingValue: number
+  inValue: number
+  outValue: number
+  closingValue: number
+  rows: InventoryReportRow[]
+}
+export interface InventoryDaily { date: string; materialId: number; materialName: string; quantity: number; value: number }
+
+/** giá vốn 1 ly theo công thức đang dùng; complete = every material has a known cost */
+export interface CoffeeCost {
+  coffeeId: number
+  coffeeName: string
+  categoryName?: string
+  status: CoffeeStatus
+  recipeId?: number
+  price: number
+  unitCost?: number
+  grossMargin?: number
+  foodCostPercent?: number
+  complete: boolean
+  previousCost?: number
+  previousAt?: string
+  lines: { materialId: number; materialName: string; unit: string; quantity: number; unitCost?: number; cost?: number; costSource: string }[]
+}
+export interface CoffeeCostHistory { at: string; unitCost: number; price: number }
+
+/** ca thu ngân; while open the sales figures are live */
+export interface CashShift {
+  id: number
+  code: string
+  open: boolean
+  staffName?: string
+  openedAt: string
+  openingCash: number
+  closedAt?: string
+  closedByName?: string
+  orderCount: number
+  cashSales: number
+  transferSales: number
+  cardSales: number
+  ewalletSales: number
+  totalSales: number
+  cashIn: number
+  cashOut: number
+  /** tiền mặt lý thuyết = đầu ca + bán tiền mặt + thu − chi */
+  expectedCash: number
+  countedCash?: number
+  /** thực đếm − lý thuyết (âm = thiếu) */
+  difference?: number
+  /** "500000:2,200000:5" */
+  denominations?: string
+  differenceReason?: string
+  nextOpeningCash?: number
+  handoverCash?: number
+  receivedBy?: string
+  note?: string
+  movements: { id: number; type: 'IN' | 'OUT'; amount: number; reason: string; staffName?: string; at: string }[]
+}
+
+export interface WorkShift { id: number; name: string; startTime: string; endTime: string; graceMinutes: number; color?: string; active: boolean; minutes: number }
+/** SCHEDULED, WORKING, DONE, MISSING_OUT (quên chấm ra), ABSENT (vắng), LEAVE (nghỉ P / KL) */
+export type AttendanceState = 'SCHEDULED' | 'WORKING' | 'DONE' | 'MISSING_OUT' | 'ABSENT' | 'LEAVE'
+export interface ShiftAssignment {
+  id: number
+  staffId: number
+  staffName: string
+  shiftId: number
+  shiftName: string
+  color?: string
+  workDate: string
+  startTime: string
+  endTime: string
+  position?: string
+  checkInAt?: string
+  checkOutAt?: string
+  leaveType?: 'P' | 'KL'
+  state: AttendanceState
+  lateMinutes: number
+  earlyLeaveMinutes: number
+  workedMinutes: number
+  note?: string
+  adjustedBy?: string
+}
+export interface TimesheetRow {
+  staffId: number; staffName: string; position?: string; scheduled: number; worked: number; workedHours: number
+  lateTimes: number; lateMinutes: number; earlyTimes: number; absent: number; leavePaid: number; leaveUnpaid: number; missingOut: number
+  /** day of month → giờ công "6.0", P, KL, V (vắng), ? (quên chấm ra) */
+  days: Record<number, string>
+}
+export interface Timesheet { year: number; month: number; daysInMonth: number; rows: TimesheetRow[] }
+
+export interface AuditLog {
+  id: number; username?: string; module: string; action: string; method: string; path: string; entityId?: string
+  statusCode: number; durationMs: number; ip?: string; detail?: string; createdAt: string
+}
+
+/** giao dịch cổng thanh toán (VNPAY) để đối soát; mismatch = why it needs a look */
+export interface PaymentTransaction {
+  id: number; provider: string; type: 'PAY' | 'REFUND'; txnRef: string; amount: number
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'EXPIRED'
+  bankCode?: string; providerTxnNo?: string; responseCode?: string; responseText?: string
+  createdAt: string; completedAt?: string; expireAt?: string; ipnCount: number
+  orderId: number; orderCode: string; paymentId: number; paymentMethod: PaymentMethod; paymentAmount: number; paymentStatus: PaymentStatus
+  mismatch?: string; reconciled: boolean; reconciledBy?: string; reconciledAt?: string; reconcileNote?: string
+}
+
+/** khu vực giao hàng: quận / phường, phí ship, miễn phí từ, đơn tối thiểu */
+export interface DeliveryZone {
+  id: number; name: string; districts: string; fee: number; freeShipThreshold?: number; minOrderAmount?: number
+  estimatedMinutes?: number; active: boolean; sortOrder: number
+}
+export interface PublicDeliveryZone { name: string; districts: string[]; fee: number; freeShipThreshold?: number; minOrderAmount?: number; estimatedMinutes?: number }
+export interface ShipmentEvent { id: number; source: 'STAFF' | 'PARTNER' | 'SYSTEM'; status?: ShipmentStatus; partnerStatus?: string; note?: string; by?: string; at: string }
+export interface AhamoveEstimate { fee: number; distanceKm?: number; durationMinutes?: number; serviceId: string }
+
+/** hóa đơn điện tử khởi tạo từ máy tính tiền */
+export interface Invoice {
+  id: number; orderId: number; orderCode: string
+  kind: 'ORIGINAL' | 'REPLACEMENT' | 'ADJUSTMENT'; relatedId?: number; relatedNo?: string
+  status: 'PENDING' | 'ISSUED' | 'FAILED' | 'REPLACED'
+  templateCode: string; series: string; invoiceNo?: string; taxAuthorityCode?: string; lookupCode?: string; lookupUrl?: string
+  sellerName: string; sellerTaxCode: string; sellerAddress: string
+  buyerName?: string; buyerCompany?: string; buyerTaxCode?: string; buyerAddress?: string; buyerEmail?: string; buyerPhone?: string; buyerIdNumber?: string
+  amountBeforeTax: number; vatRate?: number; vatAmount: number; totalAmount: number; paymentMethod?: string; reason?: string
+  attempts: number; lastError?: string; issuedAt?: string; createdAt: string
+  lines: { lineNo: number; name: string; unit: string; quantity: number; unitPrice: number; amount: number }[]
+}
+export interface InvoiceBuyer {
+  buyerName?: string; buyerCompany?: string; buyerTaxCode?: string; buyerAddress?: string; buyerEmail?: string; buyerPhone?: string; buyerIdNumber?: string
+}
+export interface NotificationTemplate { code: string; name: string; enabled: boolean; znsTemplateId?: string; smsContent: string; smsFallback: boolean; updatedBy?: string }
+export interface NotificationMessage {
+  id: number; orderCode?: string; templateCode: string; phone: string; status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED'
+  channel?: 'ZNS' | 'SMS'; content?: string; attempts: number; providerRef?: string; error?: string; sentAt?: string; createdAt: string
 }

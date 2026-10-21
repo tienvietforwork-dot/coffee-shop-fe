@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Form, Input, Modal, Popconfirm, Segmented, Select, Space, Table, Tag } from 'antd'
+import { Button, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Select, Space, Table, Tag } from 'antd'
 import { MinusCircleOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { coreApi, type SupplierPayload } from '@/api/core'
 import type { Supplier, SupplierStatus } from '@/api/types'
@@ -63,7 +63,7 @@ export function SuppliersPage() {
   return (
     <>
       <PageHeader title="Nhà cung cấp" subtitle="Nơi mua nguyên liệu · giá tham khảo dùng để gợi ý khi lập phiếu đặt hàng"
-        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => open({ status: 'ACTIVE', materials: [] })}>Thêm nhà cung cấp</Button>} />
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => open({ status: 'ACTIVE', paymentTermDays: 0, materials: [] })}>Thêm nhà cung cấp</Button>} />
       <Space wrap style={{ marginBottom: 12 }}>
         <Input allowClear prefix={<SearchOutlined />} placeholder="Tên, SĐT, nguyên liệu" value={search}
           onChange={(e) => setSearch(e.target.value)} style={{ width: 240 }} />
@@ -77,6 +77,7 @@ export function SuppliersPage() {
         columns={[
           { title: 'Nhà cung cấp', dataIndex: 'name', render: (v, s) => <><b>{v}</b>{s.contactName && <div className="a-muted small">Liên hệ: {s.contactName}</div>}</> },
           { title: 'Điện thoại', dataIndex: 'phone', render: (v) => v ?? '—' },
+          { title: 'Thanh toán', dataIndex: 'paymentTermDays', render: (v: number) => (v ? `Nợ ${v} ngày` : 'Trả ngay') },
           { title: 'Địa chỉ', dataIndex: 'address', render: (v) => v ?? '—' },
           {
             title: 'Nguyên liệu cung cấp', render: (_, s) => (s.materials.length
@@ -109,6 +110,9 @@ export function SuppliersPage() {
             <Form.Item name="phone" label="Điện thoại"><Input /></Form.Item>
             <Form.Item name="email" label="Email" rules={[{ type: 'email' }]}><Input /></Form.Item>
             <Form.Item name="taxCode" label="Mã số thuế"><Input /></Form.Item>
+            <Form.Item name="paymentTermDays" label="Điều khoản thanh toán" tooltip="Số ngày được nợ kể từ ngày nhận hàng; 0 = trả ngay khi nhận">
+              <InputNumber min={0} max={365} style={{ width: '100%' }} addonAfter="ngày" />
+            </Form.Item>
             <Form.Item name="status" label="Trạng thái"><Select options={options(SUPPLIER_STATUS)} /></Form.Item>
           </div>
           <Form.Item name="address" label="Địa chỉ"><Input /></Form.Item>

@@ -8,19 +8,22 @@ import { MinusCircleOutlined, PlusOutlined, PrinterOutlined, SearchOutlined } fr
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi, type PurchaseOrderPayload } from '@/api/core'
 import type { Material, PurchaseOrder, PurchaseOrderStatus, Supplier } from '@/api/types'
-import { PO_STATUS, date, dateTime, money, num, options, packaging } from '@/lib/format'
+import { PO_STATUS, RECEIPT_STATUS, VAT_RATES, date, dateTime, money, num, options } from '@/lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { StatusTag } from '../components/StatusTag'
 import { MoneyInput } from '../components/MoneyInput'
 import { useAction } from '../components/useCrud'
-import { ReceiveModal } from '../components/purchase'
-import { orderedText, pricePerLine, printPurchaseOrder } from '@/lib/purchase'
+import { ReceiptModal } from '../components/purchase'
+import { inPackages, moneyLines, orderedText, pricePerLine, printPurchaseOrder } from '@/lib/purchase'
 
 /** loose = ordered in the material's own unit */
 const LOOSE = 0
 
 type Line = { materialId?: number; packageId?: number; count?: number; price?: number; note?: string }
-type Draft = { id?: number; supplierId?: number; expectedDate?: Dayjs; note?: string; items: Line[] }
+type Draft = {
+  id?: number; supplierId?: number; expectedDate?: Dayjs; note?: string; items: Line[]
+  paymentTermDays?: number; discountAmount?: number; vatRate?: number; shippingCost?: number
+}
 
 /** how much of the order has arrived, by value of the ordered quantities */
 const progress = (o: PurchaseOrder) => {
@@ -87,6 +90,7 @@ export function PurchaseOrdersPage() {
   }
   const fromOrder = (o: PurchaseOrder): Draft => ({
     id: o.id, supplierId: o.supplierId, note: o.note, expectedDate: o.expectedDate ? dayjs(o.expectedDate) : undefined,
+    paymentTermDays: o.paymentTermDays, discountAmount: o.discountAmount || undefined, vatRate: o.vatRate, shippingCost: o.shippingCost || undefined,
     items: o.items.map((i) => {
       const pkg = raws.find((m) => m.id === i.materialId)?.packages?.find((p) => p.name === i.packageName)
       return {
@@ -115,12 +119,17 @@ export function PurchaseOrdersPage() {
 
   const sizeOf = (l: Line) => raws.find((m) => m.id === l.materialId)?.packages?.find((p) => p.id === l.packageId)?.size
   const lineTotal = (l?: Line) => (l?.count && l.price != null ? l.count * l.price : 0)
-  const draftTotal = lines.reduce((s, l) => s + lineTotal(l), 0)
+  const draftGoods = lines.reduce((s, l) => s + lineTotal(l), 0)
+  const discount = (Form.useWatch('discountAmount', form) as number | undefined) ?? 0
+  const vatRate = Form.useWatch('vatRate', form) as number | undefined
+  const shipping = (Form.useWatch('shippingCost', form) as number | undefined) ?? 0
+  const draftTotal = Math.max(0, draftGoods - discount) + (vatRate ? Math.round(Math.max(0, draftGoods - discount) * vatRate / 100) : 0) + shipping
   const submit = (v: Draft) => save.mutate({
     id: draft?.id,
     supplierId: v.supplierId!,
     expectedDate: v.expectedDate?.format('YYYY-MM-DD'),
     note: v.note,
+    paymentTermDays: v.paymentTermDays, discountAmount: v.discountAmount, vatRate: v.vatRate, shippingCost: v.shippingCost,
     items: v.items.map((l) => {
       const byPackage = !!l.packageId && l.packageId !== LOOSE
       const size = byPackage ? sizeOf(l) ?? 1 : 1
@@ -190,17 +199,19 @@ export function PurchaseOrdersPage() {
             { label: 'Ngày lập', children: dateTime(view.createdAt) },
             { label: 'Gửi nhà cung cấp', children: dateTime(view.orderedAt) },
             { label: 'Hẹn giao', children: date(view.expectedDate) },
+            { label: 'Thanh toán', children: view.paymentTermDays ? `Trả chậm ${view.paymentTermDays} ngày sau khi nhận` : 'Trả khi nhận hàng' },
+            { label: 'Thuế GTGT', children: view.vatRate != null ? `${view.vatRate}%` : 'Không có hóa đơn GTGT' },
             { label: view.status === 'CANCELLED' ? 'Ngày hủy' : 'Hoàn tất', children: dateTime(view.completedAt) },
             ...(view.note ? [{ label: 'Ghi chú', children: view.note, span: 2 }] : []),
             ...(view.closeReason ? [{ label: view.status === 'CANCELLED' ? 'Lý do hủy' : 'Lý do đóng phiếu', children: view.closeReason, span: 2 }] : []),
           ]} />
           <Table rowKey="id" size="small" pagination={false} dataSource={view.items}
-            summary={() => (
-              <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={4} align="right"><b>Tổng cộng</b></Table.Summary.Cell>
-                <Table.Summary.Cell index={1} align="right"><b>{money(view.totalAmount)}</b></Table.Summary.Cell>
+            summary={() => moneyLines(view).map(([label, value], i, all) => (
+              <Table.Summary.Row key={label}>
+                <Table.Summary.Cell index={0} colSpan={4} align="right">{i === all.length - 1 ? <b>{label}</b> : label}</Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">{i === all.length - 1 ? <b>{money(value)}</b> : money(value)}</Table.Summary.Cell>
               </Table.Summary.Row>
-            )}
+            ))}
             columns={[
               { title: 'Nguyên liệu', dataIndex: 'materialName', render: (v, i) => <>{v}{i.note && <div className="a-muted small">{i.note}</div>}</> },
               { title: 'Đặt', render: (_, i) => orderedText(i) },
@@ -219,15 +230,17 @@ export function PurchaseOrdersPage() {
           {view.receipts?.length ? view.receipts.map((r) => (
             <div key={r.id} style={{ marginBottom: 16 }}>
               <div style={{ marginBottom: 6 }}>
-                <b>{r.code}</b> · {dateTime(r.createdAt)} · {r.staffName ?? r.createdBy} · {money(r.totalAmount)}
-                {r.note && <span className="a-muted"> · {r.note}</span>}
+                <b>{r.code}</b> <StatusTag label={RECEIPT_STATUS[r.status]} /> · {dateTime(r.createdAt)} · {r.staffName ?? r.createdBy} · {money(r.totalAmount)}
+                {r.invoiceNo && <span className="a-muted"> · HĐ {r.invoiceSeries} {r.invoiceNo}</span>}
+                {r.delivererName && <span className="a-muted"> · giao: {r.delivererName}</span>}
               </div>
               <Table rowKey="id" size="small" pagination={false} dataSource={r.lines}
                 columns={[
-                  { title: 'Lô', dataIndex: 'id', render: (v) => `#${v}` },
-                  { title: 'Nguyên liệu', dataIndex: 'materialName' },
-                  { title: 'Số lượng', render: (_, b) => <>{packaging(b) && `${packaging(b)} = `}{num(b.importQuantity)} {b.unit}</> },
-                  { title: 'Thành tiền', render: (_, b) => (b.unitCost == null ? '—' : money(b.importQuantity * b.unitCost)), align: 'right' },
+                  { title: 'Nguyên liệu', render: (_, l) => <>{l.materialName}{l.batchId && <div className="a-muted small">Lô #{l.batchId}</div>}</> },
+                  { title: 'Chứng từ', render: (_, l) => inPackages(l.documentQuantity, l) },
+                  { title: 'Thực nhận', render: (_, l) => <b>{inPackages(l.receivedQuantity, l)}</b> },
+                  { title: 'Không nhận', render: (_, l) => (l.rejectedQuantity ? <span className="a-limit">{inPackages(l.rejectedQuantity, l)}: {l.rejectReason}</span> : '—') },
+                  { title: 'Thành tiền', dataIndex: 'amount', render: money, align: 'right' },
                   { title: 'HSD', dataIndex: 'expiryDate', render: date },
                 ]} />
             </div>
@@ -243,8 +256,9 @@ export function PurchaseOrdersPage() {
               extra={formSupplier && !formSupplier.materials.length ? 'Nhà cung cấp chưa khai báo nguyên liệu — chọn tự do bên dưới' : undefined}>
               <Select showSearch optionFilterProp="label" options={activeSuppliers.map((s) => ({ value: s.id, label: s.name }))}
                 onChange={(id) => {
-                  // re-price the lines this supplier has a price for
+                  // re-price the lines this supplier has a price for; its usual payment terms
                   const s = suppliers.find((x) => x.id === id)
+                  form.setFieldValue('paymentTermDays', s?.paymentTermDays ?? 0)
                   form.setFieldValue('items', (form.getFieldValue('items') as Line[]).map((l) => {
                     const m = raws.find((x) => x.id === l.materialId)
                     const sm = s?.materials.find((x) => x.materialId === l.materialId)
@@ -307,11 +321,19 @@ export function PurchaseOrdersPage() {
               </>
             )}
           </Form.List>
+          <div className="a-grid-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+            <Form.Item name="paymentTermDays" label="Điều khoản thanh toán" tooltip="Số ngày được nợ kể từ ngày nhận hàng (0 = trả khi nhận)">
+              <InputNumber min={0} max={365} style={{ width: '100%' }} addonAfter="ngày" />
+            </Form.Item>
+            <Form.Item name="discountAmount" label="Giảm giá"><MoneyInput /></Form.Item>
+            <Form.Item name="vatRate" label="Thuế GTGT"><Select allowClear placeholder="Không HĐ" options={VAT_RATES} /></Form.Item>
+            <Form.Item name="shippingCost" label="Chi phí nhập" tooltip="Vận chuyển, bốc xếp"><MoneyInput /></Form.Item>
+          </div>
           <Form.Item name="note" label="Ghi chú"><Input /></Form.Item>
         </Form>
       </Modal>
 
-      <ReceiveModal order={receiving} onClose={() => setReceiving(null)} />
+      <ReceiptModal order={receiving} onClose={() => setReceiving(null)} />
 
       <Modal open={!!closing} title={closing?.action === 'cancel' ? `Hủy phiếu ${closing.order.code}` : `Đóng phiếu ${closing?.order.code}`}
         onCancel={() => setClosing(null)} footer={null} destroyOnHidden>
