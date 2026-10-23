@@ -38,10 +38,14 @@ src/
 ## Chạy
 
 ```bash
-cp .env.example .env.local   # VITE_API_URL=<gateway>/api, VITE_WS_URL=<app-core>/ws
+cp .env.example .env.local
 npm install
 npm run dev
 ```
+
+Ở local, Vite dev server đóng vai nginx-gateway (`devGateway` trong `vite.config.ts`): `/api/crm|stats|promotions/*`
+chuyển sang app tương ứng (cổng 8081/8082/8083), còn lại sang app-core (8080). Đổi cổng qua `CORE_URL`, `CRM_URL`…
+trong `.env.local`. Hướng dẫn đầy đủ cho cả nhóm: `coffee-shop-be/SETUP.md`.
 
 `npm run build` để kiểm tra kiểu + build production. Các trang admin được lazy-load nên khách không phải
 tải thư viện biểu đồ.

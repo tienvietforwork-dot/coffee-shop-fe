@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Input, Modal, Result, Spin, Steps } from 'antd'
+import { App, Button, Form, Input, Modal, Result, Spin, Steps } from 'antd'
 import { publicApi } from '@/api/public'
 import { errorMessage } from '@/api/client'
-import type { Order, OrderStatus } from '@/api/types'
+import type { InvoiceBuyer, Order, OrderStatus } from '@/api/types'
+import { InvoiceBuyerFields } from '@/admin/components/InvoiceBuyerForm'
 import { ORDER_STATUS, ORDER_TYPE, PAYMENT_METHOD, PAYMENT_STATUS, SHIPMENT_STATUS, dateTime, money } from '@/lib/format'
 
 function steps(order: Order): { key: OrderStatus; title: string }[] {
@@ -29,6 +30,23 @@ export function OrderTrackingPage() {
     queryKey: ['track', code],
     queryFn: () => publicApi.order(code),
     refetchInterval: (q) => (q.state.data && ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(q.state.data.status) ? false : 5000),
+  })
+
+  const completed = order?.status === 'COMPLETED'
+  const { data: invoices = [] } = useQuery({ queryKey: ['track-invoices', code], enabled: completed, queryFn: () => publicApi.invoices(code), refetchInterval: 15000 })
+  const invoice = [...invoices].reverse().find((i) => i.kind !== 'ADJUSTMENT' && i.status !== 'REPLACED')
+  const [invoiceOpen, setInvoiceOpen] = useState(false)
+  const [invoiceForm] = Form.useForm()
+  const requestInvoice = useMutation({
+    mutationFn: (v: InvoiceBuyer & { kind?: string }) => publicApi.requestInvoice(code, v.kind === 'person'
+      ? { buyerName: v.buyerName, buyerIdNumber: v.buyerIdNumber, buyerEmail: v.buyerEmail }
+      : { buyerTaxCode: v.buyerTaxCode, buyerCompany: v.buyerCompany, buyerAddress: v.buyerAddress, buyerName: v.buyerName, buyerEmail: v.buyerEmail }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['track-invoices', code] })
+      setInvoiceOpen(false)
+      message.success('Đã ghi thông tin xuất hóa đơn')
+    },
+    onError: (e) => message.error(errorMessage(e)),
   })
 
   const cancel = useMutation({
@@ -92,6 +110,12 @@ export function OrderTrackingPage() {
             <span>{PAYMENT_METHOD[p.method]}</span><span>{PAYMENT_STATUS[p.status].text}</span>
           </div>
         ))}
+        {order.status === 'PENDING' && order.channel !== 'COUNTER' && order.payments.some((p) => p.method !== 'CASH' && p.status === 'PENDING') && (
+          <div className="g-row" style={{ marginTop: 8 }}>
+            <span className="g-muted">Đơn chờ thanh toán online — tự hủy nếu quá 15 phút chưa thanh toán</span>
+            <Button type="primary" onClick={async () => { const l = await publicApi.pay(order.orderCode); window.location.href = l.paymentUrl }}>Thanh toán ngay</Button>
+          </div>
+        )}
         {order.shipment && (
           <div className="g-ship">
             <strong>Giao đến:</strong> {order.shipment.recipientName} · {order.shipment.address}
@@ -103,6 +127,22 @@ export function OrderTrackingPage() {
           </div>
         )}
       </div>
+
+      {completed && (
+        <div className="g-panel">
+          <h3>Hóa đơn điện tử</h3>
+          {invoice ? (
+            <div className="g-muted">
+              {invoice.status === 'ISSUED'
+                ? <>Số {invoice.invoiceNo} · ký hiệu {invoice.series} · mã tra cứu <b>{invoice.lookupCode}</b>
+                  {invoice.lookupUrl && <> tại <a href={invoice.lookupUrl} target="_blank" rel="noreferrer">{invoice.lookupUrl}</a></>}</>
+                : 'Hóa đơn đang được phát hành, vui lòng xem lại sau ít phút.'}
+              {(invoice.buyerCompany || invoice.buyerName) && <div>Người mua: {invoice.buyerCompany ?? invoice.buyerName}{invoice.buyerTaxCode && ` · MST ${invoice.buyerTaxCode}`}</div>}
+            </div>
+          ) : <div className="g-muted">Hóa đơn được lập tự động khi đơn hoàn tất.</div>}
+          <button className="g-btn-ghost" style={{ marginTop: 8 }} onClick={() => { invoiceForm.resetFields(); setInvoiceOpen(true) }}>Xuất hóa đơn công ty / cá nhân</button>
+        </div>
+      )}
 
       <div className="g-actions">
         {order.status === 'PENDING' && (
@@ -122,6 +162,13 @@ export function OrderTrackingPage() {
         onCancel={() => setCancelOpen(false)}
       >
         <Input.TextArea rows={3} placeholder="Lý do (không bắt buộc)" value={reason} onChange={(e) => setReason(e.target.value)} />
+      </Modal>
+      <Modal open={invoiceOpen} title="Thông tin xuất hóa đơn" okText="Gửi" okButtonProps={{ loading: requestInvoice.isPending }}
+        onOk={() => invoiceForm.submit()} onCancel={() => setInvoiceOpen(false)} destroyOnHidden>
+        <Form form={invoiceForm} layout="vertical" onFinish={(v) => requestInvoice.mutate(v)}>
+          <InvoiceBuyerFields />
+          <p className="g-muted">Nếu hóa đơn đã phát hành, cửa hàng lập hóa đơn thay thế với thông tin mới.</p>
+        </Form>
       </Modal>
     </div>
   )
