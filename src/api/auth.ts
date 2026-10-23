@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { AccountInfo, LoginResponse, MyVoucher, Order, PermissionInfo, PointHistory, RoleInfo, User } from './types'
+import type { AccountAddress, AccountInfo, LoginResponse, MyVoucher, Order, PermissionInfo, PointHistory, RoleInfo, User } from './types'
 
 const d = <T,>(p: Promise<{ data: T }>) => p.then((r) => r.data)
 
@@ -26,4 +26,5 @@ export const accountApi = {
   orders: () => d(apiClient.get<Order[]>('/account/orders')),
   vouchers: () => d(apiClient.get<MyVoucher[]>('/account/vouchers')),
   points: () => d(apiClient.get<PointHistory[]>('/account/points')),
+  addresses: () => d(apiClient.get<AccountAddress[]>('/account/addresses')),
 }

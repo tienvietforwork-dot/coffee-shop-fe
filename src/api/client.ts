@@ -32,9 +32,10 @@ apiClient.interceptors.response.use(
 
 /** Human-readable message from an API error (backend returns { error, fields? }). */
 export function errorMessage(err: unknown, fallback = 'Có lỗi xảy ra, vui lòng thử lại'): string {
-  const e = err as AxiosError<{ error?: string; fields?: Record<string, string> }>
+  const e = err as AxiosError<{ error?: string; message?: string; fields?: Record<string, string> }>
   const data = e?.response?.data
   if (data?.fields) return Object.entries(data.fields).map(([k, v]) => `${k}: ${v}`).join('; ')
+  if (data?.message) return data.message
   if (data?.error) return data.error
   if (e?.code === 'ERR_NETWORK') return 'Không kết nối được máy chủ'
   return fallback

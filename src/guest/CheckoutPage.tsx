@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { App, Alert, DatePicker, Form, Input, Radio, Spin } from 'antd'
+import { App, Alert, Button, DatePicker, Form, Input, Radio, Spin, Tag } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { publicApi } from '@/api/public'
@@ -12,6 +12,7 @@ import { useCart } from './useCart'
 import { VoucherPicker } from './VoucherPicker'
 import { useGuestStore } from '@/store/guestStore'
 import { useAuthStore } from '@/store/authStore'
+import { accountApi } from '@/api/auth'
 
 const PAYMENTS: { value: PaymentMethod; title: string; desc: string }[] = [
   { value: 'CASH', title: 'Tiền mặt', desc: 'Thanh toán khi nhận đồ uống' },
@@ -28,12 +29,22 @@ export function CheckoutPage() {
   const navigate = useNavigate()
   const { message } = App.useApp()
   const [form] = Form.useForm()
+  const [useNewAddress, setUseNewAddress] = useState(false)
 
   const [orderType, setOrderType] = useState<OrderType>(store.tableQr ? 'DINE_IN' : 'TAKE_AWAY')
   // the voucher picked in the cart (or here) is remembered with the cart
   const appliedVoucher = store.voucherCode ?? undefined
   const setAppliedVoucher = (code?: string) => store.setVoucher(code ?? null)
   const phone = Form.useWatch('customerPhone', form) as string | undefined
+  const selectedAddressId = Form.useWatch('addressId', form) as number | undefined
+  const savedAddresses = useQuery({ queryKey: ['account-addresses'], queryFn: accountApi.addresses, enabled: isCustomer, retry: false })
+  const hasSavedAddresses = isCustomer && (savedAddresses.data?.length ?? 0) > 0
+
+  useEffect(() => {
+    if (orderType !== 'DELIVERY' || !hasSavedAddresses || useNewAddress || selectedAddressId) return
+    const preferred = savedAddresses.data?.find((address) => address.isDefault) ?? savedAddresses.data?.[0]
+    if (preferred) form.setFieldValue('addressId', preferred.id)
+  }, [form, hasSavedAddresses, orderType, savedAddresses.data, selectedAddressId, useNewAddress])
 
   const quote = useQuery({
     queryKey: ['quote', cart?.sessionCode, cart?.subtotal, orderType, appliedVoucher, appliedVoucher ? phone : null],
@@ -77,7 +88,7 @@ export function CheckoutPage() {
   }
 
   const submit = (v: {
-    customerName?: string; customerPhone?: string; recipientName?: string; address?: string
+    customerName?: string; customerPhone?: string; recipientName?: string; address?: string; addressId?: number
     pickupTime?: Dayjs; paymentMethod: PaymentMethod; note?: string
   }) => {
     store.setContact(v.customerName ?? '', v.customerPhone ?? '')
@@ -86,7 +97,8 @@ export function CheckoutPage() {
       orderType,
       customerName: v.customerName || undefined,
       customerPhone: v.customerPhone || undefined,
-      delivery: orderType === 'DELIVERY'
+      addressId: orderType === 'DELIVERY' && hasSavedAddresses && !useNewAddress ? v.addressId : undefined,
+      delivery: orderType === 'DELIVERY' && (!hasSavedAddresses || useNewAddress)
         ? { recipientName: v.recipientName || v.customerName || '', recipientPhone: v.customerPhone!, address: v.address! }
         : undefined,
       pickupTime: v.pickupTime ? v.pickupTime.format('YYYY-MM-DDTHH:mm:ss') : undefined,
@@ -143,12 +155,35 @@ export function CheckoutPage() {
 
           {orderType === 'DELIVERY' && (
             <>
-              <Form.Item name="address" label="Địa chỉ giao hàng" rules={[{ required: true, message: 'Nhập địa chỉ giao hàng' }]}>
-                <Input placeholder="Số nhà, đường, phường, quận" maxLength={255} />
-              </Form.Item>
-              <Form.Item name="recipientName" label="Người nhận (nếu khác)">
-                <Input maxLength={100} />
-              </Form.Item>
+              {isCustomer && savedAddresses.isLoading ? <Spin /> : hasSavedAddresses && !useNewAddress ? (
+                <>
+                  <Form.Item name="addressId" label="Chọn địa chỉ giao hàng" rules={[{ required: true, message: 'Chọn địa chỉ nhận hàng' }]}>
+                    <Radio.Group className="g-pay">
+                      {savedAddresses.data!.map((address) => (
+                        <Radio.Button key={address.id} value={address.id} style={{ height: 'auto', whiteSpace: 'normal', textAlign: 'left' }}>
+                          <strong>{address.label || 'Địa chỉ nhận hàng'}</strong>
+                          {address.isDefault && <Tag color="green">Mặc định</Tag>}
+                          <span>{address.recipientName} · {address.recipientPhone}</span>
+                          <span>{address.address}</span>
+                        </Radio.Button>
+                      ))}
+                    </Radio.Group>
+                  </Form.Item>
+                  <Button type="link" onClick={() => { setUseNewAddress(true); form.setFieldValue('addressId', undefined) }}>
+                    Nhập địa chỉ khác
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {hasSavedAddresses && <Button type="link" onClick={() => setUseNewAddress(false)}>Chọn địa chỉ đã lưu</Button>}
+                  <Form.Item name="address" label="Địa chỉ giao hàng" rules={[{ required: true, message: 'Nhập địa chỉ giao hàng' }]}>
+                    <Input placeholder="Số nhà, đường, phường, quận" maxLength={255} />
+                  </Form.Item>
+                  <Form.Item name="recipientName" label="Người nhận (nếu khác)">
+                    <Input maxLength={100} />
+                  </Form.Item>
+                </>
+              )}
             </>
           )}
           {orderType !== 'DINE_IN' && (

@@ -23,6 +23,7 @@ export const publicApi = {
     orderType: OrderType
     customerName?: string
     customerPhone?: string
+    addressId?: number
     delivery?: DeliveryAddress
     pickupTime?: string
     paymentMethod: PaymentMethod

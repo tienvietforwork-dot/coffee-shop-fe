@@ -426,3 +426,8 @@ export interface DeliveryAddress {
   recipientPhone: string
   address: string
 }
+
+export interface AccountAddress extends DeliveryAddress {
+  id: number
+  isDefault: boolean
+}
