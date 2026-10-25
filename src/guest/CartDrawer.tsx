@@ -12,11 +12,12 @@ import { imageSrc, money } from '@/lib/format'
 import { useGuestStore } from '@/store/guestStore'
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { cart, lines, update, remove } = useCart()
+  const { cart, lines, update, remove, removeBundle } = useCart()
   const addable = useAddableCups(lines)
   const { tableNo, tableQr, voucherCode, setVoucher } = useGuestStore()
   const navigate = useNavigate()
   const items = cart?.items ?? []
+  const bundles = cart?.bundles ?? []
   const unavailable = items.some((i) => !i.available)
   // Running total while shopping (no shipping — that depends on the order type chosen at checkout).
   // Instant: estimated here from the menu's promotions and the known voucher; the server quote is only asked once
@@ -26,7 +27,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   const orderType = tableQr ? 'DINE_IN' : 'TAKE_AWAY'
   const quote = useQuery({
     queryKey: ['quote', cart?.sessionCode, settledSubtotal, orderType, voucherCode ?? undefined, null],
-    enabled: open && !!cart && items.length > 0 && settledSubtotal === subtotal,
+    enabled: open && !!cart && (items.length > 0 || bundles.length > 0) && settledSubtotal === subtotal,
     queryFn: () => publicApi.quote(cart!.sessionCode, { orderType, voucherCode: voucherCode ?? undefined }),
     placeholderData: keepPreviousData,
   })
@@ -50,7 +51,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       width={420}
       className="g-drawer"
       footer={
-        items.length > 0 && (
+        (items.length > 0 || bundles.length > 0) && (
           <div className="g-drawer-foot">
             <VoucherPicker subtotal={subtotal} applied={voucherCode ?? undefined} promotionName={shown.promoName}
               voucherDiscount={shown.voucher} onApply={(code) => setVoucher(code ?? null)} />
@@ -72,16 +73,21 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         )
       }
     >
-      {items.length === 0 ? (
+      {items.length === 0 && bundles.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Giỏ hàng đang trống" />
       ) : (
         <ul className="g-cart-list">
+          {bundles.map(b=><li key={`bundle-${b.id}`}><div className="g-cart-info"><strong>🎁 {b.name}</strong><span>{b.quantity} combo · {money(b.unitPrice)}/combo</span><div className="g-cart-row"><span>Giá combo</span><strong>{money(b.total)}</strong></div></div><button className="g-icon-btn" onClick={()=>removeBundle.mutate(b.id)} aria-label="Xóa combo"><DeleteOutlined /></button></li>)}
           {items.map((i) => (
             <li key={i.id} className={i.available ? '' : 'is-out'}>
               {i.imageUrl && <img src={imageSrc(i.imageUrl)} alt="" />}
               <div className="g-cart-info">
                 <strong>{i.coffeeName}</strong>
+<<<<<<< HEAD
                 {i.note && <span className="g-cart-note">Ghi chú: {i.note}</span>}
+=======
+                {i.options?.map(o=><span key={o.id}>+ {o.name} ({money(o.extraPrice)})</span>)}
+>>>>>>> 05dfd00 (Cross-sell and Upsell and Recommendation and Merchandising Schedule and Merchandising Analytics)
                 {!i.available && <span className="g-out-text">Món này vừa hết</span>}
                 <div className="g-cart-row">
                   <div className="g-stepper g-stepper-sm">

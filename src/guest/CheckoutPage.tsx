@@ -38,8 +38,13 @@ export function CheckoutPage() {
   const district = Form.useWatch('deliveryDistrict', form) as string | undefined
 
   const quote = useQuery({
+<<<<<<< HEAD
     queryKey: ['quote', cart?.sessionCode, cart?.subtotal, orderType, appliedVoucher, appliedVoucher ? phone : null, orderType === 'DELIVERY' ? district : null],
     enabled: !!cart && cart.items.length > 0,
+=======
+    queryKey: ['quote', cart?.sessionCode, cart?.subtotal, orderType, appliedVoucher, appliedVoucher ? phone : null],
+    enabled: !!cart && (cart.items.length > 0 || !!cart.bundles?.length),
+>>>>>>> 05dfd00 (Cross-sell and Upsell and Recommendation and Merchandising Schedule and Merchandising Analytics)
     queryFn: () =>
       publicApi.quote(cart!.sessionCode, { orderType, voucherCode: appliedVoucher, customerPhone: phone || undefined,
         deliveryDistrict: orderType === 'DELIVERY' ? district : undefined }),
@@ -81,7 +86,7 @@ export function CheckoutPage() {
   )
 
   if (loading) return <div className="g-container g-page"><Spin /></div>
-  if (!cart || cart.items.length === 0) {
+  if (!cart || (cart.items.length === 0 && !cart.bundles?.length)) {
     return (
       <div className="g-container g-page g-center">
         <h2>Giỏ hàng đang trống</h2>
@@ -200,9 +205,10 @@ export function CheckoutPage() {
         <aside className="g-panel g-summary">
           <h3>Đơn của bạn</h3>
           <ul className="g-sum-lines">
+            {(!q ? (cart.bundles ?? []) : []).map(b=><li key={`bundle-${b.id}`}><span><b>{b.quantity}×</b> 🎁 {b.name}</span><span>{money(b.total)}</span></li>)}
             {(q?.lines ?? cart.items.map((i) => ({ ...i, lineTotal: i.subtotal, listPrice: i.unitPrice, promotionName: undefined }))).map((l, idx) => (
               <li key={idx}>
-                <span><b>{l.quantity}×</b> {l.coffeeName}</span>
+                <span><b>{l.quantity}×</b> {l.coffeeName}{cart.items[idx]?.options?.map(o=><small key={o.id} style={{display:"block"}}>+ {o.name} ({money(o.extraPrice)})</small>)}</span>
                 <span>
                   {l.unitPrice < l.listPrice && <s>{money(l.listPrice * l.quantity)}</s>}
                   {money(l.lineTotal)}

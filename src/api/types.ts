@@ -445,6 +445,7 @@ export interface CartItem {
   note?: string
   subtotal: number
   available: boolean
+  options?: Array<{id:number;name:string;kind:string;extraPrice:number}>
 }
 
 export interface Cart {
@@ -453,6 +454,7 @@ export interface Cart {
   tableId?: number
   tableNo?: string
   items: CartItem[]
+  bundles?: { id: number; bundleId: number; name: string; quantity: number; selected: number[]; unitPrice: number; total: number }[]
   subtotal: number
 }
 

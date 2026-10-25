@@ -47,12 +47,20 @@ const TablesPage = lazy(() => import('@/admin/pages/TablesPage').then((m) => ({ 
 const StaffPage = lazy(() => import('@/admin/pages/StaffPage').then((m) => ({ default: m.StaffPage })))
 const RolesPage = lazy(() => import('@/admin/pages/RolesPage').then((m) => ({ default: m.RolesPage })))
 const UsersPage = lazy(() => import('@/admin/pages/UsersPage').then((m) => ({ default: m.UsersPage })))
+const CustomerAnalyticsPage = lazy(() => import('@/admin/pages/CustomerAnalyticsPage').then(m => ({ default: m.CustomerAnalyticsPage })))
 const StatsPage = lazy(() => import('@/admin/pages/StatsPage').then((m) => ({ default: m.StatsPage })))
 const CustomersPage = lazy(() => import('@/admin/pages/crm/CustomersPage').then((m) => ({ default: m.CustomersPage })))
 const InteractionsPage = lazy(() => import('@/admin/pages/crm/InteractionsPage').then((m) => ({ default: m.InteractionsPage })))
 const FeedbacksPage = lazy(() => import('@/admin/pages/crm/FeedbacksPage').then((m) => ({ default: m.FeedbacksPage })))
 const GroupsPage = lazy(() => import('@/admin/pages/crm/GroupsPage').then((m) => ({ default: m.GroupsPage })))
 const InsightsPage = lazy(() => import('@/admin/pages/crm/InsightsPage').then((m) => ({ default: m.InsightsPage })))
+const MerchandisingAnalyticsPage = lazy(() => import('@/admin/pages/MerchandisingAnalyticsPage').then(m => ({ default: m.MerchandisingAnalyticsPage })))
+const MerchandisingSchedulePage = lazy(() => import('@/admin/pages/MerchandisingSchedulePage').then(m => ({ default: m.MerchandisingSchedulePage })))
+const ProductPlacementPage = lazy(() => import('@/admin/pages/ProductPlacementPage').then((m) => ({ default: m.ProductPlacementPage })))
+const RecommendationPage = lazy(() => import('@/admin/pages/RecommendationPage').then(m => ({ default: m.RecommendationPage })))
+const UpsellPage = lazy(() => import('@/admin/pages/UpsellPage').then(m => ({ default: m.UpsellPage })))
+const CrossSellPage = lazy(() => import('@/admin/pages/CrossSellPage').then(m => ({ default: m.CrossSellPage })))
+const ProductBundlesPage = lazy(() => import('@/admin/pages/ProductBundlesPage').then((m) => ({ default: m.ProductBundlesPage })))
 const PromotionsPage = lazy(() => import('@/admin/pages/promotions/PromotionsPage').then((m) => ({ default: m.PromotionsPage })))
 const VouchersPage = lazy(() => import('@/admin/pages/promotions/VouchersPage').then((m) => ({ default: m.VouchersPage })))
 const PromotionAnalyticsPage = lazy(() => import('@/admin/pages/promotions/PromotionAnalyticsPage').then((m) => ({ default: m.PromotionAnalyticsPage })))
@@ -101,6 +109,13 @@ export default function App() {
                   <Route path="/admin/pos" element={<Guard perm="pos"><PosPage /></Guard>} />
                   <Route path="/admin/shipments" element={<Guard perm="shipments"><ShipmentsPage /></Guard>} />
                   <Route path="/admin/incidents" element={<Guard perm="incidents"><IncidentsPage /></Guard>} />
+                  <Route path="/admin/merchandising-analytics" element={<Guard perm="stats"><MerchandisingAnalyticsPage /></Guard>} />
+                  <Route path="/admin/merchandising-schedule" element={<Guard perm="menu"><MerchandisingSchedulePage /></Guard>} />
+                  <Route path="/admin/product-placement" element={<Guard perm="menu"><ProductPlacementPage /></Guard>} />
+                  <Route path="/admin/recommendation" element={<Guard perm="menu"><RecommendationPage /></Guard>} />
+                  <Route path="/admin/upsell" element={<Guard perm="menu"><UpsellPage /></Guard>} />
+                  <Route path="/admin/cross-sell" element={<Guard perm="menu"><CrossSellPage /></Guard>} />
+                  <Route path="/admin/product-bundles" element={<Guard perm="menu"><ProductBundlesPage /></Guard>} />
                   <Route path="/admin/coffees" element={<Guard perm="menu"><CoffeesPage /></Guard>} />
                   <Route path="/admin/categories" element={<Guard perm="categories"><CategoriesPage /></Guard>} />
                   <Route path="/admin/materials" element={<Guard perm="materials"><MaterialsPage /></Guard>} />
@@ -131,6 +146,7 @@ export default function App() {
                   <Route path="/admin/vouchers" element={<Guard perm="vouchers"><VouchersPage /></Guard>} />
                   <Route path="/admin/promotions/analytics" element={<Guard perm="promotions.analytics"><PromotionAnalyticsPage /></Guard>} />
                   <Route path="/admin/stats" element={<Guard perm="stats"><StatsPage /></Guard>} />
+                  <Route path="/admin/stats/customers" element={<Guard perm="stats"><CustomerAnalyticsPage /></Guard>} />
                   <Route path="/admin/staff" element={<Guard perm="staff"><StaffPage /></Guard>} />
                   <Route path="/admin/users" element={<Guard perm="users"><UsersPage /></Guard>} />
                   <Route path="/admin/roles" element={<Guard perm="roles"><RolesPage /></Guard>} />

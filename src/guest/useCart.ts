@@ -6,7 +6,11 @@ import { errorMessage } from '@/api/client'
 import { useGuestStore } from '@/store/guestStore'
 import type { Cart } from '@/api/types'
 
+<<<<<<< HEAD
 type AddVars = { coffeeId: number; quantity: number; note?: string }
+=======
+type AddVars = { coffeeId: number; quantity: number; optionIds?: number[] }
+>>>>>>> 05dfd00 (Cross-sell and Upsell and Recommendation and Merchandising Schedule and Merchandising Analytics)
 const ADD_KEY = ['cart-add']
 let creating: Promise<string> | null = null
 let overlapped = false
@@ -69,6 +73,17 @@ export function useCart() {
       } else if (cart) setData(cart)
     },
   })
+  const addBundle = useMutation({
+    mutationFn: async (v: { bundleId: number; quantity: number; optionalItemIds: number[] }) =>
+      publicApi.addBundle(await ensureCart(),v),
+    onSuccess: (cart) => { setData(cart); qc.invalidateQueries({queryKey:['quote']}); message.success('Đã thêm combo vào giỏ') },
+    onError: (e) => message.error(errorMessage(e)),
+  })
+  const removeBundle = useMutation({
+    mutationFn: (id: number) => publicApi.removeBundle(cartCode!,id),
+    onSuccess: setData,
+    onError: (e) => message.error(errorMessage(e)),
+  })
   const pending = useMutationState<AddVars>({
     filters: { mutationKey: ADD_KEY, status: 'pending' },
     select: (m) => m.state.variables as AddVars,
@@ -85,7 +100,7 @@ export function useCart() {
     message.error(errorMessage(e))
   }
   const withItems = (c: Cart, items: Cart['items']) =>
-    ({ ...c, items, subtotal: items.reduce((s, i) => s + i.subtotal, 0) })
+    ({ ...c, items, subtotal: items.reduce((s, i) => s + i.subtotal, 0) + (c.bundles ?? []).reduce((s,b)=>s+b.total,0) })
 
   const update = useMutation({
     // the server replaces the line's note too: always send it back
@@ -108,6 +123,6 @@ export function useCart() {
     ...(cart?.items.map((i) => ({ coffeeId: i.coffeeId, quantity: i.quantity })) ?? []),
     ...pending.filter(Boolean),
   ], [cart, pending])
-  const count = lines.reduce((n, l) => n + l.quantity, 0)
-  return { cart, count, lines, loading: query.isLoading, add, update, remove }
+  const count = lines.reduce((n, l) => n + l.quantity, 0) + (cart?.bundles ?? []).reduce((n,b)=>n+b.quantity,0)
+  return { cart, count, lines, loading: query.isLoading, add, addBundle, removeBundle, update, remove }
 }

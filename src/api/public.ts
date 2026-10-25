@@ -9,13 +9,23 @@ export const publicApi = {
 
   createCart: (tableQr?: string) => apiClient.post<Cart>('/public/carts', { tableQr }).then((r) => r.data),
   cart: (code: string) => apiClient.get<Cart>(`/public/carts/${code}`).then((r) => r.data),
-  addItem: (code: string, body: { coffeeId: number; quantity: number; note?: string }) =>
+  upsellOptions: (coffeeId: number) => apiClient.get<Array<{id:number; coffeeId:number; kind:"SIZE"|"TOPPING"|"PREMIUM";name:string;extraPrice:number}>>(`/public/upsell-options/${coffeeId}`).then(r=>r.data),
+  addItem: (code: string, body: { coffeeId: number; quantity: number; note?: string; optionIds?: number[] }) =>
     apiClient.post<Cart>(`/public/carts/${code}/items`, body).then((r) => r.data),
   updateItem: (code: string, itemId: number, body: { quantity: number; note?: string }) =>
     apiClient.put<Cart>(`/public/carts/${code}/items/${itemId}`, body).then((r) => r.data),
   removeItem: (code: string, itemId: number) =>
     apiClient.delete<Cart>(`/public/carts/${code}/items/${itemId}`).then((r) => r.data),
+<<<<<<< HEAD
   quote: (code: string, body: { orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryDistrict?: string }) =>
+=======
+  addBundle: (code: string, body: { bundleId: number; quantity: number; optionalItemIds: number[] }) =>
+    apiClient.post<Cart>(`/public/carts/${code}/bundles`,body).then(r=>r.data),
+  removeBundle: (code: string, lineId: number) =>
+    apiClient.delete<Cart>(`/public/carts/${code}/bundles/${lineId}`).then(r=>r.data),
+  recommended: () => apiClient.get<number[]>('/public/recommendations').then(r=>r.data),
+  quote: (code: string, body: { orderType: OrderType; customerPhone?: string; voucherCode?: string }) =>
+>>>>>>> 05dfd00 (Cross-sell and Upsell and Recommendation and Merchandising Schedule and Merchandising Analytics)
     apiClient.post<PriceQuote>(`/public/carts/${code}/quote`, body).then((r) => r.data),
 
   checkout: (body: {
