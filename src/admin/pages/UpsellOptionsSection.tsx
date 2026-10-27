@@ -36,7 +36,9 @@ export function UpsellOptionsSection(){
    })
  }
  async function saveRecipe(){if(!recipeId)return;try{
-   if(recipeLines.some(x=>!x.materialId||!x.quantity||x.quantity<=0))throw Error('Chọn nguyên liệu và nhập lượng lớn hơn 0')
+   if(recipeLines.length<1||recipeLines.length>20)throw Error('Chọn từ 1 đến 20 nguyên liệu')
+   if(recipeLines.some(x=>!x.materialId||!x.quantity||x.quantity<=0||Math.round(x.quantity*100)!==x.quantity*100))throw Error('Chọn nguyên liệu và nhập định lượng dương, tối đa 2 chữ số thập phân')
+   if(new Set(recipeLines.map(x=>x.materialId)).size!==recipeLines.length)throw Error('Không được chọn trùng nguyên liệu')
    setBusy(true);await upsellOptionApi.setIngredients(recipeId,recipeLines as Array<{materialId:number;quantity:number}>);
    message.success('Đã lưu định lượng nguyên liệu');setRecipeId(null);await qc.invalidateQueries({queryKey:['upsell-option-catalog']})
  }catch(e){message.error(errorMessage(e))}finally{setBusy(false)}}
@@ -71,7 +73,7 @@ export function UpsellOptionsSection(){
      <InputNumber min={0.01} step={0.01} placeholder="Số lượng" value={x.quantity} onChange={v=>setRecipeLines(old=>old.map((y,j)=>j===i?{...y,quantity:v??undefined}:y))}/>
      <Button danger onClick={()=>setRecipeLines(old=>old.filter((_,j)=>j!==i))}>Xóa</Button>
    </Space>)}
-   <Button onClick={()=>setRecipeLines(old=>[...old,{}])}>+ Nguyên liệu</Button>
+   <Button disabled={recipeLines.length>=20} onClick={()=>setRecipeLines(old=>[...old,{}])}>+ Nguyên liệu (tối đa 20)</Button>
   </Modal>
  </Card>
 }

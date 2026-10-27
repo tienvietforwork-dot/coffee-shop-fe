@@ -6,11 +6,7 @@ import { errorMessage } from '@/api/client'
 import { useGuestStore } from '@/store/guestStore'
 import type { Cart } from '@/api/types'
 
-<<<<<<< HEAD
-type AddVars = { coffeeId: number; quantity: number; note?: string }
-=======
-type AddVars = { coffeeId: number; quantity: number; optionIds?: number[] }
->>>>>>> 05dfd00 (Cross-sell and Upsell and Recommendation and Merchandising Schedule and Merchandising Analytics)
+type AddVars = { coffeeId: number; quantity: number; note?: string; optionIds?: number[] }
 const ADD_KEY = ['cart-add']
 let creating: Promise<string> | null = null
 let overlapped = false
@@ -103,11 +99,10 @@ export function useCart() {
     ({ ...c, items, subtotal: items.reduce((s, i) => s + i.subtotal, 0) + (c.bundles ?? []).reduce((s,b)=>s+b.total,0) })
 
   const update = useMutation({
-    // the server replaces the line's note too: always send it back
     mutationFn: (v: { itemId: number; quantity: number; note?: string }) =>
       publicApi.updateItem(cartCode!, v.itemId, { quantity: v.quantity, note: v.note }),
     onMutate: (v) => patchCart((c) => withItems(c, c.items.map((i) =>
-      i.id === v.itemId ? { ...i, quantity: v.quantity, subtotal: i.unitPrice * v.quantity } : i))),
+      i.id === v.itemId ? { ...i, quantity: v.quantity, note: v.note ?? i.note, subtotal: i.unitPrice * v.quantity } : i))),
     onSuccess: setData,
     onError: rollback,
   })

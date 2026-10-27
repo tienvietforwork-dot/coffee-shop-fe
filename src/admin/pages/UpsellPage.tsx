@@ -11,7 +11,7 @@ export function UpsellPage() {
         Upsell · Tùy chỉnh món
       </Typography.Title>
       <Typography.Text type="secondary">
-        Nâng kích cỡ ly, thêm topping hoặc thành phần cao cấp trên chính món khách chọn.
+        Thêm topping, extra shot hoặc nguyên liệu cao cấp trên chính món khách chọn. Phần nâng cấp sang SKU khác là luồng cũ được giữ riêng.
       </Typography.Text>
       <UpsellOptionsSection />
     </div>

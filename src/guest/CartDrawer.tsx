@@ -83,11 +83,8 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
               {i.imageUrl && <img src={imageSrc(i.imageUrl)} alt="" />}
               <div className="g-cart-info">
                 <strong>{i.coffeeName}</strong>
-<<<<<<< HEAD
                 {i.note && <span className="g-cart-note">Ghi chú: {i.note}</span>}
-=======
                 {i.options?.map(o=><span key={o.id}>+ {o.name} ({money(o.extraPrice)})</span>)}
->>>>>>> 05dfd00 (Cross-sell and Upsell and Recommendation and Merchandising Schedule and Merchandising Analytics)
                 {!i.available && <span className="g-out-text">Món này vừa hết</span>}
                 <div className="g-cart-row">
                   <div className="g-stepper g-stepper-sm">
