@@ -6,7 +6,7 @@ import { errorMessage } from '@/api/client'
 import { useGuestStore } from '@/store/guestStore'
 import type { Cart } from '@/api/types'
 
-type AddVars = { coffeeId: number; quantity: number; note?: string; optionIds?: number[] }
+type AddVars = { coffeeId: number; quantity: number; note?: string }
 const ADD_KEY = ['cart-add']
 let creating: Promise<string> | null = null
 let overlapped = false

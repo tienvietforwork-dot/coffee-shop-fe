@@ -9,8 +9,7 @@ export const publicApi = {
 
   createCart: (tableQr?: string) => apiClient.post<Cart>('/public/carts', { tableQr }).then((r) => r.data),
   cart: (code: string) => apiClient.get<Cart>(`/public/carts/${code}`).then((r) => r.data),
-  upsellOptions: (coffeeId: number) => apiClient.get<Array<{id:number; coffeeId:number; kind:"SIZE"|"TOPPING"|"PREMIUM";name:string;extraPrice:number}>>(`/public/upsell-options/${coffeeId}`).then(r=>r.data),
-  addItem: (code: string, body: { coffeeId: number; quantity: number; note?: string; optionIds?: number[] }) =>
+  addItem: (code: string, body: { coffeeId: number; quantity: number; note?: string }) =>
     apiClient.post<Cart>(`/public/carts/${code}/items`, body).then((r) => r.data),
   updateItem: (code: string, itemId: number, body: { quantity: number; note?: string }) =>
     apiClient.put<Cart>(`/public/carts/${code}/items/${itemId}`, body).then((r) => r.data),

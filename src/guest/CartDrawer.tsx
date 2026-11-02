@@ -84,7 +84,6 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
               <div className="g-cart-info">
                 <strong>{i.coffeeName}</strong>
                 {i.note && <span className="g-cart-note">Ghi chú: {i.note}</span>}
-                {i.options?.map(o=><span key={o.id}>+ {o.name} ({money(o.extraPrice)})</span>)}
                 {!i.available && <span className="g-out-text">Món này vừa hết</span>}
                 <div className="g-cart-row">
                   <div className="g-stepper g-stepper-sm">

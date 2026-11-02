@@ -184,7 +184,7 @@ export function CheckoutPage() {
             {(!q ? (cart.bundles ?? []) : []).map(b=><li key={`bundle-${b.id}`}><span><b>{b.quantity}×</b> 🎁 {b.name}</span><span>{money(b.total)}</span></li>)}
             {(q?.lines ?? cart.items.map((i) => ({ ...i, lineTotal: i.subtotal, listPrice: i.unitPrice, promotionName: undefined }))).map((l, idx) => (
               <li key={idx}>
-                <span><b>{l.quantity}×</b> {l.coffeeName}{cart.items[idx]?.options?.map(o=><small key={o.id} style={{display:"block"}}>+ {o.name} ({money(o.extraPrice)})</small>)}</span>
+                <span><b>{l.quantity}×</b> {l.coffeeName}</span>
                 <span>
                   {l.unitPrice < l.listPrice && <s>{money(l.listPrice * l.quantity)}</s>}
                   {money(l.lineTotal)}
