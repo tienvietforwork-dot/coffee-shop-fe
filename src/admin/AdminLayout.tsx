@@ -3,11 +3,11 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Badge, Button, Dropdown, Grid, Layout, Menu, Tag, Tooltip, type MenuProps } from 'antd'
 import {
   DashboardOutlined, ProfileOutlined, ShopOutlined, CarOutlined, WarningOutlined, CoffeeOutlined,
-  AppstoreOutlined, ExperimentOutlined, InboxOutlined, HistoryOutlined, TableOutlined, TeamOutlined,
+  AppstoreOutlined, ExperimentOutlined, TableOutlined, TeamOutlined,
   UserOutlined, IdcardOutlined, MessageOutlined, CommentOutlined, ClusterOutlined, BarChartOutlined,
   GiftOutlined, TagsOutlined, FundOutlined, LineChartOutlined, LogoutOutlined, ArrowLeftOutlined,
-  SafetyCertificateOutlined, KeyOutlined, ShoppingCartOutlined, SolutionOutlined, FileDoneOutlined, RollbackOutlined,
-  WalletOutlined, AuditOutlined, ContainerOutlined, PercentageOutlined, DollarOutlined, ScheduleOutlined, FileSearchOutlined,
+  SafetyCertificateOutlined, KeyOutlined,
+  DollarOutlined, ScheduleOutlined, FileSearchOutlined,
   CreditCardOutlined, EnvironmentOutlined, FileTextOutlined, NotificationOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
@@ -40,24 +40,10 @@ const GROUPS: { label: string; items: Entry[] }[] = [
     ],
   },
   {
-    label: 'Thực đơn & kho', items: [
+    label: 'Thực đơn', items: [
       { key: '/admin/coffees', icon: <CoffeeOutlined />, label: 'Cà phê & công thức', perm: P.MENU },
       { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục', perm: P.CATEGORIES },
-      { key: '/admin/coffee-costs', icon: <PercentageOutlined />, label: 'Giá vốn món', perm: P.COFFEE_COSTS },
-      { key: '/admin/materials', icon: <ExperimentOutlined />, label: 'Nguyên liệu & lô', perm: P.MATERIALS },
-      { key: '/admin/stock', icon: <InboxOutlined />, label: 'Nhập / xuất kho', perm: P.STOCK },
-      { key: '/admin/stocktakes', icon: <AuditOutlined />, label: 'Kiểm kê kho', perm: P.STOCKTAKES },
-      { key: '/admin/stock-history', icon: <HistoryOutlined />, label: 'Lịch sử kho', perm: P.STOCK_HISTORY },
-      { key: '/admin/inventory-report', icon: <ContainerOutlined />, label: 'Xuất – nhập – tồn', perm: P.INVENTORY_REPORT },
-    ],
-  },
-  {
-    label: 'Mua hàng', items: [
-      { key: '/admin/suppliers', icon: <SolutionOutlined />, label: 'Nhà cung cấp', perm: P.SUPPLIERS },
-      { key: '/admin/purchase-orders', icon: <ShoppingCartOutlined />, label: 'Phiếu đặt hàng', perm: P.PURCHASE_ORDERS },
-      { key: '/admin/goods-receipts', icon: <FileDoneOutlined />, label: 'Phiếu nhập kho', perm: P.STOCK },
-      { key: '/admin/supplier-returns', icon: <RollbackOutlined />, label: 'Trả hàng nhập', perm: P.SUPPLIER_RETURNS },
-      { key: '/admin/supplier-debts', icon: <WalletOutlined />, label: 'Công nợ nhà cung cấp', perm: P.SUPPLIER_DEBTS },
+      { key: '/admin/materials', icon: <ExperimentOutlined />, label: 'Nguyên liệu', perm: P.MATERIALS },
     ],
   },
   {

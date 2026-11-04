@@ -4,7 +4,6 @@ import { MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import type { MenuCoffee } from '@/api/types'
 import { imageSrc, money } from '@/lib/format'
 import { useCart } from './useCart'
-import { useAddableCups } from '@/lib/stock'
 import { flyToCart } from '@/lib/flyToCart'
 
 /** Lời dặn hay gặp ở quầy; the bar still makes the drink by its recipe, the note only tells how to serve it. */
@@ -17,8 +16,7 @@ const QUICK_NOTES = ['Ít đá', 'Không đá', 'Đá riêng', 'Ít ngọt', 'Kh
 export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null; onClose: () => void }) {
   const [qty, setQty] = useState(1)
   const [note, setNote] = useState('')
-  const { add, lines } = useCart()
-  const addableOf = useAddableCups(lines)
+  const { add } = useCart()
 
   useEffect(() => {
     if (coffee) {
@@ -32,7 +30,7 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
 
   if (!coffee) return null
   const unit = coffee.salePrice != null && coffee.salePrice < coffee.price ? coffee.salePrice : coffee.price
-  const max = Math.min(99, addableOf(coffee.id))
+  const max = 99 // no stock cap: the shop no longer tracks inventory
 
   // close at once and let the request run in the background; the photo flies into the cart
   const submit = () => {
@@ -48,7 +46,6 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
         <h3>{coffee.name}</h3>
         {coffee.description && <p className="g-muted">{coffee.description}</p>}
 
-        {max < 10 && max > 0 && <p className="g-stock-hint">Chỉ còn pha được {max} ly</p>}
         <div className="g-note-picker">
           {QUICK_NOTES.map((q) => (
             <Tag.CheckableTag key={q} checked={parts.includes(q)} onChange={() => toggle(q)}>{q}</Tag.CheckableTag>
@@ -62,8 +59,8 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
             <span>{qty}</span>
             <button onClick={() => setQty((q) => Math.min(max, q + 1))} disabled={qty >= max} aria-label="Tăng"><PlusOutlined /></button>
           </div>
-          <button className="g-cta g-cta-block" onClick={submit} disabled={max < 1}>
-            {max < 1 ? 'Đã hết nguyên liệu' : `Thêm vào giỏ · ${money(unit * qty)}`}
+          <button className="g-cta g-cta-block" onClick={submit}>
+            {`Thêm vào giỏ · ${money(unit * qty)}`}
           </button>
         </div>
       </div>

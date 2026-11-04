@@ -1,11 +1,9 @@
 import apiClient from './client'
 import type {
-  Batch, Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
-  IncidentSeverity, IncidentType, InventoryAlerts, Material, MaterialKind, MaterialStatus, MaterialTransaction,
-  Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus, TransactionReason,
-  Staff, TableStatus, User, WorkStatus, Supplier, SupplierStatus, PurchaseOrder, PurchaseOrderStatus, GoodsReceipt,
-  GoodsReceiptStatus, SupplierReturn, SupplierReturnStatus, SupplierReturnSettlement, SupplierPayment, SupplierDebt, SupplierLedger,
-  Stocktake, StocktakeStatus, StockQuality, InventoryReport, InventoryDaily, CoffeeCost, CoffeeCostHistory,
+  Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
+  IncidentSeverity, IncidentType, Material,
+  Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
+  Staff, TableStatus, User, WorkStatus,
   CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliveryZone, ShipmentEvent, AhamoveEstimate,
   Invoice, InvoiceBuyer, NotificationTemplate, NotificationMessage,
 } from './types'
@@ -36,58 +34,7 @@ export interface RecipePayload {
   steps: string[]
 }
 export interface MaterialPayload {
-  name: string; unit: string; minStock?: number; expiryWarningDays?: number; status?: MaterialStatus; kind?: MaterialKind
-  yieldQuantity?: number; shelfLifeMinutes?: number
-  components?: { componentId: number; quantity: number }[]
-  packages?: { name: string; size: number }[]
-  instructions?: string
-}
-export interface SupplierPayload {
-  name: string; contactName?: string; phone?: string; email?: string; address?: string; taxCode?: string; note?: string
-  paymentTermDays?: number
-  status?: SupplierStatus
-  /** unitPrice: reference price per unit of the material */
-  materials?: { materialId: number; packageId?: number; unitPrice?: number }[]
-}
-/** each line: packageId + packageCount, or a loose quantity in the material's unit; unitPrice per unit of the material */
-export interface PurchaseOrderPayload {
-  supplierId: number; expectedDate?: string; note?: string
-  /** null: the supplier's terms */
-  paymentTermDays?: number; discountAmount?: number; vatRate?: number; shippingCost?: number
-  items: { materialId: number; packageId?: number; packageCount?: number; quantity?: number; unitPrice?: number; note?: string }[]
-}
-/**
- * Phiếu nhập: against a purchase order (lines name itemId) or loose (supplierId + materialId / packageId).
- * Counts in the line's packaging, or in the material's unit when loose; unitPrice per unit of the material, chưa thuế.
- */
-export interface GoodsReceiptPayload {
-  supplierId?: number
-  delivererName?: string; invoiceSeries?: string; invoiceNo?: string; invoiceDate?: string; documentImageId?: number
-  discountAmount?: number; vatRate?: number; shippingCost?: number
-  /** paid to the supplier on the spot */
-  paidAmount?: number; paymentMethod?: PaymentMethod; paymentReference?: string
-  note?: string
-  lines: {
-    itemId?: number; materialId?: number; packageId?: number
-    documentCount?: number; receivedCount: number; rejectedCount?: number; rejectReason?: string
-    unitPrice?: number; expiryDate?: string; temperature?: number; note?: string
-  }[]
-}
-export interface SupplierReturnPayload {
-  goodsReceiptId: number; reason: string; settlement: SupplierReturnSettlement; refundMethod?: PaymentMethod
-  adjustmentInvoiceNo?: string; note?: string
-  /** save and send the goods back at once */
-  complete?: boolean
-  /** count in the receipt line's packaging */
-  items: { receiptItemId: number; count: number; unitPrice?: number; note?: string }[]
-}
-export interface SupplierPaymentPayload {
-  supplierId: number; amount: number; method: PaymentMethod; reference?: string; payeeName?: string; paidAt?: string
-  goodsReceiptId?: number; purchaseOrderId?: number; documentImageId?: number; note?: string
-}
-export interface StocktakePayload {
-  members?: string; note?: string; materialIds?: number[]
-  counts?: { itemId: number; countedQuantity?: number; quality?: StockQuality; reason?: string }[]
+  name: string; unit: string
 }
 export interface StaffPayload {
   fullName: string; position?: string; phone: string; email?: string; hireDate?: string
@@ -141,64 +88,6 @@ export const coreApi = {
   createMaterial: (b: MaterialPayload) => post<Material>('/materials', b),
   updateMaterial: (id: number, b: MaterialPayload) => put<Material>(`/materials/${id}`, b),
   deleteMaterial: (id: number) => del(`/materials/${id}`),
-  batches: (materialId: number) => get<Batch[]>(`/materials/${materialId}/batches`),
-  transactions: (materialId?: number) => get<MaterialTransaction[]>('/inventory/transactions', { materialId }),
-  alerts: () => get<InventoryAlerts>('/inventory/alerts'),
-  /** phiếu nhập: loose ones and those received against a purchase order (receive) */
-  goodsReceipts: (p?: { supplierId?: number; purchaseOrderId?: number; status?: GoodsReceiptStatus; from?: string; to?: string }) =>
-    get<GoodsReceipt[]>('/goods-receipts', p),
-  goodsReceipt: (id: number) => get<GoodsReceipt>(`/goods-receipts/${id}`),
-  /** nhập lẻ, without a purchase order (supplier required) */
-  createReceipt: (b: GoodsReceiptPayload) => post<GoodsReceipt>('/goods-receipts', b),
-  cancelReceipt: (id: number, reason: string) => post<GoodsReceipt>(`/goods-receipts/${id}/cancel`, { reason }),
-
-  supplierReturns: (p?: { supplierId?: number; status?: SupplierReturnStatus; goodsReceiptId?: number }) => get<SupplierReturn[]>('/supplier-returns', p),
-  createSupplierReturn: (b: SupplierReturnPayload) => post<SupplierReturn>('/supplier-returns', b),
-  updateSupplierReturn: (id: number, b: SupplierReturnPayload) => put<SupplierReturn>(`/supplier-returns/${id}`, b),
-  completeSupplierReturn: (id: number) => post<SupplierReturn>(`/supplier-returns/${id}/complete`),
-  cancelSupplierReturn: (id: number, reason: string) => post<SupplierReturn>(`/supplier-returns/${id}/cancel`, { reason }),
-
-  supplierDebts: () => get<SupplierDebt[]>('/supplier-debts'),
-  supplierLedger: (supplierId: number, p?: { from?: string; to?: string }) => get<SupplierLedger>(`/supplier-debts/${supplierId}/ledger`, p),
-  supplierLedgerExcel: (supplierId: number, p?: { from?: string; to?: string }) => download(`/supplier-debts/${supplierId}/ledger.xlsx`, p),
-  supplierPayments: (p?: { supplierId?: number; from?: string; to?: string }) => get<SupplierPayment[]>('/supplier-payments', p),
-  paySupplier: (b: SupplierPaymentPayload) => post<SupplierPayment>('/supplier-payments', b),
-  cancelSupplierPayment: (id: number, reason: string) => post<SupplierPayment>(`/supplier-payments/${id}/cancel`, { reason }),
-
-  suppliers: () => get<Supplier[]>('/suppliers'),
-  createSupplier: (b: SupplierPayload) => post<Supplier>('/suppliers', b),
-  updateSupplier: (id: number, b: SupplierPayload) => put<Supplier>(`/suppliers/${id}`, b),
-  /** ngừng hợp tác */
-  deleteSupplier: (id: number) => del(`/suppliers/${id}`),
-
-  purchaseOrders: (p?: { status?: PurchaseOrderStatus; supplierId?: number }) => get<PurchaseOrder[]>('/purchase-orders', p),
-  purchaseOrder: (id: number) => get<PurchaseOrder>(`/purchase-orders/${id}`),
-  createPurchaseOrder: (b: PurchaseOrderPayload) => post<PurchaseOrder>('/purchase-orders', b),
-  updatePurchaseOrder: (id: number, b: PurchaseOrderPayload) => put<PurchaseOrder>(`/purchase-orders/${id}`, b),
-  deletePurchaseOrder: (id: number) => del(`/purchase-orders/${id}`),
-  sendPurchaseOrder: (id: number) => post<PurchaseOrder>(`/purchase-orders/${id}/send`),
-  cancelPurchaseOrder: (id: number, reason: string) => post<PurchaseOrder>(`/purchase-orders/${id}/cancel`, { reason }),
-  closePurchaseOrder: (id: number, reason: string) => post<PurchaseOrder>(`/purchase-orders/${id}/close`, { reason }),
-  receive: (id: number, b: GoodsReceiptPayload) => post<GoodsReceipt>(`/purchase-orders/${id}/receipts`, b),
-
-  /** phiếu hủy */
-  disposeStock: (b: { batchId: number; quantity: number; reason: TransactionReason; note?: string }) =>
-    post<MaterialTransaction>('/inventory/dispose', b),
-  /** xuất khác */
-  exportStock: (b: { batchId: number; quantity: number; reason: TransactionReason; note?: string }) =>
-    post<MaterialTransaction>('/inventory/export', b),
-  stocktakes: (status?: StocktakeStatus) => get<Stocktake[]>('/stocktakes', { status }),
-  stocktake: (id: number) => get<Stocktake>(`/stocktakes/${id}`),
-  /** materialIds: lots of these materials still in stock are added with their book quantity (none: every material) */
-  createStocktake: (b: StocktakePayload) => post<Stocktake>('/stocktakes', b),
-  updateStocktake: (id: number, b: StocktakePayload) => put<Stocktake>(`/stocktakes/${id}`, b),
-  balanceStocktake: (id: number, resolution?: string) => post<Stocktake>(`/stocktakes/${id}/balance`, { resolution }),
-  cancelStocktake: (id: number) => post<Stocktake>(`/stocktakes/${id}/cancel`),
-
-  inventoryReport: (p: { from: string; to: string }) => get<InventoryReport>('/reports/inventory', p),
-  inventoryReportExcel: (p: { from: string; to: string }) => download('/reports/inventory.xlsx', p),
-  inventoryDaily: (p: { from: string; to: string; materialId?: number }) => get<InventoryDaily[]>('/reports/inventory/daily', p),
-  closeInventoryDay: () => post<{ materials: number }>('/reports/inventory/close-day'),
 
   /** null when no shift is open */
   currentShift: () => apiClient.get<CashShift | ''>('/cash-shifts/current').then((r) => r.data || null),
@@ -233,13 +122,6 @@ export const coreApi = {
     get<{ items: AuditLog[]; total: number }>('/audit-logs', p),
   auditFilters: () => get<{ usernames: string[]; modules: string[] }>('/audit-logs/filters'),
   auditExcel: (p: { from: string; to: string; username?: string; module?: string; failed?: boolean; keyword?: string }) => download('/audit-logs/export.xlsx', p),
-
-  coffeeCosts: () => get<CoffeeCost[]>('/coffee-costs'),
-  coffeeCostHistory: (coffeeId: number) => get<CoffeeCostHistory[]>(`/coffee-costs/${coffeeId}/history`),
-  recalculateCosts: () => post<{ changed: number }>('/coffee-costs/recalculate'),
-  setCoffeePrice: (coffeeId: number, price: number) => put<CoffeeCost>(`/coffee-costs/${coffeeId}/price`, { price }),
-  /** lots: input material id -> lot to take it from first (default FEFO) */
-  produce: (b: { materialId: number; batches: number; expiresAt?: string; note?: string; lots?: Record<number, number> }) => post<Batch>('/inventory/produce', b),
 
   staff: () => get<Staff[]>('/staff'),
   createStaff: (b: StaffPayload) => post<Staff>('/staff', b),

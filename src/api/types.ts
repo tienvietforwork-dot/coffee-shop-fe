@@ -10,26 +10,6 @@ export type OrderStatus =
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'E_WALLET' | 'CARD'
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
 export type ShipmentStatus = 'PENDING' | 'BOOKED' | 'DRIVER_ACCEPTED' | 'DELIVERING' | 'DELIVERED' | 'FAILED'
-export type MaterialStatus = 'ACTIVE' | 'INACTIVE'
-export type BatchStatus = 'PREPARING' | 'AVAILABLE' | 'DEPLETED' | 'EXPIRED'
-export type SupplierStatus = 'ACTIVE' | 'INACTIVE'
-export type PurchaseOrderStatus = 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'COMPLETED' | 'CANCELLED'
-export type GoodsReceiptStatus = 'COMPLETED' | 'CANCELLED'
-export type SupplierReturnStatus = 'DRAFT' | 'COMPLETED' | 'CANCELLED'
-/** DEBT = trừ vào công nợ; REFUND = nhà cung cấp hoàn tiền */
-export type SupplierReturnSettlement = 'DEBT' | 'REFUND'
-export type SupplierPaymentStatus = 'COMPLETED' | 'CANCELLED'
-export type MaterialKind = 'RAW' | 'PREPARED'
-export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCE' | 'DISPOSAL'
-  | 'IMPORT_CANCEL' | 'SUPPLIER_RETURN'
-/** phiếu hủy: EXPIRED … OTHER_DISPOSAL; xuất khác: RETURN_SUPPLIER, INTERNAL_USE */
-export type TransactionReason = 'EXPIRED' | 'SPOILED' | 'SPILLED' | 'BREW_FAILED' | 'OTHER_DISPOSAL' | 'RETURN_SUPPLIER' | 'INTERNAL_USE'
-/** how a raw material is bought: name "Hộp 1 L", size in the material's unit (1000) */
-export interface MaterialPackage {
-  id: number
-  name: string
-  size: number
-}
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'INACTIVE'
 export type WorkStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED'
 export type IncidentType = 'WRONG_ITEM' | 'QUALITY' | 'LATE' | 'SPILLED' | 'MISSING_ITEM' | 'OTHER'
@@ -128,21 +108,7 @@ export interface Coffee {
   price: number
   description?: string
   status: CoffeeStatus
-  /** SOLD_OUT set by stock, reopens by itself when stock is back */
-  autoSoldOut?: boolean
   hasRecipe: boolean
-  /** cups the stock allows (null = not limited) */
-  servings?: number | null
-  stock?: StockLine[]
-}
-
-export interface StockLine {
-  materialId: number
-  materialName: string
-  unit: string
-  stock: number
-  perCup: number
-  cups: number
 }
 
 export interface MenuCoffee {
@@ -154,10 +120,6 @@ export interface MenuCoffee {
   salePrice?: number
   promotionName?: string
   available: boolean
-  /** cups the stock allows (null = not limited) */
-  servings?: number | null
-  /** material id → quantity per cup of the active recipe */
-  perCup?: Record<string, number>
 }
 
 export interface Menu {
@@ -170,8 +132,6 @@ export interface Menu {
     minOrderAmount?: number
     endDate: string
   }[]
-  /** material id → current stock, for every material used by an active recipe */
-  stock?: Record<string, number>
 }
 
 export interface Recipe {
@@ -189,32 +149,13 @@ export interface Recipe {
   updatedBy?: string
 }
 
+/** a material is just a name + unit; how much of it goes in a cup lives on the coffee's recipe */
 export interface Material {
   id: number
   name: string
   unit: string
-  stockQuantity: number
-  minStock: number
-  status: MaterialStatus
-  lowStock: boolean
-  kind: MaterialKind
-  /** PREPARED: one batch of the formula yields this much */
-  yieldQuantity?: number
-  /** minutes after the lot is made */
-  shelfLifeMinutes?: number
-  components?: { componentId: number; name: string; unit: string; quantity: number }[]
-  /** raw materials: packaging they are bought in */
-  packages?: MaterialPackage[]
-  /** how to make one standard batch */
-  instructions?: string
-  /** coffees (per cup) and prepared materials (per standard batch) that use this material */
-  usedIn?: { kind: 'COFFEE' | 'PREPARED'; id: number; name: string; quantity: number }[]
-  /** earliest expiry among the lots still in stock (the lot used next) */
-  nextExpiryDate?: string
-  /** the next lot is inside the warning window */
-  expiringSoon?: boolean
-  /** warn this many days before a lot expires; empty = shop default (7), 0 = never */
-  expiryWarningDays?: number
+  /** coffees whose active recipe uses this material (quantity per cup) */
+  usedIn?: { kind: 'COFFEE'; id: number; name: string; quantity: number }[] | null
 }
 
 /** one status change of an order; fromStatus empty = the order was placed */
@@ -226,194 +167,6 @@ export interface OrderStatusChange {
   by: string
   note?: string
   at: string
-}
-
-export interface Batch {
-  id: number
-  materialId: number
-  materialName: string
-  unit: string
-  importQuantity: number
-  remainingQuantity: number
-  unitCost?: number
-  expiryDate?: string
-  status: BatchStatus
-  createdAt?: string
-  /** prepared lot: when it was made */
-  readyAt?: string
-  /** prepared lot: exact expiry */
-  expiresAt?: string
-  /** packaging at import: packageCount × packageName (packageSize each) */
-  packageName?: string
-  packageSize?: number
-  packageCount?: number
-  /** prepared-material batch: the raw batches it was made from */
-  inputs?: { batchId: number; materialName: string; unit: string; quantity: number }[]
-  /** phiếu nhập that brought the lot in, and its supplier */
-  receiptCode?: string
-  supplierName?: string
-  purchaseOrderItemId?: number
-}
-
-/** materials a supplier sells; unitPrice = reference price per unit of the material */
-export interface SupplierMaterial {
-  materialId: number
-  materialName: string
-  unit: string
-  packageId?: number
-  packageName?: string
-  packageSize?: number
-  unitPrice?: number
-}
-
-export interface Supplier {
-  id: number
-  name: string
-  contactName?: string
-  phone?: string
-  email?: string
-  address?: string
-  taxCode?: string
-  note?: string
-  /** điều khoản thanh toán: số ngày được nợ kể từ ngày nhập (0 = trả ngay) */
-  paymentTermDays: number
-  /** INACTIVE = ngừng hợp tác */
-  status: SupplierStatus
-  materials: SupplierMaterial[]
-}
-
-/** one line of a purchase order; quantities in the material's unit, unitPrice per unit of the material */
-export interface PurchaseOrderItem {
-  id: number
-  materialId: number
-  materialName: string
-  unit: string
-  packageName?: string
-  packageSize?: number
-  packageCount?: number
-  quantity: number
-  receivedQuantity: number
-  unitPrice?: number
-  amount: number
-  note?: string
-}
-
-/**
- * dòng phiếu nhập; quantities in the material's unit: documentQuantity = SL theo chứng từ (phiếu giao của NCC),
- * receivedQuantity = SL thực nhập (becomes lot batchId), rejectedQuantity = không nhận (rejectReason)
- */
-export interface GoodsReceiptLine {
-  id: number
-  materialId: number
-  materialName: string
-  unit: string
-  purchaseOrderItemId?: number
-  batchId?: number
-  packageName?: string
-  packageSize?: number
-  documentQuantity: number
-  receivedQuantity: number
-  rejectedQuantity: number
-  /** giao thiếu so với chứng từ */
-  shortQuantity: number
-  rejectReason?: string
-  /** đơn giá chưa thuế / đơn vị gốc */
-  unitPrice?: number
-  amount: number
-  expiryDate?: string
-  temperature?: number
-  /** still in stock from the lot: what can still be returned */
-  remainingInLot: number
-  note?: string
-}
-
-/** phiếu nhập kho (mẫu 01-VT): one delivery, against a purchase order or loose */
-export interface GoodsReceipt {
-  id: number
-  code: string
-  status: GoodsReceiptStatus
-  supplierId: number
-  supplierName: string
-  supplierTaxCode?: string
-  supplierAddress?: string
-  purchaseOrderId?: number
-  purchaseOrderCode?: string
-  staffName?: string
-  delivererName?: string
-  invoiceSeries?: string
-  invoiceNo?: string
-  invoiceDate?: string
-  documentImageId?: number
-  goodsAmount: number
-  discountAmount: number
-  vatRate?: number
-  vatAmount: number
-  shippingCost: number
-  /** cần trả nhà cung cấp = tiền hàng − giảm giá + thuế GTGT + chi phí nhập */
-  totalAmount: number
-  paidAmount: number
-  returnedAmount: number
-  remainingAmount: number
-  dueDate: string
-  overdue: boolean
-  note?: string
-  cancelReason?: string
-  cancelledAt?: string
-  createdAt: string
-  createdBy?: string
-  lines: GoodsReceiptLine[]
-}
-
-/** phiếu đặt hàng nhà cung cấp; receipts only on the detail */
-export interface PurchaseOrder {
-  id: number
-  code: string
-  supplierId: number
-  supplierName: string
-  supplierPhone?: string
-  supplierAddress?: string
-  staffName?: string
-  status: PurchaseOrderStatus
-  expectedDate?: string
-  orderedAt?: string
-  completedAt?: string
-  note?: string
-  closeReason?: string
-  createdAt: string
-  createdBy?: string
-  paymentTermDays: number
-  goodsAmount: number
-  discountAmount: number
-  vatRate?: number
-  vatAmount: number
-  shippingCost: number
-  /** tiền hàng − giảm giá + thuế GTGT + chi phí nhập */
-  totalAmount: number
-  supplierTaxCode?: string
-  items: PurchaseOrderItem[]
-  receipts?: GoodsReceipt[]
-}
-
-export interface MaterialTransaction {
-  id: number
-  batchId: number
-  materialId: number
-  materialName: string
-  unit: string
-  staffName?: string
-  orderItemId?: number
-  /** PRODUCTION_USE: the prepared-material batch it went into */
-  producedBatchId?: number
-  type: MaterialTransactionType
-  reason?: TransactionReason
-  quantity: number
-  note?: string
-  createdAt: string
-}
-
-export interface InventoryAlerts {
-  lowStock: Material[]
-  expiringBatches: Batch[]
 }
 
 export interface Staff {
@@ -594,8 +347,6 @@ export interface Dashboard {
   todayOrders: number
   todayRevenue: number
   activeOrders: number
-  lowStockCount: number
-  expiringBatchCount: number
   topCoffeesThisWeek: { coffeeId: number; name: string; quantity: number }[]
 }
 
@@ -605,202 +356,6 @@ export interface DeliveryAddress {
   recipientPhone: string
   address: string
 }
-
-/** dòng phiếu trả hàng nhập; quantity in the material's unit */
-export interface SupplierReturnLine {
-  id: number
-  receiptItemId: number
-  batchId?: number
-  materialId: number
-  materialName: string
-  unit: string
-  packageName?: string
-  packageSize?: number
-  quantity: number
-  unitPrice: number
-  amount: number
-  note?: string
-}
-
-/** phiếu trả hàng nhập */
-export interface SupplierReturn {
-  id: number
-  code: string
-  status: SupplierReturnStatus
-  supplierId: number
-  supplierName: string
-  supplierTaxCode?: string
-  supplierAddress?: string
-  goodsReceiptId: number
-  goodsReceiptCode: string
-  receiptInvoiceNo?: string
-  staffName?: string
-  reason: string
-  settlement: SupplierReturnSettlement
-  refundMethod?: PaymentMethod
-  adjustmentInvoiceNo?: string
-  goodsAmount: number
-  vatRate?: number
-  vatAmount: number
-  totalAmount: number
-  completedAt?: string
-  cancelReason?: string
-  note?: string
-  createdAt: string
-  createdBy?: string
-  items: SupplierReturnLine[]
-}
-
-/** phiếu chi trả nhà cung cấp (mẫu 02-TT) */
-export interface SupplierPayment {
-  id: number
-  code: string
-  status: SupplierPaymentStatus
-  supplierId: number
-  supplierName: string
-  supplierAddress?: string
-  goodsReceiptId?: number
-  goodsReceiptCode?: string
-  purchaseOrderId?: number
-  purchaseOrderCode?: string
-  amount: number
-  method: PaymentMethod
-  reference?: string
-  payeeName?: string
-  paidAt: string
-  staffName?: string
-  documentImageId?: number
-  note?: string
-  cancelReason?: string
-  createdAt: string
-  createdBy?: string
-}
-
-/** công nợ phải trả của 1 nhà cung cấp; balance < 0 = đã trả trước */
-export interface SupplierDebt {
-  supplierId: number
-  supplierName: string
-  phone?: string
-  paymentTermDays: number
-  purchasedAmount: number
-  returnedAmount: number
-  paidAmount: number
-  balance: number
-  overdueAmount: number
-  openReceipts: number
-  nextDueDate?: string
-}
-
-/** sổ chi tiết công nợ; type RECEIPT (phiếu nhập), RETURN (trả hàng trừ nợ), PAYMENT (phiếu chi) */
-export interface SupplierLedger {
-  supplierId: number
-  supplierName: string
-  supplierTaxCode?: string
-  supplierAddress?: string
-  from?: string
-  to?: string
-  openingBalance: number
-  increase: number
-  decrease: number
-  closingBalance: number
-  rows: { date: string; type: 'RECEIPT' | 'RETURN' | 'PAYMENT'; documentId: number; code: string; description: string; increase: number; decrease: number; balance: number; dueDate?: string }[]
-}
-
-export type StocktakeStatus = 'DRAFT' | 'BALANCED' | 'CANCELLED'
-/** phẩm chất: còn tốt / kém phẩm chất / mất phẩm chất */
-export type StockQuality = 'GOOD' | 'POOR' | 'LOST'
-
-/** one lot on a phiếu kiểm kê; quantities in the material's unit */
-export interface StocktakeLine {
-  id: number
-  batchId: number
-  materialId: number
-  materialName: string
-  unit: string
-  expiryDate?: string
-  bookQuantity: number
-  countedQuantity?: number
-  /** thừa (+) / thiếu (−) */
-  difference: number
-  unitCost?: number
-  differenceValue: number
-  quality: StockQuality
-  reason?: string
-}
-
-/** phiếu kiểm kê (mẫu 05-VT) */
-export interface Stocktake {
-  id: number
-  code: string
-  status: StocktakeStatus
-  staffName?: string
-  members?: string
-  countedAt: string
-  balancedByName?: string
-  balancedAt?: string
-  resolution?: string
-  note?: string
-  lineCount: number
-  countedCount: number
-  surplusValue: number
-  shortageValue: number
-  createdAt: string
-  createdBy?: string
-  items?: StocktakeLine[]
-}
-
-/** báo cáo xuất – nhập – tồn: one material over the period */
-export interface InventoryReportRow {
-  materialId: number
-  materialName: string
-  unit: string
-  kind: MaterialKind
-  minStock: number
-  openingQuantity: number
-  openingValue: number
-  inPurchase: number
-  inProduce: number
-  inAdjust: number
-  inQuantity: number
-  inValue: number
-  outSale: number
-  outProduction: number
-  outDisposal: number
-  outReturn: number
-  outOther: number
-  outQuantity: number
-  outValue: number
-  closingQuantity: number
-  closingValue: number
-}
-export interface InventoryReport {
-  from: string
-  to: string
-  openingValue: number
-  inValue: number
-  outValue: number
-  closingValue: number
-  rows: InventoryReportRow[]
-}
-export interface InventoryDaily { date: string; materialId: number; materialName: string; quantity: number; value: number }
-
-/** giá vốn 1 ly theo công thức đang dùng; complete = every material has a known cost */
-export interface CoffeeCost {
-  coffeeId: number
-  coffeeName: string
-  categoryName?: string
-  status: CoffeeStatus
-  recipeId?: number
-  price: number
-  unitCost?: number
-  grossMargin?: number
-  foodCostPercent?: number
-  complete: boolean
-  previousCost?: number
-  previousAt?: string
-  lines: { materialId: number; materialName: string; unit: string; quantity: number; unitCost?: number; cost?: number; costSource: string }[]
-}
-export interface CoffeeCostHistory { at: string; unitCost: number; price: number }
 
 /** ca thu ngân; while open the sales figures are live */
 export interface CashShift {

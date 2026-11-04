@@ -8,7 +8,6 @@ import { money, date } from '@/lib/format'
 import { CoffeeCard } from './CoffeeCard'
 import { AddToCartModal } from './AddToCartModal'
 import { useGuestStore } from '@/store/guestStore'
-import { useAddableCups } from '@/lib/stock'
 import { useCart } from './useCart'
 import { flyToCart } from '@/lib/flyToCart'
 
@@ -17,8 +16,7 @@ export function MenuPage() {
   const [search, setSearch] = useState('')
   const [active, setActive] = useState<number | null>(null)
   const [picked, setPicked] = useState<MenuCoffee | null>(null)
-  const { lines, add } = useCart()
-  const addable = useAddableCups(lines)
+  const { add } = useCart()
   const quickAdd = (coffee: MenuCoffee, photo: HTMLImageElement | null) => {
     flyToCart(photo, photo?.currentSrc)
     add.mutate({ coffeeId: coffee.id, quantity: 1 })
@@ -103,7 +101,7 @@ export function MenuPage() {
             </div>
             <div className="g-grid">
               {c.coffees.map((coffee) => (
-                <CoffeeCard key={coffee.id} coffee={coffee} soldOut={!coffee.available || addable(coffee.id) < 1}
+                <CoffeeCard key={coffee.id} coffee={coffee} soldOut={!coffee.available}
                   onPick={() => setPicked(coffee)} onQuickAdd={(photo) => quickAdd(coffee, photo)} />
               ))}
             </div>

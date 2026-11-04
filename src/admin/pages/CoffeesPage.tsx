@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, Table } from 'antd'
+import { Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, Table, Tag } from 'antd'
 import { PlusOutlined, DownOutlined, ExperimentOutlined, PrinterOutlined } from '@ant-design/icons'
 import { coreApi, type CoffeePayload } from '@/api/core'
 import type { Coffee, CoffeeStatus } from '@/api/types'
@@ -11,7 +11,6 @@ import { useAction } from '../components/useCrud'
 import { MoneyInput } from '../components/MoneyInput'
 import { ImageUpload, type ImageValue } from '../components/ImageUpload'
 import { RecipeDrawer } from '../components/RecipeDrawer'
-import { ServingsCell } from '../components/ServingsCell'
 import { PrintRecipesModal } from '../components/PrintRecipesModal'
 import { P, usePerm } from '@/lib/perm'
 
@@ -56,7 +55,7 @@ export function CoffeesPage() {
           { title: 'Tên', dataIndex: 'name', render: (v, c) => <><b>{v}</b><div className="a-muted small">{c.description}</div></> },
           { title: 'Danh mục', dataIndex: 'categoryName' },
           { title: 'Giá bán', dataIndex: 'price', render: money, align: 'right', sorter: (a, b) => a.price - b.price },
-          { title: 'Còn pha được', width: 130, render: (_, c) => <ServingsCell coffee={c} />, sorter: (a, b) => (a.servings ?? Infinity) - (b.servings ?? Infinity) },
+          { title: 'Công thức', width: 150, render: (_, c) => (c.hasRecipe ? <Tag color="green">Đã có</Tag> : <Tag color="red">Chưa có công thức</Tag>) },
           {
             title: 'Trạng thái', render: (_, c) => <>
               {canStatus && (isAdmin || c.status !== 'DISCONTINUED') ? (
@@ -64,7 +63,6 @@ export function CoffeesPage() {
                   <a><StatusTag label={COFFEE_STATUS[c.status]} /> <DownOutlined /></a>
                 </Dropdown>
               ) : <StatusTag label={COFFEE_STATUS[c.status]} />}
-              {c.autoSoldOut && <div className="a-muted small">tự động · hết nguyên liệu</div>}
             </>,
           },
           {

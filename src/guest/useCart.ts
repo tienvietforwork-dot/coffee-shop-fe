@@ -13,7 +13,7 @@ let overlapped = false
 
 /**
  * Server-backed guest cart. The cart is created lazily on the first "add".
- * Feels instant: adds still on their way to the server already count (badge, stock caps),
+ * Feels instant: adds still on their way to the server already count (badge),
  * and +/−/remove change the cached cart first and roll back if the server refuses.
  */
 export function useCart() {

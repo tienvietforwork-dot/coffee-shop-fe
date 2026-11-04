@@ -7,13 +7,11 @@ import { VoucherPicker } from './VoucherPicker'
 import { estimateDiscounts, useVoucherOptions } from './voucherOptions'
 import { useDebounced } from '@/lib/useDebounced'
 import { useCart } from './useCart'
-import { useAddableCups } from '@/lib/stock'
 import { imageSrc, money } from '@/lib/format'
 import { useGuestStore } from '@/store/guestStore'
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { cart, lines, update, remove } = useCart()
-  const addable = useAddableCups(lines)
+  const { cart, update, remove } = useCart()
   const { tableNo, tableQr, voucherCode, setVoucher } = useGuestStore()
   const navigate = useNavigate()
   const items = cart?.items ?? []
@@ -92,7 +90,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                       <MinusOutlined />
                     </button>
                     <span>{i.quantity}</span>
-                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} disabled={addable(i.coffeeId) < 1} aria-label="Tăng">
+                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} disabled={i.quantity >= 99} aria-label="Tăng">
                       <PlusOutlined />
                     </button>
                   </div>

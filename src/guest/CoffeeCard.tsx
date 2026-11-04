@@ -4,7 +4,7 @@ import { imageSrc, money } from '@/lib/format'
 
 const FALLBACK = 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&q=80'
 
-/** `soldOut` also covers stock already taken by the cart; the "+" adds one cup straight away (onQuickAdd). */
+/** `soldOut` = the coffee is not on sale right now; the "+" adds one cup straight away (onQuickAdd). */
 export function CoffeeCard({ coffee, soldOut = !coffee.available, onPick, onQuickAdd }: {
   coffee: MenuCoffee; soldOut?: boolean; onPick: () => void; onQuickAdd?: (photo: HTMLImageElement | null) => void
 }) {
