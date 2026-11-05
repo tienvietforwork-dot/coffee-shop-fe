@@ -22,12 +22,12 @@ type MenuItem = Required<MenuProps>['items'][number]
 
 interface Entry { key: string; icon: ReactNode; label: string; perm: string }
 
-const GROUPS: { label: string; items: Entry[] }[] = [
+const GROUPS: { label: string; icon: ReactNode; items: Entry[] }[] = [
   {
-    label: '', items: [{ key: '/admin', icon: <DashboardOutlined />, label: 'Tổng quan', perm: P.DASHBOARD }],
+    label: '', icon: null, items: [{ key: '/admin', icon: <DashboardOutlined />, label: 'Tổng quan', perm: P.DASHBOARD }],
   },
   {
-    label: 'Bán hàng & vận hành', items: [
+    label: 'Bán hàng & vận hành', icon: <ShopOutlined />, items: [
       { key: '/admin/orders', icon: <ProfileOutlined />, label: 'Điều phối đơn hàng', perm: P.ORDERS },
       { key: '/admin/pos', icon: <ShopOutlined />, label: 'Order tại quầy', perm: P.POS },
       { key: '/admin/cash-shifts', icon: <DollarOutlined />, label: 'Ca thu ngân', perm: P.CASH_SHIFTS },
@@ -40,7 +40,7 @@ const GROUPS: { label: string; items: Entry[] }[] = [
     ],
   },
   {
-    label: 'Thực đơn', items: [
+    label: 'Thực đơn', icon: <CoffeeOutlined />, items: [
       { key: '/admin/coffees', icon: <CoffeeOutlined />, label: 'Cà phê & công thức', perm: P.MENU },
       { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục', perm: P.CATEGORIES },
       { key: '/admin/product-placement', icon: <StarOutlined />, label: 'Trưng bày sản phẩm', perm: P.MENU },
@@ -54,7 +54,7 @@ const GROUPS: { label: string; items: Entry[] }[] = [
     ],
   },
   {
-    label: 'Khách hàng', items: [
+    label: 'Khách hàng', icon: <TeamOutlined />, items: [
       { key: '/admin/crm/customers', icon: <IdcardOutlined />, label: 'Hồ sơ khách hàng', perm: P.CRM_CUSTOMERS },
       { key: '/admin/crm/interactions', icon: <MessageOutlined />, label: 'Tương tác & chăm sóc', perm: P.CRM_INTERACTIONS },
       { key: '/admin/crm/feedbacks', icon: <CommentOutlined />, label: 'Phản hồi & khiếu nại', perm: P.CRM_FEEDBACKS },
@@ -63,14 +63,14 @@ const GROUPS: { label: string; items: Entry[] }[] = [
     ],
   },
   {
-    label: 'Khuyến mãi', items: [
+    label: 'Khuyến mãi', icon: <GiftOutlined />, items: [
       { key: '/admin/promotions', icon: <GiftOutlined />, label: 'Đợt giảm giá', perm: P.PROMOTIONS },
       { key: '/admin/vouchers', icon: <TagsOutlined />, label: 'Voucher', perm: P.VOUCHERS },
       { key: '/admin/promotions/analytics', icon: <FundOutlined />, label: 'Hiệu quả khuyến mãi', perm: P.PROMOTIONS_ANALYTICS },
     ],
   },
   {
-    label: 'Thống kê & hệ thống', items: [
+    label: 'Thống kê & hệ thống', icon: <LineChartOutlined />, items: [
       { key: '/admin/stats', icon: <LineChartOutlined />, label: 'Thống kê doanh thu', perm: P.STATS },
       { key: '/admin/staff', icon: <TeamOutlined />, label: 'Nhân viên', perm: P.STAFF },
       { key: '/admin/work-shifts', icon: <ScheduleOutlined />, label: 'Phân ca & chấm công', perm: P.WORK_SHIFTS },
@@ -85,6 +85,8 @@ const GROUPS: { label: string; items: Entry[] }[] = [
 // Bo dau tieng Viet de tim "phan quyen" van ra "Phân quyền"
 const fold = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
+
+const groupKey = (label: string) => `group:${label}`
 
 export function AdminLayout() {
   const location = useLocation()
@@ -107,14 +109,25 @@ export function AdminLayout() {
         .map((g) => ({ ...g, items: fold(g.label).includes(q) ? g.items : g.items.filter((i) => fold(i.label).includes(q)) }))
         .filter((g) => g.items.length)
     : groups
+  // Moi nhom la mot submenu thu gon / mo rong duoc
   const items = shown.flatMap<MenuItem>((g) => {
     const children = g.items.map(({ key, icon, label }) => ({ key, icon, label }))
-    return g.label ? [{ key: g.label, label: g.label, type: 'group' as const, children }] : children
+    return g.label ? [{ key: groupKey(g.label), icon: g.icon, label: g.label, children }] : children
   })
   const keys = groups.flatMap((g) => g.items.map((i) => i.key))
   const selected = keys
     .filter((k) => location.pathname === k || (k !== '/admin' && location.pathname.startsWith(k + '/')))
     .sort((a, b) => b.length - a.length)[0] ?? '/admin'
+
+  // Nhom dang mo: mac dinh mo nhom chua man hinh hien tai; khi dang loc thi mo het nhom khop
+  const currentGroup = groups.find((g) => g.label && g.items.some((i) => i.key === selected))?.label
+  const [openKeys, setOpenKeys] = useState<string[]>(currentGroup ? [groupKey(currentGroup)] : [])
+  useEffect(() => {
+    if (!currentGroup) return
+    const k = groupKey(currentGroup)
+    setOpenKeys((prev) => (prev.includes(k) ? prev : [...prev, k]))
+  }, [currentGroup])
+  const menuOpenKeys = q ? shown.filter((g) => g.label).map((g) => groupKey(g.label)) : openKeys
 
   // Cuon menu toi muc dang mo (vd. vao thang /admin/roles)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -164,7 +177,14 @@ export function AdminLayout() {
           </div>
         )}
         <div className="a-menu-scroll" ref={scrollRef}>
-          <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={(e) => navigate(e.key)} />
+          <Menu
+            mode="inline"
+            inlineIndent={14}
+            selectedKeys={[selected]}
+            items={items}
+            onClick={(e) => navigate(e.key)}
+            {...(collapsed ? {} : { openKeys: menuOpenKeys, onOpenChange: (k: string[]) => { if (!q) setOpenKeys(k) } })}
+          />
           {!items.length && <div className="a-menu-empty">Không có chức năng phù hợp</div>}
         </div>
       </Sider>
