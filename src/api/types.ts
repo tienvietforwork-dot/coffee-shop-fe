@@ -9,6 +9,7 @@ export type OrderStatus =
   | 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'DELIVERING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED'
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'E_WALLET' | 'CARD'
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+/** quán tự giao: chờ giao → đang giao → đã giao / giao không thành công (BOOKED, DRIVER_ACCEPTED: dữ liệu cũ) */
 export type ShipmentStatus = 'PENDING' | 'BOOKED' | 'DRIVER_ACCEPTED' | 'DELIVERING' | 'DELIVERED' | 'FAILED'
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'INACTIVE'
 export type WorkStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED'
@@ -230,6 +231,11 @@ export interface PriceQuote {
   shippingFee: number
   total: number
   unavailableItems: string[]
+  /** đơn giao: quãng đường quán → địa chỉ và bậc phí áp dụng */
+  deliveryDistanceKm?: number
+  deliveryTier?: string
+  /** option giá của khung giờ đang áp dụng (trống = option mặc định) */
+  deliveryOption?: string
 }
 
 export interface Payment {
@@ -250,27 +256,14 @@ export interface Shipment {
   recipientName: string
   recipientPhone: string
   address: string
-  carrier?: string
-  trackingCode?: string
+  /** quãng đường quán → địa chỉ (km) và bậc phí, vd "3–5 km" */
+  distanceKm?: number
+  feeTier?: string
   shippingFee: number
   status: ShipmentStatus
-  bookedAt?: string
-  driverAcceptedAt?: string
   deliveredAt?: string
   note?: string
   orderStatus?: OrderStatus
-  district?: string
-  zoneName?: string
-  /** AHAMOVE when booked through the partner; empty = gọi xe ngoài */
-  partner?: string
-  partnerOrderId?: string
-  partnerStatus?: string
-  /** what the shop pays the partner for the trip */
-  partnerFee?: number
-  trackingUrl?: string
-  driverName?: string
-  driverPhone?: string
-  distanceKm?: number
 }
 
 export interface OrderItem {
@@ -438,14 +431,18 @@ export interface PaymentTransaction {
   mismatch?: string; reconciled: boolean; reconciledBy?: string; reconciledAt?: string; reconcileNote?: string
 }
 
-/** khu vực giao hàng: quận / phường, phí ship, miễn phí từ, đơn tối thiểu */
-export interface DeliveryZone {
-  id: number; name: string; districts: string; fee: number; freeShipThreshold?: number; minOrderAmount?: number
-  estimatedMinutes?: number; active: boolean; sortOrder: number
+/** bậc phí ship: quãng đường trong (fromKm, toKm] → phí */
+export interface DeliveryFeeTier { fromKm: number; toKm: number; fee: number }
+/** cửa hàng: địa chỉ để đo km, giờ mở cửa "HH:mm[:ss]", miễn phí ship từ, đơn tối thiểu */
+export interface DeliverySettings {
+  shopAddress: string; shopLat?: number; shopLng?: number; openTime?: string; closeTime?: string
+  freeShipThreshold?: number; minOrderAmount?: number; provider?: string
 }
-export interface PublicDeliveryZone { name: string; districts: string[]; fee: number; freeShipThreshold?: number; minOrderAmount?: number; estimatedMinutes?: number }
-export interface ShipmentEvent { id: number; source: 'STAFF' | 'PARTNER' | 'SYSTEM'; status?: ShipmentStatus; partnerStatus?: string; note?: string; by?: string; at: string }
-export interface AhamoveEstimate { fee: number; distanceKm?: number; durationMinutes?: number; serviceId: string }
+/** option giá giao hàng: tên + các khoảng km; option mặc định áp dụng mọi giờ không thuộc khung giờ nào */
+export interface DeliveryFeePlan { id: number; name: string; isDefault: boolean; tiers: DeliveryFeeTier[] }
+/** khung giờ đặc biệt: giờ "HH:mm[:ss]", days 1 (T2) … 7 (CN) — rỗng = mọi ngày, dùng option planId */
+export interface DeliveryTimeSlot { id: number; startTime: string; endTime: string; days: number[]; planId: number; planName?: string }
+export interface ShipmentEvent { id: number; source: 'STAFF' | 'PARTNER' | 'SYSTEM'; status?: ShipmentStatus; note?: string; by?: string; at: string }
 
 /** hóa đơn điện tử khởi tạo từ máy tính tiền */
 export interface Invoice {

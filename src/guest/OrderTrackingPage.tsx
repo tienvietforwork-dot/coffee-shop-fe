@@ -121,8 +121,7 @@ export function OrderTrackingPage() {
             <strong>Giao đến:</strong> {order.shipment.recipientName} · {order.shipment.address}
             <div className="g-muted">
               {SHIPMENT_STATUS[order.shipment.status].text}
-              {order.shipment.carrier && ` · ${order.shipment.carrier}`}
-              {order.shipment.trackingCode && ` · ${order.shipment.trackingCode}`}
+              {order.shipment.distanceKm != null && ` · ${order.shipment.distanceKm.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km`}
             </div>
           </div>
         )}

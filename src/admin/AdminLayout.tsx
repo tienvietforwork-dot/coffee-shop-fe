@@ -8,7 +8,7 @@ import {
   GiftOutlined, TagsOutlined, FundOutlined, LineChartOutlined, LogoutOutlined, ArrowLeftOutlined,
   SafetyCertificateOutlined, KeyOutlined, StarOutlined, SwapOutlined,
   DollarOutlined, ScheduleOutlined, FileSearchOutlined,
-  CreditCardOutlined, EnvironmentOutlined, FileTextOutlined, NotificationOutlined, SearchOutlined,
+  CreditCardOutlined, FileTextOutlined, NotificationOutlined, SearchOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
@@ -34,7 +34,6 @@ const GROUPS: { label: string; icon: ReactNode; items: Entry[] }[] = [
       { key: '/admin/payment-reconciliation', icon: <CreditCardOutlined />, label: 'Đối soát thanh toán', perm: P.PAYMENT_RECONCILIATION },
       { key: '/admin/invoices', icon: <FileTextOutlined />, label: 'Hóa đơn điện tử', perm: P.INVOICES },
       { key: '/admin/shipments', icon: <CarOutlined />, label: 'Giao hàng', perm: P.SHIPMENTS },
-      { key: '/admin/delivery-zones', icon: <EnvironmentOutlined />, label: 'Khu vực giao hàng', perm: P.DELIVERY_ZONES },
       { key: '/admin/incidents', icon: <WarningOutlined />, label: 'Sự cố đơn hàng', perm: P.INCIDENTS },
       { key: '/admin/tables', icon: <TableOutlined />, label: 'Bàn & mã QR', perm: P.TABLES },
     ],

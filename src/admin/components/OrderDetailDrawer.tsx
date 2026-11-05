@@ -6,7 +6,7 @@ import { errorMessage } from '@/api/client'
 import type { Order } from '@/api/types'
 import {
   INCIDENT_SEVERITY, INCIDENT_STATUS, INCIDENT_TYPE, ORDER_CHANNEL, ORDER_STATUS, ORDER_TYPE, PAYMENT_METHOD,
-  PAYMENT_STATUS, SHIPMENT_STATUS, dateTime, money, options,
+  PAYMENT_STATUS, SHIPMENT_STATUS, dateTime, money, num, options,
 } from '@/lib/format'
 import { StatusTag } from './StatusTag'
 import { OrderActions } from './OrderActions'
@@ -109,7 +109,7 @@ export function OrderDetailDrawer({ orderId, onClose }: { orderId: number | null
               <Descriptions size="small" column={1}>
                 <Descriptions.Item label="Người nhận">{order.shipment.recipientName} · {order.shipment.recipientPhone}</Descriptions.Item>
                 <Descriptions.Item label="Địa chỉ">{order.shipment.address}</Descriptions.Item>
-                <Descriptions.Item label="Trạng thái"><StatusTag label={SHIPMENT_STATUS[order.shipment.status]} /> {order.shipment.carrier} {order.shipment.trackingCode}</Descriptions.Item>
+                <Descriptions.Item label="Trạng thái"><StatusTag label={SHIPMENT_STATUS[order.shipment.status]} />{order.shipment.distanceKm != null && ` ${num(order.shipment.distanceKm)} km`}{order.shipment.feeTier && ` · bậc ${order.shipment.feeTier}`}</Descriptions.Item>
               </Descriptions>
             </div>
           )}

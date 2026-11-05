@@ -20,7 +20,7 @@ export const publicApi = {
   removeBundle: (code: string, lineId: number) =>
     apiClient.delete<Cart>(`/public/carts/${code}/bundles/${lineId}`).then(r=>r.data),
   recommended: () => apiClient.get<number[]>('/public/recommendations').then(r=>r.data),
-  quote: (code: string, body: { orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryDistrict?: string | null }) =>
+  quote: (code: string, body: { orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryAddress?: string | null; deliveryTime?: string }) =>
     apiClient.post<PriceQuote>(`/public/carts/${code}/quote`, body).then((r) => r.data),
 
   checkout: (body: {
@@ -39,8 +39,11 @@ export const publicApi = {
   cancelOrder: (code: string, reason: string) =>
     apiClient.post<Order>(`/public/orders/${code}/cancel`, { reason }).then((r) => r.data),
 
-  // Delivery zones: verify route/response contract with current app-core team.
-  deliveryZones: () => apiClient.get<Array<{ name: string; districts: string[]; fee: number; freeShipThreshold?: number | null; minOrderAmount?: number | null }>>('/public/delivery-zones').then((r) => r.data),
+  // phí giao hàng theo km (quán tự giao): bậc phí, miễn phí từ, đơn tối thiểu
+  deliverySettings: () => apiClient.get<{ openTime?: string; closeTime?: string; freeShipThreshold?: number | null; minOrderAmount?: number | null }>('/public/delivery-settings').then((r) => r.data),
+  // gợi ý địa chỉ khi gõ (Google / Goong / OpenStreetMap tuỳ cấu hình app-core)
+  addressSuggest: (q: string, area?: { ward?: string; province?: string }) =>
+    apiClient.get<string[]>('/public/address-suggest', { params: { q, ...area } }).then((r) => r.data),
 
   // Invoice endpoints are not present in the BE snapshot supplied on 27/10.
   invoices: (code: string) => apiClient.get<Array<Record<string, any>>>(`/public/orders/${encodeURIComponent(code)}/invoices`).then((r) => r.data),

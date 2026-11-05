@@ -8,9 +8,11 @@ import { coreApi } from '@/api/core'
 import { publicApi } from '@/api/public'
 import { errorMessage } from '@/api/client'
 import type { OrderType, PaymentMethod } from '@/api/types'
-import { PAYMENT_METHOD, imageSrc, money, options } from '@/lib/format'
+import { PAYMENT_METHOD, imageSrc, money, num, options } from '@/lib/format'
 import { PageHeader } from '../components/PageHeader'
-import { DistrictSelect } from '@/guest/DistrictSelect'
+import { useDebounced } from '@/lib/useDebounced'
+import { VnAddressInput } from '@/components/VnAddressInput'
+import { isCompleteVnAddress, vnAddressRule } from '@/lib/vnAddress'
 
 interface Line { key: string; coffeeId: number; name: string; price: number; quantity: number }
 
@@ -33,7 +35,9 @@ export function PosPage() {
   const [voucher, setVoucher] = useState('')
   const [form] = Form.useForm()
   const phone = Form.useWatch('customerPhone', form) as string | undefined
-  const district = Form.useWatch('deliveryDistrict', form) as string | undefined
+  // phí ship theo km: đo lại khi địa chỉ ngừng thay đổi
+  const typed = useDebounced((Form.useWatch('address', form) as string | undefined)?.trim() || undefined)
+  const address = isCompleteVnAddress(typed) ? typed : undefined
 
   const coffees = useMemo(() => (menu?.categories ?? [])
     .filter((c) => cat === 'all' || c.id === cat)
@@ -42,9 +46,9 @@ export function PosPage() {
 
   const items = lines.map((l) => ({ coffeeId: l.coffeeId, quantity: l.quantity }))
   const quote = useQuery({
-    queryKey: ['pos-quote', items, orderType, voucher, phone, orderType === 'DELIVERY' ? district : null],
+    queryKey: ['pos-quote', items, orderType, voucher, phone, orderType === 'DELIVERY' ? address : null],
     queryFn: () => coreApi.quote({ items, orderType, voucherCode: voucher || undefined, customerPhone: phone || undefined,
-      deliveryDistrict: orderType === 'DELIVERY' ? district : undefined }),
+      deliveryAddress: orderType === 'DELIVERY' ? address : undefined }),
     retry: false,
     enabled: lines.length > 0,
   })
@@ -76,7 +80,6 @@ export function PosPage() {
     items, orderType, tableId: orderType === 'DINE_IN' ? tableId : undefined,
     customerName: v.customerName || undefined, customerPhone: v.customerPhone || undefined,
     delivery: orderType === 'DELIVERY' ? { recipientName: v.customerName || 'Khách', recipientPhone: v.customerPhone, address: v.address } : undefined,
-    deliveryDistrict: orderType === 'DELIVERY' ? v.deliveryDistrict : undefined,
     paymentMethod: payment, paidNow, voucherCode: voucher || undefined, note: v.note || undefined,
   }))
 
@@ -138,9 +141,11 @@ export function PosPage() {
                 <Col span={12}><Form.Item name="customerName" label="Tên khách"><Input /></Form.Item></Col>
               </Row>
               {orderType === 'DELIVERY' && <>
-                <Form.Item name="deliveryDistrict" label="Quận / phường" rules={[{ required: true }]}
-                  extra={quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span> : undefined}><DistrictSelect /></Form.Item>
-                <Form.Item name="address" label="Địa chỉ giao" rules={[{ required: true }]}><Input /></Form.Item>
+                <Form.Item name="address" label="Địa chỉ giao" rules={[vnAddressRule('nơi nhận')]}
+                  extra={quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span>
+                    : q?.deliveryDistanceKm != null ? `${num(q.deliveryDistanceKm)} km${q.deliveryOption ? ` · ${q.deliveryOption}` : ''}` : undefined}>
+                  <VnAddressInput />
+                </Form.Item>
               </>}
               <Form.Item name="note" label="Ghi chú đơn"><Input /></Form.Item>
               <Row gutter={8}>

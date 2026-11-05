@@ -4,7 +4,7 @@ import type {
   IncidentSeverity, IncidentType, Material,
   Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
   Staff, TableStatus, User, WorkStatus,
-  CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliveryZone, ShipmentEvent, AhamoveEstimate,
+  CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliverySettings, DeliveryFeePlan, DeliveryTimeSlot, ShipmentEvent,
   Invoice, InvoiceBuyer, NotificationTemplate, NotificationMessage,
 } from './types'
 
@@ -52,7 +52,6 @@ export interface CounterOrderPayload {
   customerName?: string
   customerPhone?: string
   delivery?: DeliveryAddress
-  deliveryDistrict?: string
   paymentMethod: PaymentMethod
   paidNow?: boolean
   voucherCode?: string
@@ -142,7 +141,7 @@ export const coreApi = {
   orders: (p: { status?: OrderStatus; channel?: OrderChannel; from?: string; to?: string }) => get<Order[]>('/orders', p),
   order: (id: number) => get<Order>(`/orders/${id}`),
   orderHistory: (id: number) => get<OrderStatusChange[]>(`/orders/${id}/history`),
-  quote: (b: { items: { coffeeId: number; quantity: number }[]; orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryDistrict?: string }) =>
+  quote: (b: { items: { coffeeId: number; quantity: number }[]; orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryAddress?: string }) =>
     post<PriceQuote>('/orders/quote', b),
   createOrder: (b: CounterOrderPayload) => post<Order>('/orders', b),
   confirm: (id: number) => post<Order>(`/orders/${id}/confirm`),
@@ -163,16 +162,19 @@ export const coreApi = {
     post<Incident>(`/incidents/${id}/resolve`, b),
 
   shipments: () => get<Shipment[]>('/shipments'),
-  updateShipment: (id: number, b: { status: ShipmentStatus; carrier?: string; trackingCode?: string; note?: string }) =>
+  updateShipment: (id: number, b: { status: ShipmentStatus; note?: string }) =>
     patch<Shipment>(`/shipments/${id}`, b),
 
-  deliveryZones: () => get<DeliveryZone[]>('/delivery-zones'),
-  saveDeliveryZone: (b: { id?: number; name: string; districts: string[]; fee: number; freeShipThreshold?: number; minOrderAmount?: number; estimatedMinutes?: number; active?: boolean; sortOrder?: number }) =>
-    (b.id ? put<DeliveryZone>(`/delivery-zones/${b.id}`, b) : post<DeliveryZone>('/delivery-zones', b)),
-  deleteDeliveryZone: (id: number) => del(`/delivery-zones/${id}`),
-  ahamoveEstimate: (shipmentId: number) => get<AhamoveEstimate>(`/shipments/${shipmentId}/ahamove/estimate`),
-  ahamoveBook: (shipmentId: number) => post<Shipment>(`/shipments/${shipmentId}/ahamove/book`),
-  ahamoveCancel: (shipmentId: number, reason: string) => post<Shipment>(`/shipments/${shipmentId}/ahamove/cancel`, { reason }),
+  deliverySettings: () => get<DeliverySettings>('/delivery-settings'),
+  saveDeliverySettings: (b: DeliverySettings) => put<DeliverySettings>('/delivery-settings', b),
+  deliveryFeePlans: () => get<DeliveryFeePlan[]>('/delivery-fee-plans'),
+  saveDeliveryFeePlan: (b: Omit<DeliveryFeePlan, 'id' | 'isDefault'> & { id?: number }) =>
+    (b.id ? put<DeliveryFeePlan>(`/delivery-fee-plans/${b.id}`, b) : post<DeliveryFeePlan>('/delivery-fee-plans', b)),
+  deleteDeliveryFeePlan: (id: number) => del(`/delivery-fee-plans/${id}`),
+  deliveryTimeSlots: () => get<DeliveryTimeSlot[]>('/delivery-time-slots'),
+  saveDeliveryTimeSlot: (b: Omit<DeliveryTimeSlot, 'id' | 'planName'> & { id?: number }) =>
+    (b.id ? put<DeliveryTimeSlot>(`/delivery-time-slots/${b.id}`, b) : post<DeliveryTimeSlot>('/delivery-time-slots', b)),
+  deleteDeliveryTimeSlot: (id: number) => del(`/delivery-time-slots/${id}`),
   shipmentEvents: (shipmentId: number) => get<ShipmentEvent[]>(`/shipments/${shipmentId}/events`),
 
   invoices: (p: { from: string; to: string; status?: Invoice['status']; keyword?: string }) => get<Invoice[]>('/invoices', p),

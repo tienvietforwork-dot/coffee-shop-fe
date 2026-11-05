@@ -8,6 +8,9 @@ import { publicApi } from '@/api/public'
 import { errorMessage } from '@/api/client'
 import type { OrderType, PaymentMethod } from '@/api/types'
 import { money } from '@/lib/format'
+import { useDebounced } from '@/lib/useDebounced'
+import { VnAddressInput } from '@/components/VnAddressInput'
+import { isCompleteVnAddress, vnAddressRule } from '@/lib/vnAddress'
 import { useCart } from './useCart'
 import { VoucherPicker } from './VoucherPicker'
 import { useGuestStore } from '@/store/guestStore'
@@ -19,6 +22,17 @@ const PAYMENTS: { value: PaymentMethod; title: string; desc: string }[] = [
   { value: 'BANK_TRANSFER', title: 'Chuyển khoản', desc: 'QR ngân hàng' },
   { value: 'CARD', title: 'Thẻ', desc: 'Visa / Mastercard / ATM' },
 ]
+
+/** giờ mở cửa "HH:mm[:ss]" → kiểm tra một thời điểm (đóng sau nửa đêm khi close < open) */
+function openingHours(open?: string, close?: string) {
+  if (!open || !close) return null
+  const toMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5))
+  const o = toMin(open), c = toMin(close)
+  return {
+    label: `${open.slice(0, 5)}–${close.slice(0, 5)}`,
+    isOpen: (d: Dayjs) => { const m = d.hour() * 60 + d.minute(); return c > o ? m >= o && m < c : m >= o || m < c },
+  }
+}
 
 export function CheckoutPage() {
   const { cart, loading } = useCart()
@@ -34,12 +48,23 @@ export function CheckoutPage() {
   const appliedVoucher = store.voucherCode ?? undefined
   const setAppliedVoucher = (code?: string) => store.setVoucher(code ?? null)
   const phone = Form.useWatch('customerPhone', form) as string | undefined
+  // phí ship theo km từ quán: đo khi khách ngừng gõ địa chỉ
+  const typed = useDebounced((Form.useWatch('address', form) as string | undefined)?.trim() || undefined)
+  const address = isCompleteVnAddress(typed) ? typed : undefined
+  const deliveryAddress = orderType === 'DELIVERY' ? address : undefined
+  const { data: shipping } = useQuery({ queryKey: ['delivery-settings-public'], queryFn: publicApi.deliverySettings, staleTime: 5 * 60_000 })
+  // giờ hẹn nhận / giao: chỉ trong giờ mở cửa; phí ship theo khung giờ của giờ hẹn
+  const pickupTime = Form.useWatch('pickupTime', form) as Dayjs | undefined
+  const deliveryTime = orderType === 'DELIVERY' && pickupTime ? pickupTime.format('YYYY-MM-DDTHH:mm:ss') : undefined
+  const hours = openingHours(shipping?.openTime, shipping?.closeTime)
+  const closedNow = !!hours && !hours.isOpen(dayjs())
 
   const quote = useQuery({
-    queryKey: ['quote', cart?.sessionCode, cart?.subtotal, orderType, appliedVoucher, appliedVoucher ? phone : null],
+    queryKey: ['quote', cart?.sessionCode, cart?.subtotal, orderType, appliedVoucher, appliedVoucher ? phone : null, deliveryAddress, deliveryTime],
     enabled: !!cart && (cart.items.length > 0 || !!cart.bundles?.length),
+    retry: false,
     queryFn: () =>
-      publicApi.quote(cart!.sessionCode, { orderType, voucherCode: appliedVoucher, customerPhone: phone || undefined }),
+      publicApi.quote(cart!.sessionCode, { orderType, voucherCode: appliedVoucher, customerPhone: phone || undefined, deliveryAddress, deliveryTime }),
   })
 
   useEffect(() => {
@@ -143,8 +168,10 @@ export function CheckoutPage() {
 
           {orderType === 'DELIVERY' && (
             <>
-              <Form.Item name="address" label="Địa chỉ giao hàng" rules={[{ required: true, message: 'Nhập địa chỉ giao hàng' }]}>
-                <Input placeholder="Số nhà, đường, phường, quận" maxLength={255} />
+              <Form.Item name="address" label="Địa chỉ giao hàng" rules={[vnAddressRule('nơi nhận')]}
+                extra={quote.isError && deliveryAddress ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span>
+                  : quote.data?.deliveryDistanceKm != null ? `${quote.data.deliveryDistanceKm.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km` : undefined}>
+                <VnAddressInput />
               </Form.Item>
               <Form.Item name="recipientName" label="Người nhận (nếu khác)">
                 <Input maxLength={100} />
@@ -152,11 +179,19 @@ export function CheckoutPage() {
             </>
           )}
           {orderType !== 'DINE_IN' && (
-            <Form.Item name="pickupTime" label={orderType === 'DELIVERY' ? 'Giao lúc (để trống = sớm nhất)' : 'Nhận lúc (để trống = sớm nhất)'}>
+            <Form.Item name="pickupTime"
+              label={orderType === 'DELIVERY' ? 'Giao lúc' : 'Nhận lúc'}
+              rules={[{ required: closedNow, message: 'Quán đang đóng cửa — chọn giờ hẹn' }]}
+              extra={hours ? `Mở cửa ${hours.label}` : undefined}>
               <DatePicker
-                showTime={{ format: 'HH:mm', minuteStep: 15 }}
+                placeholder={closedNow ? 'Chọn giờ hẹn' : 'Sớm nhất'}
+                showTime={{ format: 'HH:mm', minuteStep: 15, hideDisabledOptions: true }}
                 format="HH:mm DD/MM"
                 disabledDate={(d) => d.isBefore(dayjs().startOf('day')) || d.isAfter(dayjs().add(2, 'day'))}
+                disabledTime={(d) => ({
+                  disabledHours: () => Array.from({ length: 24 }, (_, h) => h).filter((h) => !Array.from({ length: 4 }, (_, q) => (d ?? dayjs()).hour(h).minute(q * 15)).some((x) => (!hours || hours.isOpen(x)) && x.isAfter(dayjs()))),
+                  disabledMinutes: (h) => Array.from({ length: 60 }, (_, m) => m).filter((m) => { const x = (d ?? dayjs()).hour(h).minute(m); return (!!hours && !hours.isOpen(x)) || !x.isAfter(dayjs()) }),
+                })}
                 style={{ width: '100%' }}
               />
             </Form.Item>
@@ -205,7 +240,9 @@ export function CheckoutPage() {
             {!!q?.voucherDiscount && (
               <div className="g-row g-green"><span>Voucher {q.voucherCode}</span><span>-{money(q.voucherDiscount)}</span></div>
             )}
-            {!!q?.shippingFee && <div className="g-row"><span>Phí giao hàng</span><span>{money(q.shippingFee)}</span></div>}
+            {orderType === 'DELIVERY' && q?.deliveryDistanceKm != null && (
+              <div className="g-row"><span>Phí giao hàng{q.deliveryOption ? ` (${q.deliveryOption})` : ''}</span><span>{q.shippingFee ? money(q.shippingFee) : 'Miễn phí'}</span></div>
+            )}
             <div className="g-row g-total"><span>Tổng cộng</span><span>{money(q?.total ?? cart.subtotal)}</span></div>
           </div>
 
@@ -214,7 +251,7 @@ export function CheckoutPage() {
           )}
           <button
             className="g-cta g-cta-block"
-            disabled={checkout.isPending || quote.isFetching || !!q?.unavailableItems.length}
+            disabled={checkout.isPending || quote.isFetching || !!q?.unavailableItems.length || (orderType === 'DELIVERY' && quote.isError)}
             onClick={() => form.submit()}
           >
             {checkout.isPending ? 'Đang gửi đơn…' : `Xác nhận đặt hàng · ${money(q?.total ?? cart.subtotal)}`}

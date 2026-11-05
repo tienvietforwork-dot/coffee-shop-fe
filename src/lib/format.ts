@@ -36,8 +36,8 @@ export const PAYMENT_STATUS: Record<PaymentStatus, Label> = {
   PENDING: L('Chưa thu', 'gold'), PAID: L('Đã thanh toán', 'green'), FAILED: L('Hủy', 'default'), REFUNDED: L('Đã hoàn tiền', 'red'),
 }
 export const SHIPMENT_STATUS: Record<ShipmentStatus, Label> = {
-  PENDING: L('Chờ đặt xe', 'gold'), BOOKED: L('Đã đặt xe', 'blue'), DRIVER_ACCEPTED: L('Tài xế đã nhận', 'cyan'),
-  DELIVERING: L('Đang giao', 'geekblue'), DELIVERED: L('Đã giao', 'green'), FAILED: L('Hủy', 'default'),
+  PENDING: L('Chờ giao', 'gold'), BOOKED: L('Chờ giao', 'gold'), DRIVER_ACCEPTED: L('Chờ giao', 'gold'),
+  DELIVERING: L('Đang giao', 'geekblue'), DELIVERED: L('Đã giao', 'green'), FAILED: L('Giao không thành công', 'red'),
 }
 export const COFFEE_STATUS: Record<CoffeeStatus, Label> = {
   AVAILABLE: L('Đang bán', 'green'), SOLD_OUT: L('Hết món', 'orange'), HIDDEN: L('Ẩn', 'default'), DISCONTINUED: L('Ngừng bán', 'red'),
@@ -67,5 +67,3 @@ const API_ORIGIN = String(import.meta.env.VITE_API_URL ?? '').replace(/\/api\/?$
 /** Uploaded images are stored as API-relative paths (/api/public/images/12); external links pass through. */
 export const imageSrc = (v?: string | null) => (v?.startsWith('/api/') ? API_ORIGIN + v : v || undefined)
 
-/** delivery carriers to book a ride with */
-export const CARRIERS = ['Grab', 'Be', 'Ahamove', 'Lalamove', 'Shipper cửa hàng']

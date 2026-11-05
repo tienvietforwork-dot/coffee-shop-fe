@@ -30,7 +30,6 @@ const CashShiftsPage = lazy(() => import('@/admin/pages/CashShiftsPage').then((m
 const WorkShiftsPage = lazy(() => import('@/admin/pages/WorkShiftsPage').then((m) => ({ default: m.WorkShiftsPage })))
 const AuditLogsPage = lazy(() => import('@/admin/pages/AuditLogsPage').then((m) => ({ default: m.AuditLogsPage })))
 const PaymentReconciliationPage = lazy(() => import('@/admin/pages/PaymentReconciliationPage').then((m) => ({ default: m.PaymentReconciliationPage })))
-const DeliveryZonesPage = lazy(() => import('@/admin/pages/DeliveryZonesPage').then((m) => ({ default: m.DeliveryZonesPage })))
 const InvoicesPage = lazy(() => import('@/admin/pages/InvoicesPage').then((m) => ({ default: m.InvoicesPage })))
 const NotificationsPage = lazy(() => import('@/admin/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })))
 const TablesPage = lazy(() => import('@/admin/pages/TablesPage').then((m) => ({ default: m.TablesPage })))
@@ -113,7 +112,7 @@ export default function App() {
                   <Route path="/admin/work-shifts" element={<Guard perm="work-shifts"><WorkShiftsPage /></Guard>} />
                   <Route path="/admin/audit-logs" element={<Guard perm="audit-logs"><AuditLogsPage /></Guard>} />
                   <Route path="/admin/payment-reconciliation" element={<Guard perm="payment-reconciliation"><PaymentReconciliationPage /></Guard>} />
-                  <Route path="/admin/delivery-zones" element={<Guard perm="delivery-zones"><DeliveryZonesPage /></Guard>} />
+                  <Route path="/admin/delivery-zones" element={<Navigate to="/admin/shipments?tab=fee" replace />} />
                   <Route path="/admin/invoices" element={<Guard perm="invoices"><InvoicesPage /></Guard>} />
                   <Route path="/admin/notifications" element={<Guard perm="notifications"><NotificationsPage /></Guard>} />
                   <Route path="/admin/tables" element={<Guard perm="tables"><TablesPage /></Guard>} />
