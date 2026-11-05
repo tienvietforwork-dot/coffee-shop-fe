@@ -86,6 +86,25 @@ img { max-width: 100%; }
 .g-section-head h2 { font-family: var(--display); font-size: 30px; margin: 0; color: var(--espresso); }
 .g-section-head p { margin: 4px 0 0; color: var(--muted); }
 .g-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; margin-top: 18px; }
+.g-section-count { margin-left: 10px; font: 500 13px var(--sans); color: var(--muted); vertical-align: middle; }
+
+/* Bo loc thuc don */
+.g-menu-bar { flex-wrap: wrap; row-gap: 10px; }
+.g-filters { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.g-filter-select { min-width: 180px; }
+.g-filter-reset { border: 0; background: none; padding: 0; color: var(--caramel); font: 600 14px var(--sans); cursor: pointer; }
+.g-filter-reset:hover { text-decoration: underline; }
+
+/* Hang mon cuon ngang */
+.g-row-wrap { position: relative; margin-top: 18px; }
+.g-row { display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-left: 2px; padding: 6px 2px 14px; scrollbar-width: thin; scrollbar-color: var(--latte) transparent; }
+.g-row::-webkit-scrollbar { height: 6px; }
+.g-row::-webkit-scrollbar-thumb { background: var(--latte); border-radius: 999px; }
+.g-row > .g-card { flex: 0 0 260px; scroll-snap-align: start; }
+.g-row-nav { position: absolute; top: 40%; z-index: 2; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); color: var(--espresso); box-shadow: var(--shadow); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+.g-row-nav:hover { background: var(--caramel-soft); }
+.g-row-nav.is-prev { left: -16px; }
+.g-row-nav.is-next { right: -16px; }
 
 .g-card { background: var(--paper); border-radius: var(--radius); overflow: hidden; cursor: pointer; border: 1px solid var(--line); transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; }
 .g-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
@@ -213,6 +232,10 @@ img { max-width: 100%; }
   .g-menu-bar { flex-direction: column; align-items: stretch; gap: 10px; }
   .g-search { max-width: none; }
   .g-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .g-row { gap: 12px; }
+  .g-row > .g-card { flex-basis: 46%; }
+  .g-row-nav { display: none; }
+  .g-filter-select { min-width: 0; flex: 1 1 140px; }
   .g-card-body { padding: 10px 12px 12px; }
   .g-card-body h3 { font-size: 15px; }
   .g-card-body p { display: none; }
