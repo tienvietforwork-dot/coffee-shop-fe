@@ -6,7 +6,7 @@ import {
   AppstoreOutlined, ExperimentOutlined, TableOutlined, TeamOutlined,
   UserOutlined, IdcardOutlined, MessageOutlined, CommentOutlined, ClusterOutlined, BarChartOutlined,
   GiftOutlined, TagsOutlined, FundOutlined, LineChartOutlined, LogoutOutlined, ArrowLeftOutlined,
-  SafetyCertificateOutlined, KeyOutlined,
+  SafetyCertificateOutlined, KeyOutlined, StarOutlined, SwapOutlined,
   DollarOutlined, ScheduleOutlined, FileSearchOutlined,
   CreditCardOutlined, EnvironmentOutlined, FileTextOutlined, NotificationOutlined,
 } from '@ant-design/icons'
@@ -43,6 +43,13 @@ const GROUPS: { label: string; items: Entry[] }[] = [
     label: 'Thực đơn', items: [
       { key: '/admin/coffees', icon: <CoffeeOutlined />, label: 'Cà phê & công thức', perm: P.MENU },
       { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục', perm: P.CATEGORIES },
+      { key: '/admin/product-placement', icon: <StarOutlined />, label: 'Trưng bày sản phẩm', perm: P.MENU },
+      { key: '/admin/merchandising-analytics', icon: <BarChartOutlined />, label: 'Merchandising Analytics', perm: P.STATS },
+      { key: '/admin/merchandising-schedule', icon: <StarOutlined />, label: 'Lịch trưng bày', perm: P.MENU },
+      { key: '/admin/recommendation', icon: <StarOutlined />, label: 'Recommendation · Gợi ý', perm: P.MENU },
+      { key: '/admin/upsell', icon: <SwapOutlined />, label: 'Upsell · Nâng cấp món', perm: P.MENU },
+      { key: '/admin/cross-sell', icon: <SwapOutlined />, label: 'Cross-sell · Bán kèm', perm: P.MENU },
+      { key: '/admin/product-bundles', icon: <GiftOutlined />, label: 'Combo sản phẩm', perm: P.MENU },
       { key: '/admin/materials', icon: <ExperimentOutlined />, label: 'Nguyên liệu', perm: P.MATERIALS },
     ],
   },

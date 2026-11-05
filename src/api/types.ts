@@ -206,6 +206,7 @@ export interface Cart {
   tableId?: number
   tableNo?: string
   items: CartItem[]
+  bundles?: { id: number; bundleId: number; name: string; quantity: number; selected: number[]; unitPrice: number; total: number }[]
   subtotal: number
 }
 
