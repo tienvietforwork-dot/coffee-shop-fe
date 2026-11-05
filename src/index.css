@@ -248,7 +248,16 @@ img { max-width: 100%; }
 /* ============================ Admin ============================ */
 .admin { background: #f6f3ef; }
 .a-sider { border-right: 1px solid #ece4da; }
-.a-sider .ant-layout-sider-children { overflow-y: auto; }
+/* Sidebar co dinh theo man hinh; chi phan menu cuon */
+.a-sider { position: sticky !important; top: 0; height: 100vh; align-self: flex-start; z-index: 11; }
+.a-sider.ant-layout-sider-has-trigger { padding-bottom: 48px; } /* chua cho nut thu gon, khong de no che muc cuoi */
+.a-sider .ant-layout-sider-children { display: flex; flex-direction: column; overflow: hidden; }
+.a-menu-filter { padding: 10px 12px; border-bottom: 1px solid #ece4da; flex: none; }
+.a-menu-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #e2d6c8 transparent; }
+.a-menu-scroll::-webkit-scrollbar { width: 6px; }
+.a-menu-scroll::-webkit-scrollbar-thumb { background: #e2d6c8; border-radius: 999px; }
+.a-menu-scroll .ant-menu { border-inline-end: 0 !important; }
+.a-menu-empty { padding: 16px; color: var(--muted); font-size: 13px; text-align: center; }
 .a-brand { display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 22px; font-family: var(--display); font-size: 20px; color: var(--espresso); text-decoration: none; border-bottom: 1px solid #ece4da; }
 .a-brand span { font-size: 22px; }
 .a-header { display: flex; justify-content: space-between; align-items: center; background: #fff !important; padding: 0 20px !important; border-bottom: 1px solid #ece4da; position: sticky; top: 0; z-index: 10; }

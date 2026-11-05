@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Badge, Button, Dropdown, Grid, Layout, Menu, Tag, Tooltip, type MenuProps } from 'antd'
+import { Avatar, Badge, Button, Dropdown, Grid, Input, Layout, Menu, Tag, Tooltip, type MenuProps } from 'antd'
 import {
   DashboardOutlined, ProfileOutlined, ShopOutlined, CarOutlined, WarningOutlined, CoffeeOutlined,
   AppstoreOutlined, ExperimentOutlined, TableOutlined, TeamOutlined,
@@ -8,7 +8,7 @@ import {
   GiftOutlined, TagsOutlined, FundOutlined, LineChartOutlined, LogoutOutlined, ArrowLeftOutlined,
   SafetyCertificateOutlined, KeyOutlined, StarOutlined, SwapOutlined,
   DollarOutlined, ScheduleOutlined, FileSearchOutlined,
-  CreditCardOutlined, EnvironmentOutlined, FileTextOutlined, NotificationOutlined,
+  CreditCardOutlined, EnvironmentOutlined, FileTextOutlined, NotificationOutlined, SearchOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
@@ -82,6 +82,10 @@ const GROUPS: { label: string; items: Entry[] }[] = [
   },
 ]
 
+// Bo dau tieng Viet de tim "phan quyen" van ra "Phân quyền"
+const fold = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
+
 export function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -91,10 +95,19 @@ export function AdminLayout() {
   const screens = Grid.useBreakpoint()
   const [collapsed, setCollapsed] = useState(false)
   const [pwdOpen, setPwdOpen] = useState(false)
+  const [filter, setFilter] = useState('')
 
   // Menu = only the screens this account has a permission for
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => can(i.perm)) })).filter((g) => g.items.length)
-  const items = groups.flatMap<MenuItem>((g) => {
+
+  // Loc menu theo tu khoa (khong phan biet dau); khop ten nhom thi giu ca nhom
+  const q = fold(filter.trim())
+  const shown = q
+    ? groups
+        .map((g) => ({ ...g, items: fold(g.label).includes(q) ? g.items : g.items.filter((i) => fold(i.label).includes(q)) }))
+        .filter((g) => g.items.length)
+    : groups
+  const items = shown.flatMap<MenuItem>((g) => {
     const children = g.items.map(({ key, icon, label }) => ({ key, icon, label }))
     return g.label ? [{ key: g.label, label: g.label, type: 'group' as const, children }] : children
   })
@@ -102,6 +115,21 @@ export function AdminLayout() {
   const selected = keys
     .filter((k) => location.pathname === k || (k !== '/admin' && location.pathname.startsWith(k + '/')))
     .sort((a, b) => b.length - a.length)[0] ?? '/admin'
+
+  // Cuon menu toi muc dang mo (vd. vao thang /admin/roles)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const box = scrollRef.current
+      const item = box?.querySelector<HTMLElement>('.ant-menu-item-selected')
+      if (!box || !item) return
+      const top = item.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop
+      if (top < box.scrollTop || top + item.offsetHeight > box.scrollTop + box.clientHeight) {
+        box.scrollTop = top - (box.clientHeight - item.offsetHeight) / 2
+      }
+    })
+    return () => cancelAnimationFrame(id)
+  }, [selected, collapsed])
 
   return (
     <Layout className="admin" style={{ minHeight: '100vh' }}>
@@ -118,7 +146,27 @@ export function AdminLayout() {
         <Link to="/admin" className="a-brand">
           <span>☕</span>{!collapsed && <b>Coffeeholic</b>}
         </Link>
-        <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={(e) => navigate(e.key)} />
+        {!collapsed && (
+          <div className="a-menu-filter">
+            <Input
+              allowClear
+              size="small"
+              prefix={<SearchOutlined />}
+              placeholder="Tìm chức năng…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter -> mo chuc nang dau tien khop
+                const first = shown[0]?.items[0]
+                if (e.key === 'Enter' && q && first) { navigate(first.key); setFilter('') }
+              }}
+            />
+          </div>
+        )}
+        <div className="a-menu-scroll" ref={scrollRef}>
+          <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={(e) => navigate(e.key)} />
+          {!items.length && <div className="a-menu-empty">Không có chức năng phù hợp</div>}
+        </div>
       </Sider>
       <Layout>
         <Header className="a-header">
