@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Table, Tag } from 'antd'
-import { PrinterOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons'
+import { PrinterOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
 import type { Invoice, InvoiceBuyer } from '@/api/types'
@@ -38,7 +38,6 @@ export function InvoicesPage() {
   const setBuyer = useAction((v: { code: string; b: InvoiceBuyer }) => coreApi.setInvoiceBuyer(v.code, v.b), keys, 'Đã lưu thông tin người mua')
   const replace = useAction((v: { id: number; b: InvoiceBuyer; reason: string }) => coreApi.replaceInvoice(v.id, v.b, v.reason), keys, 'Đã lập hóa đơn thay thế')
   const retry = useAction(coreApi.retryInvoice, keys, 'Đã đưa lại vào hàng đợi')
-  const issueNow = useAction(coreApi.issueInvoicesNow, keys, 'Đã phát hành')
   const failed = data.filter((i) => i.status === 'FAILED').length
 
   return (
@@ -46,7 +45,6 @@ export function InvoicesPage() {
       <PageHeader title="Hóa đơn điện tử" subtitle="Khởi tạo từ máy tính tiền · lập cho từng đơn khi hoàn tất · sai thì thay thế / điều chỉnh, không hủy"
         extra={<Space>
           <Button onClick={() => { setBuyerFor({}); form.resetFields() }}>Xuất hóa đơn công ty theo mã đơn</Button>
-          <Button icon={<SendOutlined />} loading={issueNow.isPending} onClick={() => issueNow.mutate(undefined)}>Phát hành ngay</Button>
         </Space>} />
       {failed > 0 && <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`${failed} hóa đơn phát hành lỗi — xem lỗi và gửi lại`} />}
       <Space wrap style={{ marginBottom: 12 }}>

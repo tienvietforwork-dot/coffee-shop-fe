@@ -180,7 +180,6 @@ export const coreApi = {
   setInvoiceBuyer: (orderCode: string, b: InvoiceBuyer) => post<Invoice>(`/invoices/order/${orderCode}/buyer`, b),
   replaceInvoice: (id: number, buyer: InvoiceBuyer, reason: string) => post<Invoice>(`/invoices/${id}/replace`, { buyer, reason }),
   retryInvoice: (id: number) => post<Invoice>(`/invoices/${id}/retry`),
-  issueInvoicesNow: () => post<{ issued: number }>('/invoices/issue-now'),
 
   notificationTemplates: () => get<NotificationTemplate[]>('/notifications/templates'),
   updateNotificationTemplate: (code: string, b: Partial<Omit<NotificationTemplate, 'code' | 'name'>>) =>
