@@ -22,9 +22,26 @@ const STYLE = `
   .flag { color: #b00; }
 `
 
+/** Giấy in nhiệt 80mm của máy in hóa đơn tại quầy */
+const RECEIPT_STYLE = `
+  @page { size: 80mm auto; margin: 3mm; }
+  body { width: 72mm; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; line-height: 1.35; }
+  .c { text-align: center; } .r { text-align: right; } .b { font-weight: bold; } .i { font-style: italic; } .sm { font-size: 10px; }
+  .shop { font-size: 14px; font-weight: bold; text-transform: uppercase; }
+  h1 { text-align: center; font-size: 15px; margin: 6px 0 0; }
+  .hr { border-top: 1px dashed #000; margin: 6px 0; }
+  .kv { display: flex; justify-content: space-between; gap: 8px; } .kv span:last-child { text-align: right; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-weight: bold; border-bottom: 1px solid #000; padding: 2px 0; }
+  td { padding: 2px 0; vertical-align: top; }
+  td.r, th.r { white-space: nowrap; padding-left: 6px; }
+  .pay { font-size: 14px; font-weight: bold; }
+  .flag { text-align: center; font-weight: bold; border: 1px solid #000; padding: 2px; margin: 4px 0; }
+`
+
 /** prints through a hidden frame (the browser can save it as PDF) */
-function printHtml(title: string, body: string) {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${STYLE}</style></head><body>${body}</body></html>`
+function printHtml(title: string, body: string, style = STYLE) {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${style}</style></head><body>${body}</body></html>`
   const frame = document.createElement('iframe')
   Object.assign(frame.style, { position: 'fixed', width: '0', height: '0', border: '0' })
   document.body.appendChild(frame)
@@ -65,28 +82,48 @@ const totalsRows = (cols: number, lines: [string, number][], tail = 0) =>
       <td class="r">${last ? `<b>${esc(money(v))}</b>` : esc(money(v))}</td>${'<td></td>'.repeat(tail)}</tr>`
   }).join('')
 
-/** Bản thể hiện hóa đơn điện tử khởi tạo từ máy tính tiền (to hand to the customer) */
+/**
+ * Bản thể hiện hóa đơn điện tử khởi tạo từ máy tính tiền, in trên giấy 80mm đưa cho khách ngay khi thanh toán:
+ * ký hiệu, số hóa đơn, mã của CQT (máy tính tiền tạo), mã tra cứu và nơi tra cứu.
+ */
 export function printInvoice(i: Invoice) {
   const title = i.templateCode === '1' ? 'HÓA ĐƠN GIÁ TRỊ GIA TĂNG' : 'HÓA ĐƠN BÁN HÀNG'
-  const rows = i.lines.map((l) => `<tr><td class="c">${l.lineNo}</td><td>${esc(l.name)}</td><td class="c">${esc(l.unit)}</td>
-      <td class="r">${esc(num(l.quantity))}</td><td class="r">${esc(num(l.unitPrice))}</td><td class="r">${esc(num(l.amount))}</td></tr>`).join('')
-  const buyer = i.buyerCompany || i.buyerName || i.buyerTaxCode
-  printHtml(i.invoiceNo ?? `hoa-don-${i.orderCode}`, `
-    <div class="head"><div><b>${esc(i.sellerName)}</b><div>MST: ${esc(i.sellerTaxCode)}</div><div class="muted">${esc(i.sellerAddress)}</div></div>
-      <div class="r">Ký hiệu: <b>${esc(i.series)}</b><div>Số: <b>${esc(i.invoiceNo ?? '(chờ cấp)')}</b></div></div></div>
+  const kv = (k: string, v?: string | number | null, bold = false) =>
+    `<div class="kv"><span>${esc(k)}</span><span${bold ? ' class="b"' : ''}>${esc(v ?? '—')}</span></div>`
+  const rows = i.lines.map((l) => `<tr><td>${esc(l.name)}</td><td class="r">${esc(num(l.quantity))}</td>
+      <td class="r">${esc(num(l.unitPrice))}</td><td class="r">${esc(num(l.amount))}</td></tr>`).join('')
+  const buyer = i.buyerCompany || i.buyerName
+    ? `${esc(i.buyerCompany ?? i.buyerName)}${i.buyerCompany && i.buyerName ? ` · ${esc(i.buyerName)}` : ''}`
+      + `${i.buyerTaxCode ? `<br>MST: ${esc(i.buyerTaxCode)}` : ''}${i.buyerAddress ? `<br>Đ/c: ${esc(i.buyerAddress)}` : ''}`
+    : 'Khách lẻ không lấy hóa đơn'
+  printHtml(i.invoiceNo ? `HD-${i.series}-${i.invoiceNo}` : `hoa-don-${i.orderCode}`, `
+    <div class="c"><div class="shop">${esc(i.sellerName)}</div>
+      <div class="sm">MST: ${esc(i.sellerTaxCode)}</div><div class="sm">${esc(i.sellerAddress)}</div></div>
+    <div class="hr"></div>
     <h1>${title}</h1>
-    <p class="c i">(Khởi tạo từ máy tính tiền) · ${esc(dateTime(i.issuedAt ?? i.createdAt))}</p>
-    ${i.kind !== 'ORIGINAL' ? `<p class="c"><b>${i.kind === 'REPLACEMENT' ? 'Thay thế' : 'Điều chỉnh'} cho hóa đơn số ${esc(i.relatedNo)}</b> — ${esc(i.reason)}</p>` : ''}
-    ${i.status === 'REPLACED' ? '<p class="c flag"><b>ĐÃ BỊ THAY THẾ</b></p>' : ''}
-    <p>Mã của cơ quan thuế: <b>${esc(i.taxAuthorityCode ?? '—')}</b></p>
-    <p>Người mua: ${buyer ? `${esc(i.buyerCompany ?? '')}${i.buyerName ? ` · ${esc(i.buyerName)}` : ''}${i.buyerTaxCode ? ` · MST ${esc(i.buyerTaxCode)}` : ''}${i.buyerAddress ? ` · ${esc(i.buyerAddress)}` : ''}` : 'Người mua không lấy hóa đơn'}</p>
-    <p>Đơn hàng: ${esc(i.orderCode)} · Hình thức thanh toán: ${esc(i.paymentMethod)}</p>
-    <table><thead><tr><th>STT</th><th>Tên hàng hóa, dịch vụ</th><th>ĐVT</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
-    <tbody>${rows}${totalsRows(5, [
-      ...(i.vatRate != null ? [['Cộng tiền hàng (chưa thuế)', i.amountBeforeTax] as [string, number], [`Thuế GTGT ${num(i.vatRate)}%`, i.vatAmount] as [string, number]] : []),
-      ['Tổng tiền thanh toán', i.totalAmount]])}</tbody></table>
-    <p>Số tiền viết bằng chữ: <b class="i">${esc(vndInWords(i.totalAmount))}</b></p>
-    <p class="muted">Tra cứu tại ${esc(i.lookupUrl ?? '')} · mã tra cứu <b>${esc(i.lookupCode ?? '—')}</b></p>`)
+    <div class="c i sm">(Khởi tạo từ máy tính tiền)</div>
+    <div class="c sm">Ngày: ${esc(dateTime(i.issuedAt ?? i.createdAt))}</div>
+    ${i.status === 'REPLACED' ? '<div class="flag">ĐÃ BỊ THAY THẾ</div>' : ''}
+    <div class="hr"></div>
+    ${kv('Ký hiệu:', i.series, true)}${kv('Số HĐ:', i.invoiceNo, true)}
+    ${kv('Mã CQT:', i.taxAuthorityCode)}${kv('Đơn hàng:', i.orderCode)}
+    ${i.kind !== 'ORIGINAL' ? `<div class="sm b">${i.kind === 'REPLACEMENT' ? 'Thay thế' : 'Điều chỉnh'} cho hóa đơn số ${esc(i.relatedNo)}</div><div class="sm i">${esc(i.reason)}</div>` : ''}
+    <div class="sm">Khách hàng: ${buyer}</div>
+    <div class="hr"></div>
+    <table><thead><tr><th style="text-align:left">Tên sản phẩm</th><th class="r">SL</th><th class="r">Đ.Giá</th><th class="r">T.Tiền</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    <div class="hr"></div>
+    ${i.vatRate != null ? kv('Tiền chưa thuế:', money(i.amountBeforeTax)) + kv(`Thuế GTGT ${num(i.vatRate)}%:`, money(i.vatAmount)) : ''}
+    <div class="kv pay"><span>Thanh toán</span><span>${esc(money(i.totalAmount))}</span></div>
+    ${kv('Hình thức:', i.paymentMethod)}
+    <div class="sm i">Bằng chữ: ${esc(vndInWords(Math.abs(i.totalAmount)))}</div>
+    ${i.vatRate != null ? '<div class="c sm i">"Hóa đơn đã bao gồm thuế GTGT"</div>' : ''}
+    <div class="hr"></div>
+    <div class="c b">Thông tin tra cứu hóa đơn</div>
+    ${kv('Mã tra cứu:', i.lookupCode, true)}
+    <div class="sm">Tra cứu tại: ${esc(i.lookupUrl ?? '')}</div>
+    <div class="hr"></div>
+    <div class="c sm">Cảm ơn quý khách — hẹn gặp lại!</div>`, RECEIPT_STYLE)
 }
 
 /** Biên bản bàn giao ca / báo cáo chốt ca: doanh thu theo PTTT, thu chi trong ca, đếm tiền theo mệnh giá, chênh lệch */
