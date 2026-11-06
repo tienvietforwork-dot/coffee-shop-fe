@@ -241,7 +241,10 @@ export function CheckoutPage() {
               <div className="g-row g-green"><span>Voucher {q.voucherCode}</span><span>-{money(q.voucherDiscount)}</span></div>
             )}
             {orderType === 'DELIVERY' && q?.deliveryDistanceKm != null && (
-              <div className="g-row"><span>Phí giao hàng{q.deliveryOption ? ` (${q.deliveryOption})` : ''}</span><span>{q.shippingFee ? money(q.shippingFee) : 'Miễn phí'}</span></div>
+              <>
+                <div className="g-row"><span>Phí giao hàng{q.deliveryOption ? ` (${q.deliveryOption})` : ''}</span><span>{q.shippingFee - (q.weatherSurcharge ?? 0) ? money(q.shippingFee - (q.weatherSurcharge ?? 0)) : 'Miễn phí'}</span></div>
+                {!!q.weatherSurcharge && <div className="g-row"><span>Phụ phí thời tiết ({q.deliveryWeather})</span><span>{money(q.weatherSurcharge)}</span></div>}
+              </>
             )}
             <div className="g-row g-total"><span>Tổng cộng</span><span>{money(q?.total ?? cart.subtotal)}</span></div>
           </div>

@@ -236,6 +236,9 @@ export interface PriceQuote {
   deliveryTier?: string
   /** option giá của khung giờ đang áp dụng (trống = option mặc định) */
   deliveryOption?: string
+  /** thời tiết xấu và phụ phí đã cộng vào shippingFee */
+  deliveryWeather?: string
+  weatherSurcharge?: number
 }
 
 export interface Payment {
@@ -442,6 +445,13 @@ export interface DeliverySettings {
 export interface DeliveryFeePlan { id: number; name: string; isDefault: boolean; tiers: DeliveryFeeTier[] }
 /** khung giờ đặc biệt: giờ "HH:mm[:ss]", days 1 (T2) … 7 (CN) — rỗng = mọi ngày, dùng option planId */
 export interface DeliveryTimeSlot { id: number; startTime: string; endTime: string; days: number[]; planId: number; planName?: string }
+/** bậc phụ phí: mưa từ minRainMm mm/h → +surcharge */
+export interface WeatherRainTier { minRainMm: number; surcharge: number }
+/** thời tiết 1 giờ tại quán (đầu danh sách = hiện tại): mã WMO, °C, mm/h, km/h, phụ phí, có ngưng giao không */
+export interface WeatherHour { time: string; code: number; description: string; temperature: number; rainMm: number; windKmh: number; surcharge: number; stopped: boolean }
+export interface DeliveryWeather {
+  enabled: boolean; rainTiers: WeatherRainTier[]; stormSurcharge?: number; stopRainMm?: number; stopStorm: boolean; outlook?: WeatherHour[]
+}
 export interface ShipmentEvent { id: number; source: 'STAFF' | 'PARTNER' | 'SYSTEM'; status?: ShipmentStatus; note?: string; by?: string; at: string }
 
 /** hóa đơn điện tử khởi tạo từ máy tính tiền */

@@ -160,7 +160,8 @@ export function PosPage() {
               {!!q?.promotionDiscount && <div className="a-line a-green"><span>{q.promotionName}</span><span>-{money(q.promotionDiscount)}</span></div>}
               {!!q?.voucherDiscount && <div className="a-line a-green"><span>Voucher</span><span>-{money(q.voucherDiscount)}</span></div>}
               {q?.voucherMessage && <div className="a-line a-red"><span>{q.voucherMessage}</span></div>}
-              {!!q?.shippingFee && <div className="a-line"><span>Phí giao</span><span>{money(q.shippingFee)}</span></div>}
+              {!!q?.shippingFee && <div className="a-line"><span>Phí giao</span><span>{money(q.shippingFee - (q.weatherSurcharge ?? 0))}</span></div>}
+              {!!q?.weatherSurcharge && <div className="a-line"><span>Phụ phí thời tiết ({q.deliveryWeather})</span><span>{money(q.weatherSurcharge)}</span></div>}
               <div className="a-line a-big"><span>Tổng</span><span>{money(q?.total ?? 0)}</span></div>
             </div>
             <Button type="primary" size="large" block disabled={!lines.length || !!q?.voucherMessage || (orderType === 'DINE_IN' && !tableId)} loading={create.isPending} onClick={submit}>

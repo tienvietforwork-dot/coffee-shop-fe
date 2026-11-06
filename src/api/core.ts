@@ -4,7 +4,7 @@ import type {
   IncidentSeverity, IncidentType, Material,
   Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
   Staff, TableStatus, User, WorkStatus,
-  CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliverySettings, DeliveryFeePlan, DeliveryTimeSlot, ShipmentEvent,
+  CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliverySettings, DeliveryFeePlan, DeliveryTimeSlot, DeliveryWeather, ShipmentEvent,
   Invoice, InvoiceBuyer, NotificationTemplate, NotificationMessage,
 } from './types'
 
@@ -167,8 +167,10 @@ export const coreApi = {
 
   deliverySettings: () => get<DeliverySettings>('/delivery-settings'),
   saveDeliverySettings: (b: DeliverySettings) => put<DeliverySettings>('/delivery-settings', b),
+  deliveryWeather: () => get<DeliveryWeather>('/delivery-weather'),
+  saveDeliveryWeather: (b: Omit<DeliveryWeather, 'outlook'>) => put<DeliveryWeather>('/delivery-weather', b),
   deliveryFeePlans: () => get<DeliveryFeePlan[]>('/delivery-fee-plans'),
-  saveDeliveryFeePlan: (b: Omit<DeliveryFeePlan, 'id' | 'isDefault'> & { id?: number }) =>
+  saveDeliveryFeePlan: (b: Omit<DeliveryFeePlan, 'id' | 'isDefault'> & { id?: number; isDefault?: boolean }) =>
     (b.id ? put<DeliveryFeePlan>(`/delivery-fee-plans/${b.id}`, b) : post<DeliveryFeePlan>('/delivery-fee-plans', b)),
   deleteDeliveryFeePlan: (id: number) => del(`/delivery-fee-plans/${id}`),
   deliveryTimeSlots: () => get<DeliveryTimeSlot[]>('/delivery-time-slots'),

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Checkbox, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, TimePicker, Tooltip } from 'antd'
+import { Button, Card, Checkbox, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, TimePicker, Tooltip } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
@@ -9,6 +9,7 @@ import { money } from '@/lib/format'
 import { VnAddressInput } from '@/components/VnAddressInput'
 import { vnAddressRule } from '@/lib/vnAddress'
 import { MoneyInput } from './MoneyInput'
+import { DeliveryWeatherCard } from './DeliveryWeatherCard'
 import { useAction } from './useCrud'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7].map((d) => ({ value: d, label: d === 7 ? 'CN' : `T${d + 1}` }))
@@ -36,8 +37,9 @@ export function DeliveryFeeSettings() {
     return i < 0 ? DEFAULT_COLOR : COLORS[i % COLORS.length]
   }
   return (
-    <div style={{ maxWidth: 960 }}>
+    <div>
       <ShopCard />
+      <DeliveryWeatherCard />
       <PlansCard plans={plans} slots={slots} colorOf={colorOf} />
       <SlotsCard plans={plans} slots={slots} colorOf={colorOf} />
     </div>
@@ -78,14 +80,14 @@ type Props = { plans: DeliveryFeePlan[]; slots: DeliveryTimeSlot[]; colorOf: (pl
 function PlansCard({ plans, slots, colorOf }: Props) {
   const [edit, setEdit] = useState<Partial<DeliveryFeePlan> | null>(null)
   const [view, setView] = useState<DeliveryFeePlan | null>(null)
-  const [form] = Form.useForm<{ name: string; tiers: DeliveryFeeTier[] }>()
+  const [form] = Form.useForm<{ name: string; isDefault: boolean; tiers: DeliveryFeeTier[] }>()
   const keys = [['delivery-fee-plans'], ['delivery-time-slots']]
   const save = useAction(coreApi.saveDeliveryFeePlan, keys, 'Đã lưu option')
   const remove = useAction(coreApi.deleteDeliveryFeePlan, keys, 'Đã xóa option')
   const open = (p: Partial<DeliveryFeePlan>) => {
     setEdit(p)
     form.resetFields()
-    form.setFieldsValue({ name: p.name ?? '', tiers: p.tiers?.length ? p.tiers : [{ fromKm: 0, toKm: 3, fee: 15000 }] })
+    form.setFieldsValue({ name: p.name ?? '', isDefault: p.isDefault ?? !plans.length, tiers: p.tiers?.length ? p.tiers : [{ fromKm: 0, toKm: 3, fee: 15000 }] })
   }
   const usedIn = (id: number) => slots.filter((s) => s.planId === id)
 
@@ -97,16 +99,18 @@ function PlansCard({ plans, slots, colorOf }: Props) {
           {
             title: 'Tên', render: (_, p) => <Space>
               <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: colorOf(p.isDefault ? undefined : p.id) }} />
-              <b>{p.name}</b>{p.isDefault && p.name !== 'Mặc định' && <Tag>Mặc định</Tag>}
+              <b>{p.name}</b>
             </Space>,
           },
           { title: 'Khoảng km', render: (_, p) => p.tiers.map((x) => <Tag key={x.fromKm}>{km(x.fromKm)}–{km(x.toKm)} km: {money(x.fee)}</Tag>) },
-          { title: 'Khung giờ', render: (_, p) => (p.isDefault ? 'Giờ còn lại' : usedIn(p.id).map((s) => `${hhmm(s.startTime)}–${hhmm(s.endTime)}`).join(', ') || '—') },
+          { title: 'Mặc định', width: 110, align: 'center', render: (_, p) => (p.isDefault ? <Tag color="green">Có</Tag> : <span className="a-muted">Không</span>) },
           {
             title: '', width: 170, render: (_, p) => <Space size={4}>
               <Button size="small" type="link" onClick={() => setView(p)}>Xem</Button>
               <Button size="small" onClick={() => open(p)}>Sửa</Button>
-              {!p.isDefault && (
+              {p.isDefault ? (
+                <Tooltip title="Không xóa được option mặc định"><Button size="small" danger icon={<DeleteOutlined />} disabled /></Tooltip>
+              ) : (
                 <Popconfirm title="Xóa option này?" onConfirm={() => remove.mutate(p.id)}>
                   <Button size="small" danger icon={<DeleteOutlined />} />
                 </Popconfirm>
@@ -118,7 +122,12 @@ function PlansCard({ plans, slots, colorOf }: Props) {
       <Modal open={!!edit} title={edit?.id ? 'Sửa option' : 'Thêm option'} onCancel={() => setEdit(null)} destroyOnHidden width={620}
         footer={<Button type="primary" loading={save.isPending} onClick={() => form.submit()}>Lưu</Button>}>
         <Form form={form} layout="vertical" onFinish={(v) => save.mutate({ ...v, id: edit?.id }, { onSuccess: () => setEdit(null) })}>
-          <Form.Item name="name" label="Tên option" rules={[{ required: true, message: 'Nhập tên' }]}><Input placeholder="Cao điểm" maxLength={60} /></Form.Item>
+          <div className="a-grid-2">
+            <Form.Item name="name" label="Tên option" rules={[{ required: true, message: 'Nhập tên' }]}><Input placeholder="Cao điểm" maxLength={60} /></Form.Item>
+            <Form.Item name="isDefault" label="Mặc định" valuePropName="checked">
+              <Switch disabled={!!edit?.isDefault} />
+            </Form.Item>
+          </div>
           <Form.List name="tiers">
             {(fields, { add, remove: drop }) => (
               <>
@@ -189,7 +198,6 @@ function SlotsCard({ plans, slots, colorOf }: Props) {
       extra={<Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => open({})} disabled={!choices.length}>Thêm khung giờ</Button>}>
       <DayBar slots={slots} open={shop?.openTime} close={shop?.closeTime} colorOf={colorOf} defaultName={defaultName} />
       <Table<DeliveryTimeSlot> rowKey="id" size="small" pagination={false} dataSource={slots}
-        locale={{ emptyText: 'Chưa có khung giờ — cả ngày dùng option mặc định' }}
         columns={[
           { title: 'Khung giờ', render: (_, s) => <b>{hhmm(s.startTime)}–{hhmm(s.endTime)}</b> },
           { title: 'Ngày', render: (_, s) => dayText(s.days) },
@@ -212,7 +220,7 @@ function SlotsCard({ plans, slots, colorOf }: Props) {
           <Form.Item name="range" label="Khung giờ" rules={[{ required: true, message: 'Chọn giờ' }]}>
             <TimePicker.RangePicker format="HH:mm" minuteStep={15} order={false} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="days" label="Ngày áp dụng" extra="Không chọn = mọi ngày"><Checkbox.Group options={DAYS} /></Form.Item>
+          <Form.Item name="days" label="Ngày áp dụng"><Checkbox.Group options={DAYS} /></Form.Item>
           <Form.Item name="planId" label="Option giá" rules={[{ required: true, message: 'Chọn option' }]}>
             <Select options={choices.map((p) => ({ value: p.id, label: p.name }))} />
           </Form.Item>
