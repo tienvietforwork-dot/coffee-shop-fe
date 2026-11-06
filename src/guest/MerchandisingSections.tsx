@@ -6,13 +6,13 @@ import { PlusOutlined, MinusOutlined, ShoppingCartOutlined } from '@ant-design/i
 import { merchandisingApi, sectionLabels, type Bundle, type Placement, type PlacementSection } from '@/api/merchandising'
 import { publicApi } from '@/api/public'
 import type { MenuCoffee } from '@/api/types'
-import { imageSrc, money } from '@/lib/format'
+import { DEFAULT_IMAGE, imageSrc, money } from '@/lib/format'
 import { CoffeeCard } from './CoffeeCard'
 import { AddToCartModal } from './AddToCartModal'
 import { useCart } from './useCart'
 
 const sections: PlacementSection[] = ['HOME', 'FEATURED', 'BEST_SELLER', 'NEW_ARRIVAL', 'RECOMMENDED']
-const fallback = 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80'
+const fallback = DEFAULT_IMAGE
 
 /** The merchandising display uses the same cards and product modal as the normal menu. */
 export function MerchandisingSections() {

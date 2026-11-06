@@ -239,6 +239,8 @@ export interface PriceQuote {
   /** thời tiết xấu và phụ phí đã cộng vào shippingFee */
   deliveryWeather?: string
   weatherSurcharge?: number
+  /** vì sao phí giao khác thường (khung giờ, thời tiết) — cài trong Giao hàng → Phí giao hàng */
+  deliveryNote?: string
 }
 
 export interface Payment {
@@ -439,10 +441,10 @@ export interface DeliveryFeeTier { fromKm: number; toKm: number; fee: number }
 /** cửa hàng: địa chỉ để đo km, giờ mở cửa "HH:mm[:ss]", miễn phí ship từ, đơn tối thiểu */
 export interface DeliverySettings {
   shopAddress: string; shopLat?: number; shopLng?: number; openTime?: string; closeTime?: string
-  freeShipThreshold?: number; minOrderAmount?: number; provider?: string
+  freeShipThreshold?: number; minOrderAmount?: number; minutesPerKm?: number; provider?: string
 }
 /** option giá giao hàng: tên + các khoảng km; option mặc định áp dụng mọi giờ không thuộc khung giờ nào */
-export interface DeliveryFeePlan { id: number; name: string; isDefault: boolean; tiers: DeliveryFeeTier[] }
+export interface DeliveryFeePlan { id: number; name: string; isDefault: boolean; note?: string; tiers: DeliveryFeeTier[]; maxKm?: number }
 /** khung giờ đặc biệt: giờ "HH:mm[:ss]", days 1 (T2) … 7 (CN) — rỗng = mọi ngày, dùng option planId */
 export interface DeliveryTimeSlot { id: number; startTime: string; endTime: string; days: number[]; planId: number; planName?: string }
 /** bậc phụ phí: mưa từ minRainMm mm/h → +surcharge */
@@ -450,7 +452,7 @@ export interface WeatherRainTier { minRainMm: number; surcharge: number }
 /** thời tiết 1 giờ tại quán (đầu danh sách = hiện tại): mã WMO, °C, mm/h, km/h, phụ phí, có ngưng giao không */
 export interface WeatherHour { time: string; code: number; description: string; temperature: number; rainMm: number; windKmh: number; surcharge: number; stopped: boolean }
 export interface DeliveryWeather {
-  enabled: boolean; rainTiers: WeatherRainTier[]; stopRainMm?: number; outlook?: WeatherHour[]
+  enabled: boolean; rainTiers: WeatherRainTier[]; stopRainMm?: number; note?: string; outlook?: WeatherHour[]
 }
 export interface ShipmentEvent { id: number; source: 'STAFF' | 'PARTNER' | 'SYSTEM'; status?: ShipmentStatus; note?: string; by?: string; at: string }
 

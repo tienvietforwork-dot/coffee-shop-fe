@@ -19,11 +19,18 @@ export const authApi = {
     d(apiClient.put<RoleInfo>(`/roles/${roleId}/permissions`, { permissionCodes })),
 }
 
-/** Logged-in customer: own profile, orders, vouchers, points. */
+/** Logged-in customer: own profile, orders, vouchers, points, saved addresses. */
 export const accountApi = {
   profile: () => d(apiClient.get<AccountInfo>('/account')),
   updateProfile: (b: { fullName?: string; email?: string }) => d(apiClient.put<AccountInfo>('/account', b)),
   orders: () => d(apiClient.get<Order[]>('/account/orders')),
   vouchers: () => d(apiClient.get<MyVoucher[]>('/account/vouchers')),
   points: () => d(apiClient.get<PointHistory[]>('/account/points')),
+  /** địa chỉ giao hàng đã lưu, mặc định trước */
+  addresses: () => d(apiClient.get<SavedAddress[]>('/account/addresses')),
+  saveAddress: (b: Omit<SavedAddress, 'id'> & { id?: number }) =>
+    d(b.id ? apiClient.put<SavedAddress>(`/account/addresses/${b.id}`, b) : apiClient.post<SavedAddress>('/account/addresses', b)),
+  deleteAddress: (id: number) => apiClient.delete(`/account/addresses/${id}`).then(() => undefined),
 }
+
+export interface SavedAddress { id: number; label?: string; recipientName: string; recipientPhone: string; address: string; isDefault: boolean }

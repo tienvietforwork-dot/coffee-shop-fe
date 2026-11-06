@@ -3,10 +3,10 @@ import { ArrowRightOutlined, CheckCircleFilled } from '@ant-design/icons'
 import { Modal } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { upsellApi, type UpsellRule } from '@/api/upsell'
-import { imageSrc, money } from '@/lib/format'
+import { DEFAULT_IMAGE, imageSrc, money } from '@/lib/format'
 import type { MenuCoffee } from '@/api/types'
 
-const fallbackImage = 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&q=80'
+const fallbackImage = DEFAULT_IMAGE
 
 /** Lets a guest compare a curated, higher-priced coffee before replacing their current choice. */
 export function UpsellSuggestions({anchor,cartTotal,onPick}:{anchor:MenuCoffee;cartTotal:number;onPick:(coffee:MenuCoffee)=>void}){

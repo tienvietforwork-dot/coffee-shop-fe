@@ -1,8 +1,8 @@
 import { PlusOutlined } from '@ant-design/icons'
 import type { MenuCoffee } from '@/api/types'
-import { imageSrc, money } from '@/lib/format'
+import { DEFAULT_IMAGE, imageSrc, money } from '@/lib/format'
 
-const FALLBACK = 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&q=80'
+const FALLBACK = DEFAULT_IMAGE
 
 /** `soldOut` = the coffee is not on sale right now; the "+" adds one cup straight away (onQuickAdd). */
 export function CoffeeCard({ coffee, soldOut = !coffee.available, onPick, onQuickAdd }: {

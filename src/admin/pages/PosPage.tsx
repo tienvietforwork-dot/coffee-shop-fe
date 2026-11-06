@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, App, Button, Card, Checkbox, Col, Empty, Form, Input, InputNumber, Row, Segmented, Select, Space, Tag } from 'antd'
 import { Link } from 'react-router-dom'
 import { P, usePerm } from '@/lib/perm'
-import { DeleteOutlined, SearchOutlined } from '@ant-design/icons'
+import { DeleteOutlined, ExclamationCircleFilled, SearchOutlined } from '@ant-design/icons'
 import { coreApi } from '@/api/core'
 import { publicApi } from '@/api/public'
 import { errorMessage } from '@/api/client'
 import type { OrderType, PaymentMethod } from '@/api/types'
-import { PAYMENT_METHOD, imageSrc, money, num, options } from '@/lib/format'
+import { PAYMENT_METHOD, money, num, options, photoSrc } from '@/lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { useDebounced } from '@/lib/useDebounced'
+import { useDeliveryArea } from '@/lib/useDeliveryArea'
 import { VnAddressInput } from '@/components/VnAddressInput'
 import { isCompleteVnAddress, vnAddressRule } from '@/lib/vnAddress'
 
@@ -36,7 +37,10 @@ export function PosPage() {
   const [form] = Form.useForm()
   const phone = Form.useWatch('customerPhone', form) as string | undefined
   // phí ship theo km: đo lại khi địa chỉ ngừng thay đổi
-  const typed = useDebounced((Form.useWatch('address', form) as string | undefined)?.trim() || undefined)
+  const rawAddress = Form.useWatch('address', form) as string | undefined
+  const typed = useDebounced(rawAddress?.trim() || undefined)
+  const area = useDeliveryArea(orderType === 'DELIVERY' ? rawAddress : undefined)
+  const { data: shipping } = useQuery({ queryKey: ['delivery-settings-public'], queryFn: publicApi.deliverySettings, staleTime: 5 * 60_000 })
   const address = isCompleteVnAddress(typed) ? typed : undefined
 
   const coffees = useMemo(() => (menu?.categories ?? [])
@@ -52,6 +56,13 @@ export function PosPage() {
     retry: false,
     enabled: lines.length > 0,
   })
+  // đơn giao tối thiểu: tiền hàng (sau giảm giá) chưa đạt thì khóa "Giao hàng"
+  const minDelivery = shipping?.minOrderAmount ?? undefined
+  const goods = quote.data ? quote.data.total - quote.data.shippingFee : lines.reduce((a, l) => a + l.price * l.quantity, 0)
+  const belowMin = !!minDelivery && goods < minDelivery
+  useEffect(() => {
+    if (belowMin && orderType === 'DELIVERY') setOrderType('TAKE_AWAY')
+  }, [belowMin, orderType])
 
   const lookup = useMutation({
     mutationFn: coreApi.lookupCustomer,
@@ -102,7 +113,7 @@ export function PosPage() {
             <div className="a-pos-grid">
               {coffees.map((c) => (
                 <button key={c.id} className="a-pos-item" disabled={!c.available} onClick={() => add(c.id, c.name, c.salePrice ?? c.price)}>
-                  {c.imageUrl && <img src={imageSrc(c.imageUrl)} alt="" />}
+                  <img src={photoSrc(c.imageUrl)} alt="" />
                   <b>{c.name}</b>
                   <span>{money(c.salePrice ?? c.price)}{c.salePrice != null && <s> {money(c.price)}</s>}</span>
                   {!c.available && <Tag>Hết</Tag>}
@@ -127,7 +138,8 @@ export function PosPage() {
 
             <Form form={form} layout="vertical" size="small" style={{ marginTop: 12 }}>
               <Segmented block value={orderType} onChange={(v) => setOrderType(v as OrderType)}
-                options={[{ value: 'TAKE_AWAY', label: 'Mang về' }, { value: 'DINE_IN', label: 'Tại bàn' }, { value: 'DELIVERY', label: 'Giao hàng' }]} />
+                options={[{ value: 'TAKE_AWAY', label: 'Mang về' }, { value: 'DINE_IN', label: 'Tại bàn' }, { value: 'DELIVERY', label: 'Giao hàng', disabled: belowMin }]} />
+              {belowMin && <div className="a-muted small" style={{ marginTop: 4 }}>Giao hàng cho đơn từ {money(minDelivery!)}</div>}
               {orderType === 'DINE_IN' && (
                 <Select style={{ width: '100%', marginTop: 8 }} placeholder="Chọn bàn" value={tableId} onChange={setTableId}
                   options={tables.filter((t) => t.status !== 'INACTIVE').map((t) => ({ value: t.id, label: `Bàn ${t.tableNo} · ${t.area ?? ''} ${t.status === 'OCCUPIED' ? '(có khách)' : ''}` }))} />
@@ -141,8 +153,10 @@ export function PosPage() {
                 <Col span={12}><Form.Item name="customerName" label="Tên khách"><Input /></Form.Item></Col>
               </Row>
               {orderType === 'DELIVERY' && <>
+                {shipping?.shopAddress && <div className="a-muted small" style={{ marginBottom: 6 }}>Quán: {shipping.shopAddress}</div>}
                 <Form.Item name="address" label="Địa chỉ giao" rules={[vnAddressRule('nơi nhận')]}
-                  extra={quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span>
+                  extra={area?.outside ? <span style={{ color: '#cf1322' }}>Ngoài khu vực giao hàng (quán giao tối đa {area.maxKm} km)</span>
+                    : quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span>
                     : q?.deliveryDistanceKm != null ? `${num(q.deliveryDistanceKm)} km${q.deliveryOption ? ` · ${q.deliveryOption}` : ''}` : undefined}>
                   <VnAddressInput />
                 </Form.Item>
@@ -162,9 +176,10 @@ export function PosPage() {
               {q?.voucherMessage && <div className="a-line a-red"><span>{q.voucherMessage}</span></div>}
               {!!q?.shippingFee && <div className="a-line"><span>Phí giao</span><span>{money(q.shippingFee - (q.weatherSurcharge ?? 0))}</span></div>}
               {!!q?.weatherSurcharge && <div className="a-line"><span>Phụ phí thời tiết ({q.deliveryWeather})</span><span>{money(q.weatherSurcharge)}</span></div>}
+              {q?.deliveryNote && <div className="small" style={{ color: '#d46b08' }}><ExclamationCircleFilled /> {q.deliveryNote}</div>}
               <div className="a-line a-big"><span>Tổng</span><span>{money(q?.total ?? 0)}</span></div>
             </div>
-            <Button type="primary" size="large" block disabled={!lines.length || !!q?.voucherMessage || (orderType === 'DINE_IN' && !tableId)} loading={create.isPending} onClick={submit}>
+            <Button type="primary" size="large" block disabled={!lines.length || !!q?.voucherMessage || (orderType === 'DINE_IN' && !tableId) || (orderType === 'DELIVERY' && !!area?.outside)} loading={create.isPending} onClick={submit}>
               Tạo đơn
             </Button>
           </Card>

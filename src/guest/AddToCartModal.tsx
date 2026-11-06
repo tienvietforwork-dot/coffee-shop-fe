@@ -3,7 +3,7 @@ import { message } from 'antd'
 import { Modal } from 'antd'
 import { ArrowLeftOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import type { MenuCoffee } from '@/api/types'
-import { imageSrc, money } from '@/lib/format'
+import { money, photoSrc } from '@/lib/format'
 import { useCart } from './useCart'
 import { flyToCart } from '@/lib/flyToCart'
 import { CrossSellSuggestions } from './CrossSellSuggestions'
@@ -12,12 +12,9 @@ import { UpsellSuggestions } from './UpsellSuggestions'
 import { recommendationApi } from '@/api/recommendation'
 import type { SuggestionTracking } from './suggestionTracking'
 
-const QUICK_NOTES = ['Ít đá', 'Không đá', 'Ít đường', 'Không đường', 'Nóng']
-
 /** The backend validates availability and final pricing when the guest adds a coffee. */
 export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null; onClose: () => void }) {
   const [qty, setQty] = useState(1)
-  const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [related, setRelated] = useState<MenuCoffee | null>(null)
   const [relatedTracking, setRelatedTracking] = useState<SuggestionTracking | null>(null)
@@ -25,7 +22,7 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
   const { add, cart } = useCart()
 
   useEffect(() => {
-    if (coffee) {setQty(1);setNote('');setRelated(null);setRelatedTracking(null);setUpgrade(null)}
+    if (coffee) {setQty(1);setRelated(null);setRelatedTracking(null);setUpgrade(null)}
   }, [coffee])
 
   if (!coffee) return null
@@ -43,8 +40,8 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
     }
     setSubmitting(true)
     try {
-      await add.mutateAsync({ coffeeId: chosen.id, quantity: qty, note: note.trim() || undefined })
-      flyToCart(document.querySelector('.g-modal-img'), imageSrc(chosen.imageUrl ?? coffee.imageUrl))
+      await add.mutateAsync({ coffeeId: chosen.id, quantity: qty })
+      flyToCart(document.querySelector('.g-modal-img'), photoSrc(chosen.imageUrl ?? coffee.imageUrl))
       onClose()
     } catch {
       // useCart.onError shows the backend error; keep the dialog for adjustment/retry.
@@ -55,7 +52,7 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
 
   return (
     <Modal open onCancel={onClose} footer={null} width={460} className="g-modal" centered destroyOnHidden>
-      {heroImage && <img key={chosen.id} className="g-modal-img" src={imageSrc(heroImage)} alt={chosen.name} />}
+      <img key={chosen.id} className="g-modal-img" src={photoSrc(heroImage)} alt={chosen.name} />
       <div className="g-modal-body">
         <h3>{chosen.name}</h3>
         {chosen.description && <p className="g-muted">{chosen.description}</p>}
@@ -63,16 +60,6 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
           <div className="g-upgrade-selected-copy"><span className="g-upgrade-check">✓</span><span><small>ĐÃ CHỌN NÂNG CẤP</small><strong>{upgrade.name}</strong></span><b>{money(unit)}</b></div>
           <button type="button" className="g-upgrade-reset" onClick={()=>setUpgrade(null)}><ArrowLeftOutlined /> Quay về {coffee.name}</button>
         </div>}
-        <div className="g-note-picker">
-          <label htmlFor="coffee-order-note">Ghi chú pha chế (tùy chọn)</label>
-          <div className="g-note-presets">
-            {QUICK_NOTES.map((quick) => (
-              <button key={quick} type="button" onClick={() => setNote(quick)}>{quick}</button>
-            ))}
-          </div>
-          <textarea id="coffee-order-note" value={note} onChange={(event) => setNote(event.target.value)}
-            maxLength={255} rows={2} placeholder="Ví dụ: ít đá, không đường..." />
-        </div>
         <div className="g-modal-foot">
           <div className="g-stepper">
             <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Giảm"><MinusOutlined /></button>

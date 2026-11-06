@@ -95,6 +95,11 @@ export function useCart() {
     if (ctx?.prev) qc.setQueryData(['cart', cartCode], ctx.prev)
     message.error(errorMessage(e))
   }
+  // the optimistic cart already re-ran the price quote before the server saved the change: quote again once it has
+  const savedAndRequote = (cart: Cart) => {
+    setData(cart)
+    qc.invalidateQueries({ queryKey: ['quote'] })
+  }
   const withItems = (c: Cart, items: Cart['items']) =>
     ({ ...c, items, subtotal: items.reduce((s, i) => s + i.subtotal, 0) + (c.bundles ?? []).reduce((s,b)=>s+b.total,0) })
 
@@ -103,13 +108,13 @@ export function useCart() {
       publicApi.updateItem(cartCode!, v.itemId, { quantity: v.quantity, note: v.note }),
     onMutate: (v) => patchCart((c) => withItems(c, c.items.map((i) =>
       i.id === v.itemId ? { ...i, quantity: v.quantity, note: v.note ?? i.note, subtotal: i.unitPrice * v.quantity } : i))),
-    onSuccess: setData,
+    onSuccess: savedAndRequote,
     onError: rollback,
   })
   const remove = useMutation({
     mutationFn: (itemId: number) => publicApi.removeItem(cartCode!, itemId),
     onMutate: (itemId) => patchCart((c) => withItems(c, c.items.filter((i) => i.id !== itemId))),
-    onSuccess: setData,
+    onSuccess: savedAndRequote,
     onError: rollback,
   })
 

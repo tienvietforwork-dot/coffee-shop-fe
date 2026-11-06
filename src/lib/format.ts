@@ -67,3 +67,8 @@ const API_ORIGIN = String(import.meta.env.VITE_API_URL ?? '').replace(/\/api\/?$
 /** Uploaded images are stored as API-relative paths (/api/public/images/12); external links pass through. */
 export const imageSrc = (v?: string | null) => (v?.startsWith('/api/') ? API_ORIGIN + v : v || undefined)
 
+/** ảnh mặc định cho món không có ảnh hoặc ảnh lỗi (ảnh lỗi được đổi tự động trong main.tsx) */
+export const DEFAULT_IMAGE = '/images/coffee-default.svg'
+/** ảnh món để hiển thị: ảnh của món, không có thì ảnh mặc định */
+export const photoSrc = (v?: string | null) => imageSrc(v) ?? DEFAULT_IMAGE
+

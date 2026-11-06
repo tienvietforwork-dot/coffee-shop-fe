@@ -52,11 +52,11 @@ export function VnAddressInput({ value, onChange }: { value?: string; onChange?:
         <Select showSearch allowClear placeholder="Tỉnh / Thành phố" value={addr.province} loading={!units.length}
           filterOption={(input, o) => unitKey(String(o?.label ?? '')).includes(unitKey(input))}
           options={units.map((p) => ({ value: p.n, label: p.n }))}
-          onChange={(v?: string) => update({ province: v, ward: undefined })} />
+          onChange={(v?: string) => { if (v !== addr.province) update({ province: v, ward: undefined, street: '' }) }} />
         <Select showSearch allowClear placeholder="Phường / Xã" value={addr.ward} disabled={!province}
           filterOption={(input, o) => unitKey(String(o?.label ?? '')).includes(unitKey(input))}
           options={(province?.w ?? []).map(([, n]) => ({ value: n, label: n }))}
-          onChange={(v?: string) => update({ ward: v })} />
+          onChange={(v?: string) => { if (v !== addr.ward) update({ ward: v, street: '' }) }} />
       </div>
       <AutoComplete value={addr.street} style={{ width: '100%' }}
         options={hints.map((h) => ({ value: streetOf(h), label: <><EnvironmentOutlined style={{ color: '#8c8c8c', marginRight: 6 }} />{h}</> }))

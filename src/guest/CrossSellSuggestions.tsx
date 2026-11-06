@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { crossSellApi } from '@/api/crossSell'
-import { imageSrc, money } from '@/lib/format'
+import { DEFAULT_IMAGE, imageSrc, money } from '@/lib/format'
 import type { MenuCoffee } from '@/api/types'
 import type { SuggestionTracking } from './suggestionTracking'
 
-const fallback = 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&q=80'
+const fallback = DEFAULT_IMAGE
 /** Suggested companions to the coffee currently being viewed; no unapproved rules displayed. */
 export function CrossSellSuggestions({anchor,cartTotal,onPick}:{anchor:MenuCoffee;cartTotal:number;onPick:(coffee:MenuCoffee, tracking:SuggestionTracking)=>void}) {
   const {data=[]}=useQuery({queryKey:['cross-sell',anchor.id,cartTotal],queryFn:()=>crossSellApi.recommendations(anchor.id,cartTotal),retry:1})

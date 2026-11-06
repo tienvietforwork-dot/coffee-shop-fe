@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Form, InputNumber, Space, Switch, Tag, Tooltip } from 'antd'
+import { Button, Card, Form, Input, InputNumber, Space, Switch, Tag, Tooltip } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { coreApi } from '@/api/core'
 import type { DeliveryWeather, WeatherHour } from '@/api/types'
@@ -61,7 +61,7 @@ export function DeliveryWeatherCard() {
       ) : <div className="a-muted" style={{ marginBottom: 16 }}>Không lấy được thời tiết</div>}
 
       <Form form={form} layout="vertical" initialValues={data}
-        onFinish={(v) => save.mutate({ enabled: v.enabled, rainTiers: v.rainTiers ?? [], stopRainMm: v.stopRainMm })}>
+        onFinish={(v) => save.mutate({ enabled: v.enabled, rainTiers: v.rainTiers ?? [], stopRainMm: v.stopRainMm, note: v.note })}>
         <Form.Item name="enabled" label="Phụ phí thời tiết xấu" valuePropName="checked"><Switch /></Form.Item>
         <Form.Item label="Phụ phí theo lượng mưa">
           <Form.List name="rainTiers">
@@ -85,6 +85,9 @@ export function DeliveryWeatherCard() {
         </Form.Item>
         <Form.Item name="stopRainMm" label="Ngưng giao khi mưa từ">
           <InputNumber min={0.1} step={1} addonAfter="mm/h" style={{ width: 210 }} />
+        </Form.Item>
+        <Form.Item name="note" label="Ghi chú cho khách">
+          <Input maxLength={255} placeholder="Phụ phí do thời tiết xấu" />
         </Form.Item>
         <Button type="primary" htmlType="submit" loading={save.isPending}>Lưu</Button>
       </Form>
