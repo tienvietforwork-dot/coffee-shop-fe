@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Table, Tag, Tooltip } from 'antd'
+import { Alert, Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Tooltip } from 'antd'
+import { useSearchParams } from 'react-router-dom'
 import { PrinterOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
@@ -10,6 +11,8 @@ import { printInvoice } from '@/lib/print'
 import { PageHeader } from '../components/PageHeader'
 import { useAction } from '../components/useCrud'
 import { InvoiceBuyerFields } from '../components/InvoiceBuyerForm'
+import { InvoiceSettingsForm } from '../components/InvoiceSettingsForm'
+import { P, usePerm } from '@/lib/perm'
 
 const STATUS: Record<Invoice['status'], { text: string; color: string }> = {
   PENDING: { text: 'Chờ phát hành', color: 'gold' }, ISSUED: { text: 'Đã phát hành', color: 'green' },
@@ -44,6 +47,9 @@ export function InvoicesPage() {
   const replace = useAction((v: { id: number; b: InvoiceBuyer; reason: string }) => coreApi.replaceInvoice(v.id, v.b, v.reason), keys, 'Đã lập hóa đơn thay thế')
   const retry = useAction(coreApi.retryInvoice, keys, 'Đã đưa lại vào hàng đợi')
   const failed = data.filter((i) => i.status === 'FAILED').length
+  const { can } = usePerm()
+  const [tabParams, setTabParams] = useSearchParams()
+  const tab = tabParams.get('tab') === 'settings' ? 'settings' : 'list'
 
   return (
     <>
@@ -51,6 +57,8 @@ export function InvoicesPage() {
         extra={<Space>
           <Button onClick={() => { setBuyerFor({}); form.resetFields() }}>Xuất hóa đơn công ty theo mã đơn</Button>
         </Space>} />
+      <Tabs activeKey={tab} onChange={(k) => setTabParams(k === 'settings' ? { tab: 'settings' } : {}, { replace: true })}
+        items={[{ key: 'list', label: 'Danh sách hóa đơn', children: <>
       {failed > 0 && <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`${failed} hóa đơn phát hành lỗi — xem lỗi và gửi lại`} />}
       <Space wrap style={{ marginBottom: 12 }}>
         <DatePicker.RangePicker value={range} onChange={(v) => v && setRange([v[0]!, v[1]!])} format="DD/MM/YYYY" allowClear={false} />
@@ -70,6 +78,8 @@ export function InvoicesPage() {
           { title: 'Trạng thái', render: (_, i) => <><Tag color={STATUS[i.status].color}>{STATUS[i.status].text}</Tag>{i.lastError && <div className="small a-limit">{i.lastError}</div>}</> },
           { title: '', width: 56, render: (_, i) => <PrintButton invoice={i} compact /> },
         ]} />
+        </> },
+        { key: 'settings', label: 'Thiết lập hóa đơn', children: <InvoiceSettingsForm readOnly={!can(P.INVOICES)} /> }]} />
 
       <Drawer open={!!view} width={760} onClose={() => setView(null)} title={view && `Hóa đơn ${view.series} · ${view.invoiceNo ?? 'chờ cấp số'}`}
         extra={view && <Tag color={STATUS[view.status].color}>{STATUS[view.status].text}</Tag>}>

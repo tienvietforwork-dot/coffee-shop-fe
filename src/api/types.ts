@@ -450,7 +450,7 @@ export interface WeatherRainTier { minRainMm: number; surcharge: number }
 /** thời tiết 1 giờ tại quán (đầu danh sách = hiện tại): mã WMO, °C, mm/h, km/h, phụ phí, có ngưng giao không */
 export interface WeatherHour { time: string; code: number; description: string; temperature: number; rainMm: number; windKmh: number; surcharge: number; stopped: boolean }
 export interface DeliveryWeather {
-  enabled: boolean; rainTiers: WeatherRainTier[]; stormSurcharge?: number; stopRainMm?: number; stopStorm: boolean; outlook?: WeatherHour[]
+  enabled: boolean; rainTiers: WeatherRainTier[]; stopRainMm?: number; outlook?: WeatherHour[]
 }
 export interface ShipmentEvent { id: number; source: 'STAFF' | 'PARTNER' | 'SYSTEM'; status?: ShipmentStatus; note?: string; by?: string; at: string }
 
@@ -465,6 +465,12 @@ export interface Invoice {
   amountBeforeTax: number; vatRate?: number; vatAmount: number; totalAmount: number; paymentMethod?: string; reason?: string
   attempts: number; lastError?: string; issuedAt?: string; createdAt: string
   lines: { lineNo: number; name: string; unit: string; quantity: number; unitPrice: number; amount: number }[]
+}
+export interface InvoiceSettings {
+  sellerName: string; sellerTaxCode: string; sellerAddress?: string; vatRate?: number
+  seriesSuffix: string; taxOfficeCode?: string; lookupUrl?: string
+  // chỉ đọc: địa chỉ quán (dùng khi để trống địa chỉ), ký hiệu năm nay, số cuối đã cấp, chế độ nhà cung cấp
+  shopAddress?: string; templateCode?: string; series?: string; lastNo?: string; simulated?: boolean
 }
 export interface InvoiceBuyer {
   buyerName?: string; buyerCompany?: string; buyerTaxCode?: string; buyerAddress?: string; buyerEmail?: string; buyerPhone?: string; buyerIdNumber?: string

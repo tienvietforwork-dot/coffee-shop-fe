@@ -5,7 +5,7 @@ import type {
   Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
   Staff, TableStatus, User, WorkStatus,
   CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliverySettings, DeliveryFeePlan, DeliveryTimeSlot, DeliveryWeather, ShipmentEvent,
-  Invoice, InvoiceBuyer, NotificationTemplate, NotificationMessage,
+  Invoice, InvoiceBuyer, InvoiceSettings, NotificationTemplate, NotificationMessage,
 } from './types'
 
 const get = <T,>(url: string, params?: object) => apiClient.get<T>(url, { params }).then((r) => r.data)
@@ -184,6 +184,8 @@ export const coreApi = {
   setInvoiceBuyer: (orderCode: string, b: InvoiceBuyer) => post<Invoice>(`/invoices/order/${orderCode}/buyer`, b),
   replaceInvoice: (id: number, buyer: InvoiceBuyer, reason: string) => post<Invoice>(`/invoices/${id}/replace`, { buyer, reason }),
   retryInvoice: (id: number) => post<Invoice>(`/invoices/${id}/retry`),
+  invoiceSettings: () => get<InvoiceSettings>('/invoice-settings'),
+  saveInvoiceSettings: (b: InvoiceSettings) => put<InvoiceSettings>('/invoice-settings', b),
 
   notificationTemplates: () => get<NotificationTemplate[]>('/notifications/templates'),
   updateNotificationTemplate: (code: string, b: Partial<Omit<NotificationTemplate, 'code' | 'name'>>) =>
