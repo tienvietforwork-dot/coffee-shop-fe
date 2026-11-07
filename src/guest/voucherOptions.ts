@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 /** A voucher the guest can pick (one per order). */
 export interface VoucherOption { code: string; discountValue: number; minOrderValue: number; expiresAt?: string }
 /** An order promotion: applied by the shop automatically when the order qualifies. */
-export interface PromotionOption { id: number; name: string; description?: string; discountPercent?: number; minOrderAmount?: number; endDate: string }
+export interface PromotionOption { id: number; name: string; description?: string; discountType?: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'SPECIAL'; discountPercent?: number; minOrderAmount?: number; endDate: string }
 
 /**
  * Where the picker's lists come from. app-promotions can swap this for its own endpoint;
@@ -32,7 +32,9 @@ export function estimateDiscounts(subtotal: number, promotions: PromotionOption[
   let promotion: { name: string; discount: number } | undefined
   for (const p of promotions) {
     if (!p.discountPercent || (p.minOrderAmount ?? 0) > subtotal) continue
-    const discount = Math.round((subtotal * p.discountPercent) / 100)
+    const discount = p.discountType === 'FIXED_AMOUNT'
+      ? Math.min(subtotal, p.discountPercent)
+      : Math.round((subtotal * p.discountPercent) / 100)
     if (!promotion || discount > promotion.discount) promotion = { name: p.name, discount }
   }
   const afterPromotion = subtotal - (promotion?.discount ?? 0)
