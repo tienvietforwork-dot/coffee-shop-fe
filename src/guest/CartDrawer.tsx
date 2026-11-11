@@ -7,13 +7,11 @@ import { VoucherPicker } from './VoucherPicker'
 import { estimateDiscounts, useVoucherOptions } from './voucherOptions'
 import { useDebounced } from '@/lib/useDebounced'
 import { useCart } from './useCart'
-import { useAddableCups } from '@/lib/stock'
-import { imageSrc, money } from '@/lib/format'
+import { money, photoSrc } from '@/lib/format'
 import { useGuestStore } from '@/store/guestStore'
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { cart, lines, update, remove, removeBundle } = useCart()
-  const addable = useAddableCups(lines)
+  const { cart, update, remove, removeBundle } = useCart()
   const { tableNo, tableQr, voucherCode, setVoucher } = useGuestStore()
   const navigate = useNavigate()
   const items = cart?.items ?? []
@@ -80,11 +78,10 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           {bundles.map(b=><li key={`bundle-${b.id}`}><div className="g-cart-info"><strong>🎁 {b.name}</strong><span>{b.quantity} combo · {money(b.unitPrice)}/combo</span><div className="g-cart-row"><span>Giá combo</span><strong>{money(b.total)}</strong></div></div><button className="g-icon-btn" onClick={()=>removeBundle.mutate(b.id)} aria-label="Xóa combo"><DeleteOutlined /></button></li>)}
           {items.map((i) => (
             <li key={i.id} className={i.available ? '' : 'is-out'}>
-              {i.imageUrl && <img src={imageSrc(i.imageUrl)} alt="" />}
+              <img src={photoSrc(i.imageUrl)} alt="" />
               <div className="g-cart-info">
                 <strong>{i.coffeeName}</strong>
                 {i.note && <span className="g-cart-note">Ghi chú: {i.note}</span>}
-                {i.options?.map(o=><span key={o.id}>+ {o.name} ({money(o.extraPrice)})</span>)}
                 {!i.available && <span className="g-out-text">Món này vừa hết</span>}
                 <div className="g-cart-row">
                   <div className="g-stepper g-stepper-sm">
@@ -95,7 +92,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                       <MinusOutlined />
                     </button>
                     <span>{i.quantity}</span>
-                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} disabled={addable(i.coffeeId) < 1} aria-label="Tăng">
+                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} disabled={i.quantity >= 99} aria-label="Tăng">
                       <PlusOutlined />
                     </button>
                   </div>

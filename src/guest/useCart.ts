@@ -6,14 +6,14 @@ import { errorMessage } from '@/api/client'
 import { useGuestStore } from '@/store/guestStore'
 import type { Cart } from '@/api/types'
 
-type AddVars = { coffeeId: number; quantity: number; note?: string; optionIds?: number[] }
+type AddVars = { coffeeId: number; quantity: number; note?: string }
 const ADD_KEY = ['cart-add']
 let creating: Promise<string> | null = null
 let overlapped = false
 
 /**
  * Server-backed guest cart. The cart is created lazily on the first "add".
- * Feels instant: adds still on their way to the server already count (badge, stock caps),
+ * Feels instant: adds still on their way to the server already count (badge),
  * and +/−/remove change the cached cart first and roll back if the server refuses.
  */
 export function useCart() {
@@ -95,6 +95,13 @@ export function useCart() {
     if (ctx?.prev) qc.setQueryData(['cart', cartCode], ctx.prev)
     message.error(errorMessage(e))
   }
+  // the optimistic cart already re-ran the price quote before the server saved the change: quote again once it has.
+  // That quote may still be in flight (a fresh key has no data, so invalidate alone would just reuse it): cancel it first.
+  const savedAndRequote = async (cart: Cart) => {
+    setData(cart)
+    await qc.cancelQueries({ queryKey: ['quote'] })
+    qc.invalidateQueries({ queryKey: ['quote'] })
+  }
   const withItems = (c: Cart, items: Cart['items']) =>
     ({ ...c, items, subtotal: items.reduce((s, i) => s + i.subtotal, 0) + (c.bundles ?? []).reduce((s,b)=>s+b.total,0) })
 
@@ -103,13 +110,13 @@ export function useCart() {
       publicApi.updateItem(cartCode!, v.itemId, { quantity: v.quantity, note: v.note }),
     onMutate: (v) => patchCart((c) => withItems(c, c.items.map((i) =>
       i.id === v.itemId ? { ...i, quantity: v.quantity, note: v.note ?? i.note, subtotal: i.unitPrice * v.quantity } : i))),
-    onSuccess: setData,
+    onSuccess: savedAndRequote,
     onError: rollback,
   })
   const remove = useMutation({
     mutationFn: (itemId: number) => publicApi.removeItem(cartCode!, itemId),
     onMutate: (itemId) => patchCart((c) => withItems(c, c.items.filter((i) => i.id !== itemId))),
-    onSuccess: setData,
+    onSuccess: savedAndRequote,
     onError: rollback,
   })
 

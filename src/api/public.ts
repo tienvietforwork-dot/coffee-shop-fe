@@ -9,8 +9,7 @@ export const publicApi = {
 
   createCart: (tableQr?: string) => apiClient.post<Cart>('/public/carts', { tableQr }).then((r) => r.data),
   cart: (code: string) => apiClient.get<Cart>(`/public/carts/${code}`).then((r) => r.data),
-  upsellOptions: (coffeeId: number) => apiClient.get<Array<{id:number; coffeeId:number; kind:"SIZE"|"TOPPING"|"PREMIUM";name:string;extraPrice:number}>>(`/public/upsell-options/${coffeeId}`).then(r=>r.data),
-  addItem: (code: string, body: { coffeeId: number; quantity: number; note?: string; optionIds?: number[] }) =>
+  addItem: (code: string, body: { coffeeId: number; quantity: number; note?: string }) =>
     apiClient.post<Cart>(`/public/carts/${code}/items`, body).then((r) => r.data),
   updateItem: (code: string, itemId: number, body: { quantity: number; note?: string }) =>
     apiClient.put<Cart>(`/public/carts/${code}/items/${itemId}`, body).then((r) => r.data),
@@ -21,7 +20,7 @@ export const publicApi = {
   removeBundle: (code: string, lineId: number) =>
     apiClient.delete<Cart>(`/public/carts/${code}/bundles/${lineId}`).then(r=>r.data),
   recommended: () => apiClient.get<number[]>('/public/recommendations').then(r=>r.data),
-  quote: (code: string, body: { orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryDistrict?: string | null }) =>
+  quote: (code: string, body: { orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryAddress?: string | null; deliveryTime?: string }) =>
     apiClient.post<PriceQuote>(`/public/carts/${code}/quote`, body).then((r) => r.data),
 
   checkout: (body: {
@@ -29,6 +28,8 @@ export const publicApi = {
     orderType: OrderType
     customerName?: string
     customerPhone?: string
+    /** địa chỉ trong sổ địa chỉ của khách đăng nhập */
+    addressId?: number
     delivery?: DeliveryAddress
     pickupTime?: string
     paymentMethod: PaymentMethod
@@ -40,8 +41,14 @@ export const publicApi = {
   cancelOrder: (code: string, reason: string) =>
     apiClient.post<Order>(`/public/orders/${code}/cancel`, { reason }).then((r) => r.data),
 
-  // Delivery zones: verify route/response contract with current app-core team.
-  deliveryZones: () => apiClient.get<Array<{ name: string; districts: string[]; fee: number; freeShipThreshold?: number | null; minOrderAmount?: number | null }>>('/public/delivery-zones').then((r) => r.data),
+  // giao hàng (quán tự giao): giờ mở cửa, miễn phí từ, đơn tối thiểu, các tỉnh giao được
+  deliverySettings: () => apiClient.get<{ shopAddress: string; provinces?: string[]; openTime?: string; closeTime?: string; freeShipThreshold?: number | null; minOrderAmount?: number | null; speedKmh?: number | null }>('/public/delivery-settings').then((r) => r.data),
+  // phường đã chọn có giao được không, phí bao nhiêu (message: vì sao không giao)
+  deliveryArea: (ward: string, province?: string) =>
+    apiClient.get<{ outside: boolean; fee?: number; zone?: string; message?: string }>('/public/delivery-area', { params: { ward, province } }).then((r) => r.data),
+  // gợi ý địa chỉ khi gõ (Google / Goong / OpenStreetMap tuỳ cấu hình app-core)
+  addressSuggest: (q: string, area?: { ward?: string; province?: string }) =>
+    apiClient.get<string[]>('/public/address-suggest', { params: { q, ...area } }).then((r) => r.data),
 
   // Invoice endpoints are not present in the BE snapshot supplied on 27/10.
   invoices: (code: string) => apiClient.get<Array<Record<string, any>>>(`/public/orders/${encodeURIComponent(code)}/invoices`).then((r) => r.data),

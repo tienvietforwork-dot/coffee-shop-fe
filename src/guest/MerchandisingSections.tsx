@@ -6,14 +6,13 @@ import { PlusOutlined, MinusOutlined, ShoppingCartOutlined } from '@ant-design/i
 import { merchandisingApi, sectionLabels, type Bundle, type Placement, type PlacementSection } from '@/api/merchandising'
 import { publicApi } from '@/api/public'
 import type { MenuCoffee } from '@/api/types'
-import { imageSrc, money } from '@/lib/format'
+import { DEFAULT_IMAGE, imageSrc, money } from '@/lib/format'
 import { CoffeeCard } from './CoffeeCard'
 import { AddToCartModal } from './AddToCartModal'
 import { useCart } from './useCart'
-import { useAddableCups } from '@/lib/stock'
 
 const sections: PlacementSection[] = ['HOME', 'FEATURED', 'BEST_SELLER', 'NEW_ARRIVAL', 'RECOMMENDED']
-const fallback = 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80'
+const fallback = DEFAULT_IMAGE
 
 /** The merchandising display uses the same cards and product modal as the normal menu. */
 export function MerchandisingSections() {
@@ -22,7 +21,6 @@ export function MerchandisingSections() {
   const [quantity, setQuantity] = useState(1)
   const [selectedOptions, setSelectedOptions] = useState<number[]>([])
   const { lines, addBundle } = useCart()
-  const addable = useAddableCups(lines)
   const menu = useQuery({ queryKey: ['menu'], queryFn: publicApi.menu })
   const placements = useQuery({ queryKey: ['merch-public-placements'], queryFn: merchandisingApi.publicPlacements, retry: 1 })
   const scheduled = useQuery({queryKey:['merch-public-schedules'],queryFn:merchandisingScheduleApi.publicNow,refetchInterval:60_000})
@@ -35,7 +33,7 @@ export function MerchandisingSections() {
   }
   if (!placements.data?.length && !bundles.data?.length && !personalized.data?.length && !scheduled.data?.length) return null
   return <section className="g-container merch-home" aria-label="Sản phẩm tuyển chọn và combo">
-    {!!scheduled.data?.length && <section className="merch-section"><div className="merch-section-title"><div><h2>Theo lịch hôm nay</h2></div><span className="merch-count">Lựa chọn theo thời điểm</span></div><div className="g-grid">{scheduled.data.map(row=>{const c=coffees.get(row.coffeeId);return c?<div key={row.id} className="merch-item"><CoffeeCard coffee={c} soldOut={!c.available||addable(c.id)<1} onPick={()=>setPicked(c)} onQuickAdd={()=>setPicked(c)}/><span className="merch-item-caption">{row.name}</span></div>:null})}</div></section>}
+    {!!scheduled.data?.length && <section className="merch-section"><div className="merch-section-title"><div><h2>Theo lịch hôm nay</h2></div><span className="merch-count">Lựa chọn theo thời điểm</span></div><div className="g-grid">{scheduled.data.map(row=>{const c=coffees.get(row.coffeeId);return c?<div key={row.id} className="merch-item"><CoffeeCard coffee={c} soldOut={!c.available} onPick={()=>setPicked(c)} onQuickAdd={()=>setPicked(c)}/><span className="merch-item-caption">{row.name}</span></div>:null})}</div></section>}
     {sections.map(section => {
       const rows = (placements.data ?? []).filter(p => p.section === section && p.visibleNow)
       if (!rows.length) return null
@@ -45,14 +43,14 @@ export function MerchandisingSections() {
           {rows.map(row => {
             const coffee = coffees.get(row.coffee.id)
             if (!coffee) return <article className="g-card" key={row.id}><div className="g-card-img"><img src={imageSrc(row.coffee.imageUrl) || fallback} alt={row.coffee.name} /></div><div className="g-card-body"><h3>{row.coffee.name}</h3><p>Đang cập nhật thông tin sản phẩm</p></div></article>
-            return <div key={row.id} className="merch-item"><CoffeeCard coffee={coffee} soldOut={!coffee.available || addable(coffee.id) < 1} onPick={() => openProduct(row)} onQuickAdd={() => openProduct(row)} />{row.title && <span className="merch-item-caption">{row.title}</span>}</div>
+            return <div key={row.id} className="merch-item"><CoffeeCard coffee={coffee} soldOut={!coffee.available} onPick={() => openProduct(row)} onQuickAdd={() => openProduct(row)} />{row.title && <span className="merch-item-caption">{row.title}</span>}</div>
           })}
         </div>
       </section>
     })}
     {!!personalized.data?.length && <section className="merch-section">
       <div className="merch-section-title"><div><span className="merch-eyebrow">  </span><h2>Gợi ý dành cho bạn</h2></div></div>
-      <div className="g-grid">{personalized.data.slice(0,4).map(id=>coffees.get(id)).filter((c):c is MenuCoffee=>!!c).map(c=><CoffeeCard key={c.id} coffee={c} soldOut={!c.available || addable(c.id)<1} onPick={()=>setPicked(c)} onQuickAdd={()=>setPicked(c)} />)}</div>
+      <div className="g-grid">{personalized.data.slice(0,4).map(id=>coffees.get(id)).filter((c):c is MenuCoffee=>!!c).map(c=><CoffeeCard key={c.id} coffee={c} soldOut={!c.available} onPick={()=>setPicked(c)} onQuickAdd={()=>setPicked(c)} />)}</div>
     </section>}
     {!!bundles.data?.some(b => b.availableNow && b.status === 'ACTIVE') && <section className="merch-section">
       <div className="merch-section-title"><div><span className="merch-eyebrow"> </span><h2>Combo tiết kiệm</h2></div><span className="merch-count">Kết hợp món yêu thích</span></div>

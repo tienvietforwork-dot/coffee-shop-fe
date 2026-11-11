@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Coffeeholic">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6ede2"/>
+      <stop offset="1" stop-color="#e9d9c6"/>
+    </linearGradient>
+    <linearGradient id="cup" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fffaf3"/>
+      <stop offset="1" stop-color="#efe2d1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <circle cx="660" cy="110" r="120" fill="#e3cdb3" opacity=".45"/>
+  <circle cx="120" cy="520" r="150" fill="#e3cdb3" opacity=".35"/>
+  <!-- steam -->
+  <g fill="none" stroke="#b98a5e" stroke-width="10" stroke-linecap="round" opacity=".55">
+    <path d="M340 170c-24 30 24 50 0 82"/>
+    <path d="M400 150c-24 30 24 50 0 82"/>
+    <path d="M460 170c-24 30 24 50 0 82"/>
+  </g>
+  <!-- saucer -->
+  <ellipse cx="400" cy="458" rx="210" ry="34" fill="#c99a6b"/>
+  <ellipse cx="400" cy="450" rx="190" ry="26" fill="#ead8c2"/>
+  <!-- cup -->
+  <path d="M262 278h276l-22 150c-4 22-22 36-44 36H328c-22 0-40-14-44-36z" fill="url(#cup)" stroke="#6f4e37" stroke-width="8"/>
+  <path d="M538 300h20c34 0 54 22 54 50s-22 54-62 54h-20" fill="none" stroke="#6f4e37" stroke-width="16" stroke-linecap="round"/>
+  <ellipse cx="400" cy="280" rx="138" ry="20" fill="#5a3825"/>
+  <ellipse cx="380" cy="276" rx="54" ry="7" fill="#8a5a3c" opacity=".7"/>
+</svg>

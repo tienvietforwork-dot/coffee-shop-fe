@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { AccountInfo, LoginResponse, MyVoucher, Order, PermissionInfo, PointHistory, RoleInfo, User } from './types'
+import type { AccountInfo, LoginResponse, MyVoucher, Order, PermissionInfo, PointHistory, RoleInfo, Subscription, SubscriptionPayload, SubscriptionStatus, User } from './types'
 
 const d = <T,>(p: Promise<{ data: T }>) => p.then((r) => r.data)
 
@@ -19,11 +19,23 @@ export const authApi = {
     d(apiClient.put<RoleInfo>(`/roles/${roleId}/permissions`, { permissionCodes })),
 }
 
-/** Logged-in customer: own profile, orders, vouchers, points. */
+/** Logged-in customer: own profile, orders, vouchers, points, saved addresses. */
 export const accountApi = {
   profile: () => d(apiClient.get<AccountInfo>('/account')),
   updateProfile: (b: { fullName?: string; email?: string }) => d(apiClient.put<AccountInfo>('/account', b)),
   orders: () => d(apiClient.get<Order[]>('/account/orders')),
   vouchers: () => d(apiClient.get<MyVoucher[]>('/account/vouchers')),
   points: () => d(apiClient.get<PointHistory[]>('/account/points')),
+  /** địa chỉ giao hàng đã lưu, mặc định trước */
+  addresses: () => d(apiClient.get<SavedAddress[]>('/account/addresses')),
+  saveAddress: (b: Omit<SavedAddress, 'id'> & { id?: number }) =>
+    d(b.id ? apiClient.put<SavedAddress>(`/account/addresses/${b.id}`, b) : apiClient.post<SavedAddress>('/account/addresses', b)),
+  deleteAddress: (id: number) => apiClient.delete(`/account/addresses/${id}`).then(() => undefined),
+  /** gói giao định kỳ của tôi */
+  subscriptions: () => d(apiClient.get<Subscription[]>('/account/subscriptions')),
+  saveSubscription: (b: SubscriptionPayload & { id?: number }) =>
+    d(b.id ? apiClient.put<Subscription>(`/account/subscriptions/${b.id}`, b) : apiClient.post<Subscription>('/account/subscriptions', b)),
+  setSubscriptionStatus: (id: number, status: SubscriptionStatus) => d(apiClient.patch<Subscription>(`/account/subscriptions/${id}/status`, { status })),
 }
+
+export interface SavedAddress { id: number; label?: string; recipientName: string; recipientPhone: string; address: string; isDefault: boolean }
