@@ -508,3 +508,7 @@ img { max-width: 100%; }
 
 /* lịch hẹn giao: đơn trễ giờ pha */
 .a-row-danger > td { background: #fff1f0 !important; }
+
+/* khuyến mãi tạm dừng */
+.promotions-table .ant-table-tbody > tr.promotion-row-paused > td { background-color: #fff1b8 !important; }
+.promotions-table .ant-table-tbody > tr.promotion-row-paused:hover > td { background-color: #ffe58f !important; }

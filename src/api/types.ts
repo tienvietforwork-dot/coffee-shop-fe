@@ -122,6 +122,7 @@ export interface MenuCoffee {
   imageUrl?: string
   description?: string
   price: number
+  sale?: number
   salePrice?: number
   promotionName?: string
   available: boolean
@@ -133,6 +134,7 @@ export interface Menu {
     id: number
     name: string
     description?: string
+    discountType?: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'SPECIAL'
     discountPercent?: number
     minOrderAmount?: number
     endDate: string
