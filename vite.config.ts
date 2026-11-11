@@ -44,7 +44,6 @@ function devGateway(env: Record<string, string>): Record<string, ProxyOptions> {
     "/ws": target(core, { ws: true }),
   };
 }
-queueMicrotask;
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
