@@ -31,7 +31,13 @@ export function FeedbackPage() {
         className="g-panel"
         requiredMark={false}
         initialValues={{ fullName: name, phone, orderCode: params.get('order') ?? undefined }}
-        onFinish={(v) => send.mutate(v)}
+        onFinish={(v) => send.mutate({
+          fullName: v.fullName,
+          phone: v.phone,
+          topic: v.topic,
+          // app-crm's public form has no order field; keep the order code inside the content.
+          content: v.orderCode ? `[Đơn ${v.orderCode}] ${v.content}` : v.content,
+        })}
       >
         <div className="g-form-row">
           <Form.Item name="fullName" label="Họ tên"><Input maxLength={100} /></Form.Item>

@@ -8,7 +8,7 @@ import {
   GiftOutlined, TagsOutlined, FundOutlined, LineChartOutlined, LogoutOutlined, ArrowLeftOutlined,
   SafetyCertificateOutlined, KeyOutlined, StarOutlined, SwapOutlined,
   DollarOutlined, ScheduleOutlined, FileSearchOutlined,
-  CreditCardOutlined, FileTextOutlined, NotificationOutlined, SearchOutlined,
+  CreditCardOutlined, FileTextOutlined, NotificationOutlined, SearchOutlined, NodeIndexOutlined, CalendarOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
@@ -33,7 +33,10 @@ const GROUPS: { label: string; icon: ReactNode; items: Entry[] }[] = [
       { key: '/admin/cash-shifts', icon: <DollarOutlined />, label: 'Ca thu ngân', perm: P.CASH_SHIFTS },
       { key: '/admin/payment-reconciliation', icon: <CreditCardOutlined />, label: 'Đối soát thanh toán', perm: P.PAYMENT_RECONCILIATION },
       { key: '/admin/invoices', icon: <FileTextOutlined />, label: 'Hóa đơn điện tử', perm: P.INVOICES },
+      { key: '/admin/delivery-schedule', icon: <CalendarOutlined />, label: 'Lịch hẹn giao & pha chế', perm: P.DELIVERY_SCHEDULE },
       { key: '/admin/shipments', icon: <CarOutlined />, label: 'Giao hàng', perm: P.SHIPMENTS },
+      { key: '/admin/my-deliveries', icon: <NodeIndexOutlined />, label: 'Đơn giao của tôi', perm: P.MY_DELIVERIES },
+      { key: '/admin/subscriptions', icon: <SyncOutlined />, label: 'Gói giao định kỳ', perm: P.SUBSCRIPTIONS },
       { key: '/admin/incidents', icon: <WarningOutlined />, label: 'Sự cố đơn hàng', perm: P.INCIDENTS },
       { key: '/admin/tables', icon: <TableOutlined />, label: 'Bàn & mã QR', perm: P.TABLES },
     ],
@@ -41,15 +44,8 @@ const GROUPS: { label: string; icon: ReactNode; items: Entry[] }[] = [
   {
     label: 'Thực đơn', icon: <CoffeeOutlined />, items: [
       { key: '/admin/coffees', icon: <CoffeeOutlined />, label: 'Cà phê & công thức', perm: P.MENU },
-      { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục', perm: P.CATEGORIES },
-      { key: '/admin/product-placement', icon: <StarOutlined />, label: 'Trưng bày sản phẩm', perm: P.MENU },
-      { key: '/admin/merchandising-analytics', icon: <BarChartOutlined />, label: 'Merchandising Analytics', perm: P.STATS },
-      { key: '/admin/merchandising-schedule', icon: <StarOutlined />, label: 'Lịch trưng bày', perm: P.MENU },
-      { key: '/admin/recommendation', icon: <StarOutlined />, label: 'Recommendation · Gợi ý', perm: P.MENU },
-      { key: '/admin/upsell', icon: <SwapOutlined />, label: 'Upsell · Nâng cấp món', perm: P.MENU },
-      { key: '/admin/cross-sell', icon: <SwapOutlined />, label: 'Cross-sell · Bán kèm', perm: P.MENU },
-      { key: '/admin/product-bundles', icon: <GiftOutlined />, label: 'Combo sản phẩm', perm: P.MENU },
       { key: '/admin/materials', icon: <ExperimentOutlined />, label: 'Nguyên liệu', perm: P.MATERIALS },
+      { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục', perm: P.CATEGORIES },
     ],
   },
   {
@@ -66,6 +62,13 @@ const GROUPS: { label: string; icon: ReactNode; items: Entry[] }[] = [
       { key: '/admin/promotions', icon: <GiftOutlined />, label: 'Đợt giảm giá', perm: P.PROMOTIONS },
       { key: '/admin/vouchers', icon: <TagsOutlined />, label: 'Voucher', perm: P.VOUCHERS },
       { key: '/admin/promotions/analytics', icon: <FundOutlined />, label: 'Hiệu quả khuyến mãi', perm: P.PROMOTIONS_ANALYTICS },
+      { key: '/admin/product-placement', icon: <StarOutlined />, label: 'Trưng bày sản phẩm', perm: P.MENU },
+      { key: '/admin/merchandising-analytics', icon: <BarChartOutlined />, label: 'Merchandising Analytics', perm: P.STATS },
+      { key: '/admin/merchandising-schedule', icon: <StarOutlined />, label: 'Lịch trưng bày', perm: P.MENU },
+      { key: '/admin/recommendation', icon: <StarOutlined />, label: 'Recommendation · Gợi ý', perm: P.MENU },
+      { key: '/admin/upsell', icon: <SwapOutlined />, label: 'Upsell · Nâng cấp món', perm: P.MENU },
+      { key: '/admin/cross-sell', icon: <SwapOutlined />, label: 'Cross-sell · Bán kèm', perm: P.MENU },
+      { key: '/admin/product-bundles', icon: <GiftOutlined />, label: 'Combo sản phẩm', perm: P.MENU },
     ],
   },
   {

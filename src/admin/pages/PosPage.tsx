@@ -155,9 +155,9 @@ export function PosPage() {
               {orderType === 'DELIVERY' && <>
                 {shipping?.shopAddress && <div className="a-muted small" style={{ marginBottom: 6 }}>Quán: {shipping.shopAddress}</div>}
                 <Form.Item name="address" label="Địa chỉ giao" rules={[vnAddressRule('nơi nhận')]}
-                  extra={area?.outside ? <span style={{ color: '#cf1322' }}>Ngoài khu vực giao hàng (quán giao tối đa {area.maxKm} km)</span>
+                  extra={area?.outside ? <span style={{ color: '#cf1322' }}>{area.message ?? 'Ngoài khu vực giao hàng'}</span>
                     : quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span>
-                    : q?.deliveryDistanceKm != null ? `${num(q.deliveryDistanceKm)} km${q.deliveryOption ? ` · ${q.deliveryOption}` : ''}` : undefined}>
+                    : q?.deliveryZone ? `Giao tới ${q.deliveryZone}${q.deliveryDistanceKm != null ? ` · ~${num(q.deliveryDistanceKm)} km` : ''}` : undefined}>
                   <VnAddressInput />
                 </Form.Item>
               </>}
@@ -174,8 +174,7 @@ export function PosPage() {
               {!!q?.promotionDiscount && <div className="a-line a-green"><span>{q.promotionName}</span><span>-{money(q.promotionDiscount)}</span></div>}
               {!!q?.voucherDiscount && <div className="a-line a-green"><span>Voucher</span><span>-{money(q.voucherDiscount)}</span></div>}
               {q?.voucherMessage && <div className="a-line a-red"><span>{q.voucherMessage}</span></div>}
-              {!!q?.shippingFee && <div className="a-line"><span>Phí giao</span><span>{money(q.shippingFee - (q.weatherSurcharge ?? 0))}</span></div>}
-              {!!q?.weatherSurcharge && <div className="a-line"><span>Phụ phí thời tiết ({q.deliveryWeather})</span><span>{money(q.weatherSurcharge)}</span></div>}
+              {!!q?.shippingFee && <div className="a-line"><span>Phí giao</span><span>{money(q.shippingFee)}</span></div>}
               {q?.deliveryNote && <div className="small" style={{ color: '#d46b08' }}><ExclamationCircleFilled /> {q.deliveryNote}</div>}
               <div className="a-line a-big"><span>Tổng</span><span>{money(q?.total ?? 0)}</span></div>
             </div>

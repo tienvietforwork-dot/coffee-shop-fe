@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { AccountInfo, LoginResponse, MyVoucher, Order, PermissionInfo, PointHistory, RoleInfo, User } from './types'
+import type { AccountInfo, LoginResponse, MyVoucher, Order, PermissionInfo, PointHistory, RoleInfo, Subscription, SubscriptionPayload, SubscriptionStatus, User } from './types'
 
 const d = <T,>(p: Promise<{ data: T }>) => p.then((r) => r.data)
 
@@ -31,6 +31,11 @@ export const accountApi = {
   saveAddress: (b: Omit<SavedAddress, 'id'> & { id?: number }) =>
     d(b.id ? apiClient.put<SavedAddress>(`/account/addresses/${b.id}`, b) : apiClient.post<SavedAddress>('/account/addresses', b)),
   deleteAddress: (id: number) => apiClient.delete(`/account/addresses/${id}`).then(() => undefined),
+  /** gói giao định kỳ của tôi */
+  subscriptions: () => d(apiClient.get<Subscription[]>('/account/subscriptions')),
+  saveSubscription: (b: SubscriptionPayload & { id?: number }) =>
+    d(b.id ? apiClient.put<Subscription>(`/account/subscriptions/${b.id}`, b) : apiClient.post<Subscription>('/account/subscriptions', b)),
+  setSubscriptionStatus: (id: number, status: SubscriptionStatus) => d(apiClient.patch<Subscription>(`/account/subscriptions/${id}/status`, { status })),
 }
 
 export interface SavedAddress { id: number; label?: string; recipientName: string; recipientPhone: string; address: string; isDefault: boolean }

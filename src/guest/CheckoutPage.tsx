@@ -135,13 +135,16 @@ export function CheckoutPage() {
   }
 
   const q = quote.data
-  // dự kiến giao tới: giờ giao (hoặc bây giờ khi "Sớm nhất") + km × phút/km
-  const travelMin = orderType === 'DELIVERY' && deliveryAddress && q?.deliveryDistanceKm != null && shipping?.minutesPerKm
-    ? Math.max(1, Math.round(q.deliveryDistanceKm * shipping.minutesPerKm)) : undefined
-  const arrival = travelMin != null ? (pickupTime ?? dayjs()).add(travelMin, 'minute') : undefined
+  // dự kiến: giờ hẹn (hoặc bây giờ khi "Sớm nhất") + thời gian pha chế các món (+ km ÷ tốc độ km/h khi giao)
+  const prepMin = q?.prepMinutes ?? 0
+  const travelMin = orderType === 'DELIVERY' && deliveryAddress && q?.deliveryDistanceKm != null && shipping?.speedKmh
+    ? Math.max(1, Math.round(q.deliveryDistanceKm / shipping.speedKmh * 60)) : undefined
+  const at = (d: Dayjs) => d.format(d.isSame(dayjs(), 'day') ? 'HH:mm' : 'HH:mm DD/MM')
+  const eta = (from: Dayjs, min: number) => `${at(from.add(min, 'minute'))} (${min} phút)`
   const timeHint = orderType === 'DELIVERY'
-    ? arrival && `Dự kiến nhận hàng khoảng ${arrival.format(arrival.isSame(dayjs(), 'day') ? 'HH:mm' : 'HH:mm DD/MM')} (đi ~${travelMin} phút)`
-    : pickupTime && `Hẹn nhận lúc ${pickupTime.format(pickupTime.isSame(dayjs(), 'day') ? 'HH:mm' : 'HH:mm DD/MM')}`
+    ? travelMin != null && `Dự kiến nhận hàng: ${eta(pickupTime ?? dayjs(), prepMin + travelMin)}`
+    : pickupTime ? `Hẹn nhận lúc ${at(pickupTime)}`
+    : prepMin > 0 ? `Dự kiến xong: ${eta(dayjs(), prepMin)}` : undefined
   return (
     <div className="g-container g-page">
       <Link to="/" className="g-back"><ArrowLeftOutlined /> Tiếp tục chọn món</Link>
@@ -182,9 +185,9 @@ export function CheckoutPage() {
               <AddressBook value={pick} onChange={setPick} loggedIn={isCustomer}
                 prefill={{ recipientName: isCustomer ? authUser?.fullName : store.name, recipientPhone: isCustomer ? authUser?.phone ?? authUser?.username : store.phone }} />
               <div style={{ margin: '6px 0 16px', fontSize: 13 }}>
-                {area?.outside ? <span style={{ color: '#cf1322' }}>Ngoài khu vực giao hàng (quán giao tối đa {area.maxKm} km)</span>
+                {area?.outside ? <span style={{ color: '#cf1322' }}>{area.message ?? 'Ngoài khu vực giao hàng'}</span>
                   : quote.isError && deliveryAddress ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span>
-                  : quote.data?.deliveryDistanceKm != null ? <span className="g-muted">{quote.data.deliveryDistanceKm.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km</span> : null}
+                  : quote.data?.deliveryZone ? <span className="g-muted">Giao tới {quote.data.deliveryZone}</span> : null}
               </div>
             </>
           )}
@@ -279,16 +282,21 @@ export function CheckoutPage() {
             {!!q?.voucherDiscount && (
               <div className="g-row g-green"><span>Voucher {q.voucherCode}</span><span>-{money(q.voucherDiscount)}</span></div>
             )}
-            {orderType === 'DELIVERY' && q?.deliveryDistanceKm != null && (
+            {orderType === 'DELIVERY' && q?.deliveryZone && (
               <>
                 <div className="g-row">
                   <span>
-                    Phí giao hàng{q.deliveryOption ? ` (${q.deliveryOption})` : ''}
+                    Phí giao hàng
                     {q.deliveryNote && <Tooltip title={q.deliveryNote}><ExclamationCircleFilled style={{ color: '#fa8c16', marginLeft: 6 }} /></Tooltip>}
                   </span>
-                  <span>{q.shippingFee - (q.weatherSurcharge ?? 0) ? money(q.shippingFee - (q.weatherSurcharge ?? 0)) : 'Miễn phí'}</span>
+                  <span>{q.shippingFee ? money(q.shippingFee) : 'Miễn phí'}</span>
                 </div>
-                {!!q.weatherSurcharge && <div className="g-row"><span>Phụ phí thời tiết ({q.deliveryWeather})</span><span>{money(q.weatherSurcharge)}</span></div>}
+                {!!shipping?.freeShipThreshold && (
+                  <div className="g-muted" style={{ fontSize: 12, marginTop: -4 }}>
+                    Miễn phí giao hàng cho đơn từ {money(shipping.freeShipThreshold)}
+                    {goods < shipping.freeShipThreshold && <> · <Link to="/" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Mua thêm {money(shipping.freeShipThreshold - goods)} ›</Link></>}
+                  </div>
+                )}
                 {q.deliveryNote && <div className="g-muted" style={{ fontSize: 12, color: '#d46b08' }}><ExclamationCircleFilled /> {q.deliveryNote}</div>}
               </>
             )}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Badge, Button, DatePicker, Segmented, Select, Space, Table, Tag } from 'antd'
+import { Badge, Button, DatePicker, Segmented, Select, Space, Table, Tag, Tooltip } from 'antd'
 import { AppstoreOutlined, UnorderedListOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
@@ -10,6 +10,7 @@ import { PageHeader } from '../components/PageHeader'
 import { StatusTag } from '../components/StatusTag'
 import { OrderActions } from '../components/OrderActions'
 import { OrderDetailDrawer } from '../components/OrderDetailDrawer'
+import { customerText, itemCodes, receiveText, totalDiscount } from '@/lib/orderInfo'
 
 // Xác nhận = bắt đầu pha chế (one step); old CONFIRMED orders sit in the PREPARING column
 const COLUMNS: OrderStatus[] = ['PENDING', 'PREPARING', 'READY', 'DELIVERING']
@@ -68,10 +69,15 @@ export function OrdersBoardPage() {
                     <div className="a-ticket-meta">
                       {ORDER_TYPE[o.orderType]}{o.tableNo && ` · Bàn ${o.tableNo}`}
                     </div>
+                    <div className="a-ticket-meta">👤 {customerText(o)}</div>
+                    {o.shipment && <div className="a-ticket-meta a-ticket-addr" title={o.shipment.address}>📍 {o.shipment.address}</div>}
                     <ul>
-                      {o.items.slice(0, 3).map((i) => <li key={i.id}><b>{i.quantity}×</b> {i.coffeeName}{i.note && <em> — {i.note}</em>}</li>)}
+                      {o.items.slice(0, 3).map((i) => <li key={i.id}><b>{i.quantity}×</b> {i.coffeeCode && <span className="a-code">{i.coffeeCode}</span>} {i.coffeeName}{i.note && <em> — {i.note}</em>}</li>)}
                     </ul>
                     {o.items.length > 3 && <div className="a-ticket-meta">+{o.items.length - 3} món khác · {o.items.reduce((n, i) => n + i.quantity, 0)} ly</div>}
+                    {totalDiscount(o) > 0 && (
+                      <div className="a-ticket-meta a-green">Giảm {money(totalDiscount(o))}{o.voucherCode && ` · voucher ${o.voucherCode}`}</div>
+                    )}
                     <div className="a-ticket-foot">
                       <span>{money(o.totalAmount)} {o.paid ? <Tag color="green" bordered={false}>Đã TT</Tag> : <Tag color="gold" bordered={false}>Chưa TT</Tag>}</span>
                     </div>
@@ -88,14 +94,21 @@ export function OrdersBoardPage() {
           loading={isFetching}
           dataSource={orders}
           onRow={(o) => ({ onClick: () => setOpenId(o.id), style: { cursor: 'pointer' } })}
+          scroll={{ x: 1250 }}
           columns={[
-            { title: 'Mã đơn', dataIndex: 'orderCode' },
-            { title: 'Thời gian', dataIndex: 'orderedAt', render: dateTime },
-            { title: 'Kênh', render: (_, o) => <StatusTag label={ORDER_CHANNEL[o.channel]} /> },
-            { title: 'Hình thức', render: (_, o) => `${ORDER_TYPE[o.orderType]}${o.tableNo ? ` · ${o.tableNo}` : ''}` },
-            { title: 'Khách', render: (_, o) => o.customerName || o.customerPhone || 'Khách lẻ' },
-            { title: 'Tổng', dataIndex: 'totalAmount', render: money, align: 'right' },
-            { title: 'Trạng thái', render: (_, o) => <StatusTag label={ORDER_STATUS[o.status]} /> },
+            { title: 'Mã đơn', dataIndex: 'orderCode', width: 150 },
+            { title: 'Thời gian', dataIndex: 'orderedAt', render: dateTime, width: 130 },
+            { title: 'Kênh', render: (_, o) => <StatusTag label={ORDER_CHANNEL[o.channel]} />, width: 110 },
+            { title: 'Khách hàng', render: (_, o) => customerText(o), width: 190 },
+            { title: 'Địa chỉ nhận', ellipsis: { showTitle: false }, render: (_, o) => <Tooltip title={o.shipment && receiveText(o)}>{receiveText(o)}</Tooltip> },
+            { title: 'Sản phẩm', ellipsis: { showTitle: false }, render: (_, o) => <Tooltip title={o.items.map((i) => `${i.coffeeCode ?? ''} ${i.coffeeName} ×${i.quantity}`).join(', ')}><span className="a-code">{itemCodes(o)}</span></Tooltip> },
+            {
+              title: 'Giảm giá', align: 'right', width: 130, render: (_, o) => totalDiscount(o) > 0
+                ? <><span className="a-green">-{money(totalDiscount(o))}</span>{o.voucherCode && <div className="a-code">{o.voucherCode}</div>}</>
+                : <span className="a-muted">—</span>,
+            },
+            { title: 'Tổng', dataIndex: 'totalAmount', render: money, align: 'right', width: 110 },
+            { title: 'Trạng thái', render: (_, o) => <StatusTag label={ORDER_STATUS[o.status]} />, width: 120 },
           ]}
         />
       )}

@@ -1,10 +1,10 @@
 import apiClient from './client'
 import type {
   Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
-  IncidentSeverity, IncidentType, Material,
+  IncidentSeverity, IncidentType, IncidentVoucherOption, Material,
   Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
   Staff, TableStatus, User, WorkStatus,
-  CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliverySettings, DeliveryFeePlan, DeliveryTimeSlot, DeliveryWeather, ShipmentEvent,
+  CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliverySettings, DeliveryArea, ShipmentEvent, ShipperStat, RoutePlan, ScheduleRow, Subscription, SubscriptionPayload, SubscriptionStatus,
   Invoice, InvoiceBuyer, InvoiceSettings, NotificationTemplate, NotificationMessage,
 } from './types'
 
@@ -26,7 +26,7 @@ export const download = async (url: string, params?: object) => {
 
 export interface CategoryPayload { name: string; description?: string; displayOrder?: number }
 export interface CoffeePayload {
-  categoryId: number; name: string; imageId?: number; imageUrl?: string; price: number; description?: string; status?: CoffeeStatus
+  categoryId: number; code?: string; name: string; imageId?: number; imageUrl?: string; price: number; description?: string; status?: CoffeeStatus
 }
 export interface RecipePayload {
   brewMethod?: string; description?: string; brewTimeMin?: number; activate?: boolean
@@ -34,7 +34,7 @@ export interface RecipePayload {
   steps: string[]
 }
 export interface MaterialPayload {
-  name: string; unit: string
+  name: string; unit: string; quantity?: number
 }
 export interface StaffPayload {
   fullName: string; position?: string; phone: string; email?: string; hireDate?: string
@@ -87,6 +87,7 @@ export const coreApi = {
   createMaterial: (b: MaterialPayload) => post<Material>('/materials', b),
   updateMaterial: (id: number, b: MaterialPayload) => put<Material>(`/materials/${id}`, b),
   deleteMaterial: (id: number) => del(`/materials/${id}`),
+  adjustMaterial: (id: number, delta: number) => patch<Material>(`/materials/${id}/quantity`, { delta }),
 
   /** null when no shift is open */
   currentShift: () => apiClient.get<CashShift | ''>('/cash-shifts/current').then((r) => r.data || null),
@@ -153,30 +154,37 @@ export const coreApi = {
   complete: (id: number) => post<Order>(`/orders/${id}/complete`),
   collectPayment: (id: number) => post<Order>(`/orders/${id}/collect-payment`),
   refund: (paymentId: number, amount: number) => post<Payment>(`/payments/${paymentId}/refund`, { amount }),
+  refundPending: () => get<Payment[]>('/payments/refund-pending'),
+  manualRefund: (paymentId: number, b: { reference: string; note?: string }) => post<Payment>(`/payments/${paymentId}/manual-refund`, b),
+  retryRefund: (paymentId: number) => post<Payment>(`/payments/${paymentId}/retry-refund`),
 
   orderIncidents: (orderId: number) => get<Incident[]>(`/orders/${orderId}/incidents`),
   reportIncident: (orderId: number, b: { type: IncidentType; severity?: IncidentSeverity; reason?: string; description?: string }) =>
     post<Incident>(`/orders/${orderId}/incidents`, b),
   incidents: () => get<Incident[]>('/incidents'),
-  resolveIncident: (id: number, b: { resolution: string; voucherValue?: number; voucherMinOrderValue?: number; voucherCount?: number; voucherValidDays?: number }) =>
+  incidentVoucherOptions: () => get<IncidentVoucherOption[]>('/incidents/voucher-options'),
+  resolveIncident: (id: number, b: { resolution: string; voucherId?: number; voucherCount?: number; voucherValidDays?: number }) =>
     post<Incident>(`/incidents/${id}/resolve`, b),
 
   shipments: () => get<Shipment[]>('/shipments'),
   updateShipment: (id: number, b: { status: ShipmentStatus; note?: string }) =>
     patch<Shipment>(`/shipments/${id}`, b),
+  assignShipper: (id: number, staffId: number | null) => put<Shipment>(`/shipments/${id}/shipper`, { staffId }),
+  shippers: () => get<ShipperStat[]>('/shippers'),
+  myDeliveries: () => get<Shipment[]>('/my-deliveries'),
+  shipmentRoute: (shipmentIds: number[]) => post<RoutePlan>('/shipments/route', { shipmentIds }),
+  deliverySchedule: (date?: string) => get<ScheduleRow[]>('/delivery-schedule', date ? { date } : undefined),
+  subscriptions: () => get<Subscription[]>('/subscriptions'),
+  saveSubscription: (b: SubscriptionPayload & { id?: number }) =>
+    (b.id ? put<Subscription>(`/subscriptions/${b.id}`, b) : post<Subscription>('/subscriptions', b)),
+  setSubscriptionStatus: (id: number, status: SubscriptionStatus) => patch<Subscription>(`/subscriptions/${id}/status`, { status }),
 
   deliverySettings: () => get<DeliverySettings>('/delivery-settings'),
   saveDeliverySettings: (b: DeliverySettings) => put<DeliverySettings>('/delivery-settings', b),
-  deliveryWeather: () => get<DeliveryWeather>('/delivery-weather'),
-  saveDeliveryWeather: (b: Omit<DeliveryWeather, 'outlook'>) => put<DeliveryWeather>('/delivery-weather', b),
-  deliveryFeePlans: () => get<DeliveryFeePlan[]>('/delivery-fee-plans'),
-  saveDeliveryFeePlan: (b: Omit<DeliveryFeePlan, 'id' | 'isDefault'> & { id?: number; isDefault?: boolean }) =>
-    (b.id ? put<DeliveryFeePlan>(`/delivery-fee-plans/${b.id}`, b) : post<DeliveryFeePlan>('/delivery-fee-plans', b)),
-  deleteDeliveryFeePlan: (id: number) => del(`/delivery-fee-plans/${id}`),
-  deliveryTimeSlots: () => get<DeliveryTimeSlot[]>('/delivery-time-slots'),
-  saveDeliveryTimeSlot: (b: Omit<DeliveryTimeSlot, 'id' | 'planName'> & { id?: number }) =>
-    (b.id ? put<DeliveryTimeSlot>(`/delivery-time-slots/${b.id}`, b) : post<DeliveryTimeSlot>('/delivery-time-slots', b)),
-  deleteDeliveryTimeSlot: (id: number) => del(`/delivery-time-slots/${id}`),
+  deliveryAreas: () => get<DeliveryArea[]>('/delivery-areas'),
+  saveDeliveryArea: (b: Omit<DeliveryArea, 'id'> & { id?: number }) =>
+    (b.id ? put<DeliveryArea>(`/delivery-areas/${b.id}`, b) : post<DeliveryArea>('/delivery-areas', b)),
+  deleteDeliveryArea: (id: number) => del(`/delivery-areas/${id}`),
   shipmentEvents: (shipmentId: number) => get<ShipmentEvent[]>(`/shipments/${shipmentId}/events`),
 
   invoices: (p: { from: string; to: string; status?: Invoice['status']; keyword?: string }) => get<Invoice[]>('/invoices', p),

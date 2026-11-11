@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { usePerm, P } from '@/lib/perm'
 import { ORDER_STATUS, date, dateTime, money } from '@/lib/format'
 import { ChangePasswordModal } from '@/admin/components/ChangePasswordModal'
+import { MySubscriptions } from './MySubscriptions'
 
 const VOUCHER: Record<string, { t: string; c: string }> = {
   ISSUED: { t: 'Có thể dùng', c: 'green' }, USED: { t: 'Đã dùng', c: 'default' }, EXPIRED: { t: 'Hết hạn', c: 'default' }, REVOKED: { t: 'Đã thu hồi', c: 'red' },
@@ -116,6 +117,7 @@ export function AccountPage() {
               </Form>
             ),
           },
+          { key: 'subscriptions', label: 'Gói định kỳ', children: <MySubscriptions name={p?.fullName} phone={p?.phone} /> },
         ]} />
       </div>
       <ChangePasswordModal open={pwd} onClose={() => setPwd(false)} />

@@ -34,6 +34,7 @@ export const PAYMENT_METHOD: Record<PaymentMethod, string> = {
 }
 export const PAYMENT_STATUS: Record<PaymentStatus, Label> = {
   PENDING: L('Chưa thu', 'gold'), PAID: L('Đã thanh toán', 'green'), FAILED: L('Hủy', 'default'), REFUNDED: L('Đã hoàn tiền', 'red'),
+  REFUND_PENDING: L('Chờ hoàn tiền', 'volcano'),
 }
 export const SHIPMENT_STATUS: Record<ShipmentStatus, Label> = {
   PENDING: L('Chờ giao', 'gold'), BOOKED: L('Chờ giao', 'gold'), DRIVER_ACCEPTED: L('Chờ giao', 'gold'),

@@ -4,7 +4,7 @@ import { App, AutoComplete, Button, Checkbox, Form, Input, Modal, Popconfirm, Ra
 import { DeleteOutlined, EditOutlined, EnvironmentFilled, PlusOutlined } from '@ant-design/icons'
 import { accountApi, type SavedAddress } from '@/api/auth'
 import { publicApi } from '@/api/public'
-import { useDebounced } from '@/lib/useDebounced'
+import { money } from '@/lib/format'
 import { errorMessage } from '@/api/client'
 import { VnAddressInput } from '@/components/VnAddressInput'
 import { isCompleteVnAddress, vnAddressRule } from '@/lib/vnAddress'
@@ -138,25 +138,14 @@ export function AddressBook({ value, onChange, loggedIn, prefill }: {
   )
 }
 
-/** dưới ô địa chỉ trong form: ngoài khu vực giao (biết ngay khi chọn phường) hoặc cách quán bao nhiêu km */
+/** dưới ô địa chỉ trong form: phường đã chọn có giao được không, phí ship khu vực đó */
 function DistanceHint({ address }: { address?: string }) {
   const area = useDeliveryArea(address)
-  const full = useDebounced(isCompleteVnAddress(address) ? address : undefined, 600)
-  const { data, isFetching, error } = useQuery({
-    queryKey: ['delivery-distance', full], queryFn: () => publicApi.deliveryDistance(full!), enabled: !!full && !area?.outside,
-    staleTime: 10 * 60_000, retry: false,
-  })
-  const red = { color: '#cf1322' }
-  const max = data?.maxKm ?? area?.maxKm
   let text: React.ReactNode = null
-  if (area?.outside || data?.outside) text = <span style={red}>Ngoài khu vực giao hàng{data ? ` (cách quán ${vn(data.km)} km` : ' ('}{data ? ', ' : ''}tối đa {vn(max ?? 0)} km)</span>
-  else if (error) text = <span style={red}>{errorMessage(error)}</span>
-  else if (data) text = <span className="g-muted">Cách quán {vn(data.km)} km</span>
-  else if (isFetching) text = <span className="g-muted">Đang đo quãng đường…</span>
+  if (area?.outside) text = <span style={{ color: '#cf1322' }}>{area.message ?? 'Ngoài khu vực giao hàng'}</span>
+  else if (area) text = <span className="g-muted">Giao tới {area.zone} · phí ship {money(area.fee ?? 0)}</span>
   return <div style={{ minHeight: 20, marginBottom: 16, fontSize: 13 }}>{text}</div>
 }
-
-const vn = (v: number) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 1 })
 
 /** khối tóm tắt ngoài trang đặt hàng */
 function Summary({ value, onChange }: { value: DeliveryPick; onChange: () => void }) {

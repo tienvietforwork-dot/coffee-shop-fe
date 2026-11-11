@@ -54,7 +54,7 @@ export function RecipeDrawer({ coffee, onClose, editable, startEditing = false }
           onFinish={(v) => save.mutate({ ...v, activate: true }, { onSuccess: () => { setEditing(false); setViewId(undefined) } })}>
           <div className="a-grid-2">
             <Form.Item name="brewMethod" label="Cách pha"><Select options={BREW_METHOD} /></Form.Item>
-            <Form.Item name="brewTimeMin" label="Thời gian pha (phút)"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="brewTimeMin" label="Thời gian pha (phút)" tooltip="Cộng theo số lượng món để ước tính giờ xong / giờ giao tới ở trang đặt hàng"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
           </div>
           <Form.Item name="description" label="Mô tả"><Input.TextArea rows={2} /></Form.Item>
           <h4>Định lượng nguyên liệu (cho 1 ly)</h4>

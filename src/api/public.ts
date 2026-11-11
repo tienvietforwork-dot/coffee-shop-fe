@@ -41,14 +41,11 @@ export const publicApi = {
   cancelOrder: (code: string, reason: string) =>
     apiClient.post<Order>(`/public/orders/${code}/cancel`, { reason }).then((r) => r.data),
 
-  // phí giao hàng theo km (quán tự giao): bậc phí, miễn phí từ, đơn tối thiểu
-  deliverySettings: () => apiClient.get<{ shopAddress: string; openTime?: string; closeTime?: string; freeShipThreshold?: number | null; minOrderAmount?: number | null; minutesPerKm?: number | null }>('/public/delivery-settings').then((r) => r.data),
-  // quãng đường quán → địa chỉ (form thêm / sửa địa chỉ)
-  deliveryDistance: (address: string) =>
-    apiClient.get<{ km: number; outside: boolean; maxKm?: number }>('/public/delivery-distance', { params: { address } }).then((r) => r.data),
-  // phường đã chọn có ngoài khu vực giao không (nearestKm: đường chim bay tới điểm gần nhất của phường)
+  // giao hàng (quán tự giao): giờ mở cửa, miễn phí từ, đơn tối thiểu, các tỉnh giao được
+  deliverySettings: () => apiClient.get<{ shopAddress: string; provinces?: string[]; openTime?: string; closeTime?: string; freeShipThreshold?: number | null; minOrderAmount?: number | null; speedKmh?: number | null }>('/public/delivery-settings').then((r) => r.data),
+  // phường đã chọn có giao được không, phí bao nhiêu (message: vì sao không giao)
   deliveryArea: (ward: string, province?: string) =>
-    apiClient.get<{ outside: boolean; nearestKm?: number; maxKm?: number }>('/public/delivery-area', { params: { ward, province } }).then((r) => r.data),
+    apiClient.get<{ outside: boolean; fee?: number; zone?: string; message?: string }>('/public/delivery-area', { params: { ward, province } }).then((r) => r.data),
   // gợi ý địa chỉ khi gõ (Google / Goong / OpenStreetMap tuỳ cấu hình app-core)
   addressSuggest: (q: string, area?: { ward?: string; province?: string }) =>
     apiClient.get<string[]>('/public/address-suggest', { params: { q, ...area } }).then((r) => r.data),

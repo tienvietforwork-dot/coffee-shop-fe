@@ -95,9 +95,11 @@ export function useCart() {
     if (ctx?.prev) qc.setQueryData(['cart', cartCode], ctx.prev)
     message.error(errorMessage(e))
   }
-  // the optimistic cart already re-ran the price quote before the server saved the change: quote again once it has
-  const savedAndRequote = (cart: Cart) => {
+  // the optimistic cart already re-ran the price quote before the server saved the change: quote again once it has.
+  // That quote may still be in flight (a fresh key has no data, so invalidate alone would just reuse it): cancel it first.
+  const savedAndRequote = async (cart: Cart) => {
     setData(cart)
+    await qc.cancelQueries({ queryKey: ['quote'] })
     qc.invalidateQueries({ queryKey: ['quote'] })
   }
   const withItems = (c: Cart, items: Cart['items']) =>

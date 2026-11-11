@@ -106,9 +106,11 @@ export function OrderTrackingPage() {
           <div className="g-row g-total"><span>Tổng cộng</span><span>{money(order.totalAmount)}</span></div>
         </div>
         {order.payments.map((p) => (
-          <div key={p.id} className="g-row g-muted">
+          <div key={p.id}><div className="g-row g-muted">
             <span>{PAYMENT_METHOD[p.method]}</span><span>{PAYMENT_STATUS[p.status].text}</span>
           </div>
+          {p.status === 'REFUND_PENDING' && <div className="g-muted" style={{ fontSize: 12, color: '#d46b08' }}>Quán sẽ liên hệ để chuyển khoản trả lại {money(p.amount - p.refundAmount)}.</div>}
+          {p.status === 'REFUNDED' && p.refundRef && <div className="g-muted" style={{ fontSize: 12 }}>Mã hoàn tiền: {p.refundRef}</div>} </div>
         ))}
         {order.status === 'PENDING' && order.channel !== 'COUNTER' && order.payments.some((p) => p.method !== 'CASH' && p.status === 'PENDING') && (
           <div className="g-row" style={{ marginTop: 8 }}>

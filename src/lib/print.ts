@@ -1,5 +1,5 @@
-import type { CashShift, Invoice } from '@/api/types'
-import { date, dateTime, money, num } from '@/lib/format'
+import type { CashShift, Invoice, Order } from '@/api/types'
+import { ORDER_TYPE, date, dateTime, money, num, time } from '@/lib/format'
 import { vndInWords } from '@/lib/vnWords'
 
 const esc = (s?: string | number | null) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
@@ -153,3 +153,40 @@ export function printCashShift(s: CashShift) {
     ${sign(['Người giao ca', s.staffName], ['Người nhận ca / quản lý', s.receivedBy])}`)
 }
 
+
+/** Tem decal cuộn 50 × 30 mm của máy in tem nhiệt — mỗi tem một trang */
+const LABEL_STYLE = `
+  @page { size: 50mm 30mm; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; }
+  .tem { width: 50mm; height: 30mm; padding: 1.5mm 2mm; display: flex; flex-direction: column; overflow: hidden; page-break-after: always; break-after: page; }
+  .tem:last-child { page-break-after: auto; break-after: auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; font-size: 8px; border-bottom: 1px solid #000; padding-bottom: .6mm; }
+  .top b { font-size: 10px; }
+  .name { font-size: 14px; font-weight: bold; line-height: 1.15; margin-top: .8mm; max-height: 2.3em; overflow: hidden; }
+  .note { font-size: 9px; font-style: italic; line-height: 1.2; max-height: 2.4em; overflow: hidden; }
+  .bottom { margin-top: auto; display: flex; justify-content: space-between; gap: 2mm; font-size: 8px; }
+  .bottom span:first-child { font-weight: bold; white-space: nowrap; }
+  .bottom span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+`
+
+/**
+ * Tem dán cốc khi đơn đang pha chế: mỗi cốc một tem (món × số lượng, kể cả món trong combo),
+ * ghi mã đơn, thứ tự cốc trong đơn, tên món, ghi chú của món, hình thức nhận và tên khách.
+ */
+export function printCupLabels(o: Order) {
+  const total = o.items.reduce((n, i) => n + i.quantity, 0)
+  const where = o.orderType === 'DINE_IN' && o.tableNo ? `Bàn ${o.tableNo}` : ORDER_TYPE[o.orderType]
+  const when = o.pickupTime ? `Nhận ${time(o.pickupTime)}` : time(o.orderedAt)
+  let cup = 0
+  const labels = o.items.flatMap((i) => Array.from({ length: i.quantity }, () => {
+    cup += 1
+    return `<div class="tem">
+      <div class="top"><span>${esc(SHOP)}</span><b>${esc(o.orderCode)}</b><b>${cup}/${total}</b></div>
+      <div class="name">${esc(i.coffeeName)}</div>
+      ${i.note ? `<div class="note">${esc(i.note)}</div>` : ''}
+      <div class="bottom"><span>${esc(where)} · ${esc(when)}</span><span>${esc(o.customerName ?? '')}</span></div>
+    </div>`
+  }))
+  printHtml(`tem-${o.orderCode}`, labels.join(''), LABEL_STYLE)
+}
