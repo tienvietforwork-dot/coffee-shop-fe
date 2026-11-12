@@ -11,11 +11,13 @@ import {
   InputNumber,
   Select,
   Segmented,
+  Popconfirm,
 } from "antd";
 import {
   promotionsApi,
   type VoucherType,
   type VoucherStatus,
+  type VoucherDetail,
   Voucher,
 } from "@/api/promotions";
 
@@ -26,6 +28,7 @@ import { useState } from "react";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { useAction } from "@/admin/components/useCrud";
 import { MoneyInput } from "@/admin/components/MoneyInput";
+import { crmApi } from "@/api/crm";
 
 const DISCOUNT_TYPE: Record<VoucherType, { label: string; color: string }> = {
   PERCENTAGE: { label: "Giảm theo phần trăm", color: "#FF5722" },
@@ -60,16 +63,45 @@ export function VouchersPage() {
   const act = useAction(
     (v: {
       id: number;
-      op: "activeVoucher" | "endVoucher" | "cloneVoucher" | "removeVoucher";
+      op:
+        | "activeVoucher"
+        | "endVoucher"
+        | "cloneVoucher"
+        | "removeVoucher";
     }) => promotionsApi[v.op](v.id),
     [["vouchers"], ["menu"]],
     "Đã cập nhật",
   );
 
   const [edit, setEdit] = useState<Partial<Voucher> | null>(null);
+  const [voucherForCustomer, setVoucherForCustomer] = useState<number | null>(
+    null,
+  );
+  const [customerSearch, setCustomerSearch] = useState("");
   const [form] = Form.useForm();
+  const [customerForm] = Form.useForm();
   const key = [["vouchers"], ["menu"]];
+  const revokeVoucher = useAction(
+    promotionsApi.revokeVoucher,
+    key,
+    "Đã thu hồi voucher",
+  );
   const saveVoucher = useAction(promotionsApi.saveVoucher, key);
+  const saveCustomer = useAction(
+    promotionsApi.saveCustomer,
+    key,
+    "Đã thêm khách hàng vào voucher",
+  );
+  const {
+    data: customers = [],
+    isFetching: isLoadingCustomers,
+    error: customerError,
+  } = useQuery({
+    queryKey: ["crm-customers", "voucher", customerSearch],
+    queryFn: () => crmApi.customers(customerSearch || undefined),
+    enabled: voucherForCustomer !== null,
+    retry: false,
+  });
   const openVoucher = (v: Partial<Voucher>) => {
     form.resetFields();
     form.setFieldsValue({
@@ -139,6 +171,7 @@ export function VouchersPage() {
             expandedRowRender: (v) => (
               <Table
                 size="small"
+                rowKey="id"
                 pagination={false}
                 dataSource={v.items}
                 columns={[
@@ -206,6 +239,37 @@ export function VouchersPage() {
                       );
                     },
                   },
+                  {
+                    title: "Thao tác",
+                    render: (_, voucherDetail: VoucherDetail) => {
+                      return (
+                        <Space>
+                          {voucherDetail.status === "ISSUED" && (
+                            <Popconfirm
+                              title="Thu hồi voucher này?"
+                              description="Khách hàng sẽ không thể sử dụng voucher sau khi thu hồi."
+                              okText="Thu hồi"
+                              cancelText="Hủy"
+                              okButtonProps={{ danger: true }}
+                              onConfirm={() =>
+                                revokeVoucher.mutate(voucherDetail.id)
+                              }
+                            >
+                              <Button
+                                danger
+                                loading={
+                                  revokeVoucher.isPending &&
+                                  revokeVoucher.variables === voucherDetail.id
+                                }
+                              >
+                                Thu hồi
+                              </Button>
+                            </Popconfirm>
+                          )}
+                        </Space>
+                      );
+                    },
+                  },
                 ]}
               />
             ),
@@ -260,7 +324,18 @@ export function VouchersPage() {
               render: (_, v) => {
                 return (
                   <Space>
-                    {v.status !== "ENDED" && (
+                    {v.status !== "ENDED" && v.id !== undefined && (
+                      <Button
+                        onClick={() => {
+                          customerForm.resetFields();
+                          setCustomerSearch("");
+                          setVoucherForCustomer(v.id!);
+                        }}
+                      >
+                        Thêm khách hàng
+                      </Button>
+                    )}
+                    {v.status === "DRAFT" && (
                       <Button onClick={() => openVoucher(v)}>Sửa</Button>
                     )}
                     <Dropdown
@@ -394,6 +469,73 @@ export function VouchersPage() {
             loading={saveVoucher.isPending}
           >
             Lưu Voucher
+          </Button>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={voucherForCustomer !== null}
+        title="Thêm khách hàng vào voucher"
+        footer={null}
+        onCancel={() => {
+          setVoucherForCustomer(null);
+          customerForm.resetFields();
+        }}
+        destroyOnHidden
+      >
+        <Form
+          form={customerForm}
+          layout="vertical"
+          onFinish={(values: { customerId: number }) => {
+            if (voucherForCustomer === null) return;
+            saveCustomer.mutate(
+              { id: voucherForCustomer, customerId: values.customerId },
+              {
+                onSuccess: () => {
+                  setVoucherForCustomer(null);
+                  customerForm.resetFields();
+                },
+              },
+            );
+          }}
+        >
+          <Form.Item
+            name="customerId"
+            label="Thông tin khách hàng"
+            rules={[{ required: true, message: "Vui lòng chọn khách hàng" }]}
+            help={
+              customerError
+                ? "Không thể tải danh sách khách hàng. Vui lòng thử lại."
+                : undefined
+            }
+            validateStatus={customerError ? "error" : undefined}
+          >
+            <Select
+              showSearch
+              filterOption={false}
+              onSearch={setCustomerSearch}
+              loading={isLoadingCustomers}
+              placeholder="Tìm theo tên hoặc số điện thoại"
+              notFoundContent={
+                customerError
+                  ? "Không thể tải khách hàng"
+                  : isLoadingCustomers
+                    ? "Đang tải..."
+                    : "Không tìm thấy khách hàng"
+              }
+              options={customers.map((customer) => ({
+                value: customer.id,
+                label: `${customer.fullName || "Chưa có tên"} · ${customer.phone}`,
+              }))}
+            />
+          </Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            loading={saveCustomer.isPending}
+          >
+            Thêm khách hàng
           </Button>
         </Form>
       </Modal>
