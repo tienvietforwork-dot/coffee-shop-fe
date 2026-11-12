@@ -6,32 +6,34 @@ const adminBundles = `${root}/product-bundles`
 const adminPlacements = `${root}/product-placement`
 const publicRoot = `${root}/public/merchandising`
 
-export type PlacementSection = 'FEATURED' | 'BEST_SELLER' | 'NEW_ARRIVAL' | 'RECOMMENDED' | 'HOME'
+export type PlacementSection = 'FEATURED' | 'BEST_SELLER' | 'NEW_ARRIVAL' | 'RECOMMENDED' | 'HOME' | 'CATEGORY'
 export type PublicationStatus = 'DRAFT' | 'PUBLISHED'
 export type BundleStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED'
 export interface MerchCoffee {
   id: number; name: string; categoryId: number; categoryName: string
+  categoryType: 'DRINK' | 'FOOD' | 'ADD_ON'
   imageUrl?: string | null; price: number; description?: string | null; status: string; autoSoldOut: boolean
 }
 export interface Placement {
-  id: number; section: PlacementSection; title?: string | null; displayOrder: number
+  id: number; section: PlacementSection; targetCategoryId?: number | null; targetCategoryName?: string | null
+  title?: string | null; displayOrder: number
   startsAt?: string | null; endsAt?: string | null; active: boolean
-  publicationStatus: PublicationStatus; visibleNow: boolean; coffee: MerchCoffee
+  publicationStatus: PublicationStatus; visibleNow: boolean; visibilityReason: string; coffee: MerchCoffee
 }
 export interface CategoryPriority { id: number; name: string; description?: string | null; displayOrder: number }
 export interface PlacementSuggestion { section: PlacementSection; coffee: MerchCoffee; completedUnitsLast30Days: number; reason: string }
 export interface PlacementOverview { sections: Partial<Record<PlacementSection, Placement[]>>; categories: CategoryPriority[]; coffees: MerchCoffee[] }
 export interface PlacementPayload {
-  coffeeId: number; section: PlacementSection; title?: string
+  coffeeId: number; section: PlacementSection; targetCategoryId?: number | null; title?: string
   displayOrder?: number; startsAt?: string | null; endsAt?: string | null
   active?: boolean; publicationStatus?: PublicationStatus
 }
 export interface BundleItem {
-  id: number; quantity: number; optional: boolean; displayOrder: number
+  id: number; quantity: number; optional: boolean; choiceGroup?: string | null; displayOrder: number
   linePrice: number; coffee: MerchCoffee
 }
 export interface Bundle {
-  id: number; name: string; description?: string | null; bundlePrice: number
+  id: number; name: string; description?: string | null; imageId?: number | null; imageUrl?: string | null; bundlePrice: number
   standalonePrice: number; savingAmount: number; startsAt?: string | null; endsAt?: string | null
   status: BundleStatus; availableNow: boolean; items: BundleItem[]
 }
@@ -39,11 +41,11 @@ export interface BundleAnalytics {
   bundleId: number; bundleName: string; from?: string; to?: string
   estimatedSoldQuantity: number; estimatedRevenue: number
   standalonePrice: number; bundlePrice: number; estimatedSavingGiven: number
-  components: { coffeeId: number; coffeeName: string; requiredQuantity: number; optional: boolean; soldQuantity: number; revenue: number }[]
+  components: { coffeeId: number; coffeeName: string; requiredQuantity: number; optional: boolean; choiceGroup?: string | null; soldQuantity: number; revenue: number }[]
 }
-export interface BundleItemPayload { coffeeId: number; quantity: number; optional?: boolean; displayOrder?: number }
+export interface BundleItemPayload { coffeeId: number; quantity: number; optional?: boolean; choiceGroup?: string | null; displayOrder?: number }
 export interface BundlePayload {
-  name: string; description?: string; bundlePrice: number; startsAt?: string | null
+  name: string; description?: string; imageId?: number | null; imageUrl?: string | null; bundlePrice: number; startsAt?: string | null
   endsAt?: string | null; status?: BundleStatus; items?: BundleItemPayload[]
 }
 const data = <T,>(p: Promise<{ data: T }>) => p.then((r) => r.data)
@@ -74,5 +76,5 @@ export const merchandisingApi = {
 
 export const sectionLabels: Record<PlacementSection, string> = {
   FEATURED: 'Sản phẩm nổi bật', BEST_SELLER: 'Bán chạy', NEW_ARRIVAL: 'Sản phẩm mới',
-  RECOMMENDED: 'Đề xuất', HOME: 'Trang chủ',
+  RECOMMENDED: 'Đề xuất', HOME: 'Trang chủ', CATEGORY: 'Đầu danh mục',
 }

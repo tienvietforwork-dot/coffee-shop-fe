@@ -11,6 +11,8 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+let redirectingToAdminLogin = false
+
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) {
@@ -22,9 +24,22 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401 && !error.config?.url?.startsWith('/auth/login')) {
+    const requestUrl = error.config?.url ?? ''
+    const isLoginRequest = /\/auth\/login(?:\?|$)/.test(requestUrl)
+
+    if (error.response?.status === 401 && !isLoginRequest) {
       useAuthStore.getState().logout()
-      window.location.href = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/'
+
+      // Public pages must stay in the SPA. Redirecting to `/` on a 401 while
+      // already at `/` reloads the app, repeats the same request, and can loop.
+      const path = window.location.pathname
+      const isAdminRoute = path === '/admin' || path.startsWith('/admin/')
+      const isAdminLogin = path === '/admin/login' || path.startsWith('/admin/login/')
+
+      if (isAdminRoute && !isAdminLogin && !redirectingToAdminLogin) {
+        redirectingToAdminLogin = true
+        window.location.replace('/admin/login')
+      }
     }
     return Promise.reject(error)
   },
@@ -37,7 +52,7 @@ export function errorMessage(err: unknown, fallback = 'Có lỗi xảy ra, vui l
   if (data?.fields) {
     const labels: Record<string, string> = {
       coffeeId: 'Sản phẩm', section: 'Khu vực', title: 'Tiêu đề', displayOrder: 'Thứ tự ưu tiên',
-      startsAt: 'Thời gian bắt đầu', endsAt: 'Thời gian kết thúc', status: 'Trạng thái',
+      targetCategoryId: 'Danh mục trưng bày', startsAt: 'Thời gian bắt đầu', endsAt: 'Thời gian kết thúc', status: 'Trạng thái',
     }
     return Object.entries(data.fields).map(([key, value]) => `${labels[key] || key}: ${value}`).join('; ')
   }

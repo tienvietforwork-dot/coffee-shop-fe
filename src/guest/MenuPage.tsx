@@ -12,6 +12,7 @@ import {
 import { publicApi } from '@/api/public'
 import type { MenuCoffee } from '@/api/types'
 import { money, date } from '@/lib/format'
+import { merchandisingApi } from '@/api/merchandising'
 
 import { CoffeeCard } from './CoffeeCard'
 import { AddToCartModal } from './AddToCartModal'
@@ -94,6 +95,11 @@ export function MenuPage() {
     queryKey: ['menu'],
     queryFn: publicApi.menu,
   })
+  const { data: publicPlacements = [] } = useQuery({
+    queryKey: ['merch-public-placements'],
+    queryFn: merchandisingApi.publicPlacements,
+    retry: 1,
+  })
 
   const [search, setSearch] = useState('')
   const [active, setActive] = useState<number | null>(null)
@@ -122,6 +128,7 @@ export function MenuPage() {
 
   // Danh sach danh muc cho thanh chip (khong phu thuoc bo loc)
   const allCategories = menu?.categories ?? []
+  const menuCoffeesById = useMemo(() => new Map(allCategories.flatMap(c => c.coffees).map(c => [c.id, c])), [allCategories])
 
   // Loc san pham theo danh muc, ten/mo ta, gia, khuyen mai, con hang
   const categories = useMemo(() => {
@@ -149,8 +156,15 @@ export function MenuPage() {
 
         return { ...c, coffees }
       })
-      .filter((c) => c.coffees.length > 0)
-  }, [menu, search, active, price, sort, onSale, inStock])
+      .filter((c) => c.coffees.length > 0 || (publicPlacements ?? []).some(p => {
+        if (p.section !== 'CATEGORY' || p.targetCategoryId !== c.id || !p.visibleNow) return false
+        const coffee = menuCoffeesById.get(p.coffee.id)
+        return !!coffee && coffee.available
+          && (!q || coffee.name.toLowerCase().includes(q) || coffee.description?.toLowerCase().includes(q))
+          && inPriceRange(coffee, price)
+          && (!onSale || coffee.salePrice != null)
+      }))
+  }, [menu, menuCoffeesById, publicPlacements, search, active, price, sort, onSale, inStock])
 
   const filtered =
     !!search.trim() ||
@@ -332,8 +346,17 @@ export function MenuPage() {
           <Empty description="Không tìm thấy món phù hợp" />
         )}
 
-        {categories.map((c) => (
-          <section key={c.id} className="g-section">
+        {categories.map((c) => {
+          const queryText = search.trim().toLowerCase()
+          const categoryPlacements = publicPlacements.filter(p => {
+            if (p.section !== 'CATEGORY' || p.targetCategoryId !== c.id || !p.visibleNow) return false
+            const coffee = menuCoffeesById.get(p.coffee.id)
+            return !!coffee && coffee.available
+              && (!queryText || coffee.name.toLowerCase().includes(queryText) || coffee.description?.toLowerCase().includes(queryText))
+              && inPriceRange(coffee, price)
+              && (!onSale || coffee.salePrice != null)
+          })
+          return <section key={c.id} className="g-section">
             <div className="g-section-head">
               <h2>
                 {c.name}
@@ -346,6 +369,24 @@ export function MenuPage() {
                 <p>{c.description}</p>
               )}
             </div>
+
+            {categoryPlacements.length > 0 && <div className="merch-section merch-category-section">
+              <div className="merch-section-title">
+                <div><span className="merch-eyebrow">GỢI Ý TRONG DANH MỤC</span><h3>Món được giới thiệu</h3></div>
+                <span className="merch-count">{categoryPlacements.length} món</span>
+              </div>
+              <div className="g-grid">
+                {categoryPlacements.map(row => {
+                  const coffee = menuCoffeesById.get(row.coffee.id)
+                  if (!coffee) return null
+                  return <div key={row.id} className="merch-item">
+                    <CoffeeCard coffee={coffee} soldOut={!coffee.available} onPick={() => setPicked(coffee)}
+                      onQuickAdd={(photo) => quickAdd(coffee, photo)} />
+                    {row.title && <span className="merch-item-caption">{row.title}</span>}
+                  </div>
+                })}
+              </div>
+            </div>}
 
             {/* Mon trong danh muc hien thi dang cuon ngang */}
             <ScrollRow>
@@ -362,7 +403,7 @@ export function MenuPage() {
               ))}
             </ScrollRow>
           </section>
-        ))}
+        })}
       </section>
 
       {/* MODAL THEM VAO GIO HANG */}

@@ -267,7 +267,12 @@ export function CheckoutPage() {
             })}
             {(cart.bundles ?? []).map((b) => (
               <li key={`bundle-${b.id}`} style={{ alignItems: 'center' }}>
-                <span style={{ flex: 1 }}><b>{b.quantity}×</b> 🎁 {b.name}</span>
+                <span style={{ flex: 1 }}>
+                  <b>{b.quantity}×</b> 🎁 {b.name}
+                  {b.components?.map((component) => <small key={`${b.id}-${component.coffeeId}`} style={{ display: 'block', color: '#8b7567' }}>
+                    {component.quantity * b.quantity} × {component.name}{component.choiceGroup ? ` · ${component.choiceGroup}` : ''}
+                  </small>)}
+                </span>
                 <span>{money(b.total)}</span>
                 <button type="button" className="g-icon-btn" aria-label="Xóa combo" onClick={() => removeBundle.mutate(b.id)}><DeleteOutlined /></button>
               </li>

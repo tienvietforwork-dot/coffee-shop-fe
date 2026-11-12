@@ -1,6 +1,6 @@
 import apiClient from './client'
 const base = '/stats/cross-sell'
-export interface CrossSellItem { coffeeId: number; coffeeName?: string; position: number; price?: number }
+export interface CrossSellItem { coffeeId: number; coffeeName?: string; categoryType?: 'DRINK'|'FOOD'|'ADD_ON'; position: number; price?: number }
 export interface CrossSellRule {
   id: number; anchor_coffee_id: number; anchor_name: string; priority: number; min_cart_amount: number
   starts_at?: string | null; ends_at?: string | null; status: 'DRAFT'|'ACTIVE'|'PAUSED'
@@ -12,7 +12,7 @@ export interface CrossSellPayload {
 }
 export interface CrossSellSuggestion {
   ruleId: number; coffeeId: number; coffeeName: string; price: number; description?: string
-  imageUrl?: string; imageId?: number
+  imageUrl?: string; imageId?: number; categoryType?: 'DRINK'|'FOOD'|'ADD_ON'
 }
 export const crossSellApi = {
   rules: async () => (await apiClient.get<CrossSellRule[]>(`${base}/rules`)).data,
