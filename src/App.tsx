@@ -23,7 +23,6 @@ const OrdersBoardPage = lazy(() => import('@/admin/pages/OrdersBoardPage').then(
 const PosPage = lazy(() => import('@/admin/pages/PosPage').then((m) => ({ default: m.PosPage })))
 const ShipmentsPage = lazy(() => import('@/admin/pages/ShipmentsPage').then((m) => ({ default: m.ShipmentsPage })))
 const MyDeliveriesPage = lazy(() => import('@/admin/pages/MyDeliveriesPage').then((m) => ({ default: m.MyDeliveriesPage })))
-const DeliverySchedulePage = lazy(() => import('@/admin/pages/DeliverySchedulePage').then((m) => ({ default: m.DeliverySchedulePage })))
 const SubscriptionsPage = lazy(() => import('@/admin/pages/SubscriptionsPage').then((m) => ({ default: m.SubscriptionsPage })))
 const IncidentsPage = lazy(() => import('@/admin/pages/IncidentsPage').then((m) => ({ default: m.IncidentsPage })))
 const CoffeesPage = lazy(() => import('@/admin/pages/CoffeesPage').then((m) => ({ default: m.CoffeesPage })))
@@ -101,7 +100,7 @@ export default function App() {
                   <Route path="/admin/pos" element={<Guard perm="pos"><PosPage /></Guard>} />
                   <Route path="/admin/shipments" element={<Guard perm="shipments"><ShipmentsPage /></Guard>} />
                   <Route path="/admin/my-deliveries" element={<Guard perm="my-deliveries"><MyDeliveriesPage /></Guard>} />
-                  <Route path="/admin/delivery-schedule" element={<Guard perm="delivery-schedule"><DeliverySchedulePage /></Guard>} />
+                  <Route path="/admin/delivery-schedule" element={<Navigate to="/admin/orders" replace />} />
                   <Route path="/admin/subscriptions" element={<Guard perm="subscriptions"><SubscriptionsPage /></Guard>} />
                   <Route path="/admin/incidents" element={<Guard perm="incidents"><IncidentsPage /></Guard>} />
                   <Route path="/admin/merchandising-analytics" element={<Guard perm="stats"><MerchandisingAnalyticsPage /></Guard>} />

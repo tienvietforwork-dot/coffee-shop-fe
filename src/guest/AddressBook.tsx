@@ -7,7 +7,7 @@ import { publicApi } from '@/api/public'
 import { money } from '@/lib/format'
 import { errorMessage } from '@/api/client'
 import { VnAddressInput } from '@/components/VnAddressInput'
-import { isCompleteVnAddress, vnAddressRule } from '@/lib/vnAddress'
+import { isCompleteVnAddress, loadVnUnits, parseVnAddress, vnAddressRule } from '@/lib/vnAddress'
 import { useDeliveryArea } from '@/lib/useDeliveryArea'
 
 /** địa chỉ giao của đơn: từ sổ địa chỉ ({@code id}) hoặc nhập cho riêng đơn này */
@@ -30,6 +30,13 @@ export function AddressBook({ value, onChange, loggedIn, prefill }: {
   const [editing, setEditing] = useState<Partial<DeliveryPick> | null>(null)
   const [form] = Form.useForm<FormValues>()
   const { data: shop } = useQuery({ queryKey: ['delivery-settings-public'], queryFn: publicApi.deliverySettings, staleTime: 5 * 60_000 })
+  // nút "Hoàn thành" chỉ bấm được khi đã nhập đủ và phường đó quán có giao
+  const watched = Form.useWatch([], form) as Partial<FormValues> | undefined
+  const { data: units = [] } = useQuery({ queryKey: ['vn-units'], queryFn: loadVnUnits, staleTime: Infinity, enabled: !!editing })
+  const parsed = parseVnAddress(watched?.address, units)
+  const area = useDeliveryArea(editing ? watched?.address : undefined)
+  const formReady = !!watched?.recipientName?.trim() && /^0\d{9,10}$/.test(watched?.recipientPhone ?? '')
+    && !!parsed.province && !!parsed.ward && !!parsed.street.trim() && !area?.outside
 
   // chưa chọn gì: lấy địa chỉ mặc định
   const filled = useRef(false)
@@ -109,7 +116,7 @@ export function AddressBook({ value, onChange, loggedIn, prefill }: {
       <Modal open={!!editing} title={editing?.id ? 'Cập nhật địa chỉ' : 'Địa chỉ mới'} onCancel={() => setEditing(null)} destroyOnHidden
         footer={<>
           <Button onClick={() => setEditing(null)}>Trở lại</Button>
-          <Button type="primary" loading={save.isPending} onClick={() => form.submit()}>Hoàn thành</Button>
+          <Button type="primary" disabled={!formReady} loading={save.isPending} onClick={() => form.submit()}>Hoàn thành</Button>
         </>}>
         <Form form={form} layout="vertical" onFinish={submitForm} requiredMark={false}>
           <div className="g-form-row">

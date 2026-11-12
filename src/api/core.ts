@@ -87,7 +87,6 @@ export const coreApi = {
   createMaterial: (b: MaterialPayload) => post<Material>('/materials', b),
   updateMaterial: (id: number, b: MaterialPayload) => put<Material>(`/materials/${id}`, b),
   deleteMaterial: (id: number) => del(`/materials/${id}`),
-  adjustMaterial: (id: number, delta: number) => patch<Material>(`/materials/${id}/quantity`, { delta }),
 
   /** null when no shift is open */
   currentShift: () => apiClient.get<CashShift | ''>('/cash-shifts/current').then((r) => r.data || null),
@@ -150,7 +149,7 @@ export const coreApi = {
   cancel: (id: number, reason: string) => post<Order>(`/orders/${id}/cancel`, { reason }),
   prepare: (id: number) => post<Order>(`/orders/${id}/prepare`),
   ready: (id: number) => post<Order>(`/orders/${id}/ready`),
-  dispatch: (id: number) => post<Order>(`/orders/${id}/dispatch`),
+  dispatch: (id: number, shipperId?: number) => post<Order>(`/orders/${id}/dispatch`, shipperId ? { shipperId } : undefined),
   complete: (id: number) => post<Order>(`/orders/${id}/complete`),
   collectPayment: (id: number) => post<Order>(`/orders/${id}/collect-payment`),
   refund: (paymentId: number, amount: number) => post<Payment>(`/payments/${paymentId}/refund`, { amount }),

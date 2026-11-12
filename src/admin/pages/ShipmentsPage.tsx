@@ -30,7 +30,7 @@ export function ShipmentsPage() {
         items={[
           { key: 'orders', label: 'Đơn giao', children: <ShipmentList /> },
           { key: 'shippers', label: 'Người giao', children: <ShippersTab /> },
-          ...(canFee ? [{ key: 'fee', label: 'Phí giao hàng', children: <DeliveryFeeSettings /> }] : []),
+          ...(canFee ? [{ key: 'fee', label: 'Cấu hình giao hàng', children: <DeliveryFeeSettings /> }] : []),
         ]} />
     </>
   )

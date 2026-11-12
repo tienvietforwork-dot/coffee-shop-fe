@@ -8,7 +8,7 @@ import {
   GiftOutlined, TagsOutlined, FundOutlined, LineChartOutlined, LogoutOutlined, ArrowLeftOutlined,
   SafetyCertificateOutlined, KeyOutlined, StarOutlined, SwapOutlined,
   DollarOutlined, ScheduleOutlined, FileSearchOutlined,
-  CreditCardOutlined, FileTextOutlined, NotificationOutlined, SearchOutlined, NodeIndexOutlined, CalendarOutlined, SyncOutlined,
+  CreditCardOutlined, FileTextOutlined, NotificationOutlined, SearchOutlined, NodeIndexOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
@@ -33,7 +33,6 @@ const GROUPS: { label: string; icon: ReactNode; items: Entry[] }[] = [
       { key: '/admin/cash-shifts', icon: <DollarOutlined />, label: 'Ca thu ngân', perm: P.CASH_SHIFTS },
       { key: '/admin/payment-reconciliation', icon: <CreditCardOutlined />, label: 'Đối soát thanh toán', perm: P.PAYMENT_RECONCILIATION },
       { key: '/admin/invoices', icon: <FileTextOutlined />, label: 'Hóa đơn điện tử', perm: P.INVOICES },
-      { key: '/admin/delivery-schedule', icon: <CalendarOutlined />, label: 'Lịch hẹn giao & pha chế', perm: P.DELIVERY_SCHEDULE },
       { key: '/admin/shipments', icon: <CarOutlined />, label: 'Giao hàng', perm: P.SHIPMENTS },
       { key: '/admin/my-deliveries', icon: <NodeIndexOutlined />, label: 'Đơn giao của tôi', perm: P.MY_DELIVERIES },
       { key: '/admin/subscriptions', icon: <SyncOutlined />, label: 'Gói giao định kỳ', perm: P.SUBSCRIPTIONS },
