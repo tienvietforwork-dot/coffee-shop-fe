@@ -6,12 +6,7 @@ import apiClient from "./client";
  * Checkout itself (applying running promotions / validating vouchers) is done by app-core.
  */
 export type PromotionScope = "ORDER" | "COFFEE";
-export type PromotionStatus =
-  | "DRAFT"
-  | "ACTIVE"
-  | "PAUSED"
-  | "PAUSE"
-  | "ENDED";
+export type PromotionStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "PAUSE" | "ENDED";
 export type PromotionType = "PERCENTAGE" | "FIXED_AMOUNT" | "SPECIAL";
 export type VoucherStatus = "ISSUED" | "USED" | "EXPIRED" | "REVOKED";
 export type IncidentType =
@@ -58,12 +53,12 @@ export type VoucherPayload = Omit<Voucher, "id" | "status" | "validDays"> & {
 };
 
 export interface VoucherDetail {
-  id?: number;
+  id: number;
   orderId?: number;
   orderCode?: string;
   customerId: number;
   customerName: string;
-  customerPhone: number;
+  customerPhone: string;
   incidentId?: string;
   incidentType?: IncidentType;
   incidentSeverity?: IncidentSeverity;
@@ -71,6 +66,16 @@ export interface VoucherDetail {
   status: VoucherStatus;
   issuedAt: string;
   expiresAt: string;
+}
+
+export interface VoucherDetailRequest {
+  customerId: number;
+  orderId?: number;
+  incidentId?: number;
+  code?: string;
+  status?: VoucherStatus;
+  issuedAt?: string;
+  expiresAt?: string;
 }
 
 export interface Voucher {
@@ -86,26 +91,25 @@ export interface Voucher {
   items?: VoucherDetail[];
 }
 
-export interface PromotionAnalyticsResponse {
-  vouchers: {
-    issued: number;
-    used: number;
-    usageRate: number;
-    discountTotal: number;
-  };
-  baseline: {
-    avgOrderValue: number;
-  };
-  promotions: Array<{
+export interface PromotionAnalytics {
+  promotions: {
     id: number;
     name: string;
-    status: PromotionStatus | string;
+    status: PromotionStatus;
     orders: number;
     revenue: number;
     discountTotal: number;
     avgOrderValue: number;
-    roi?: number | null;
-  }>;
+    roi?: number;
+  }[];
+  vouchers: {
+    issued: number;
+    used: number;
+    expired: number;
+    usageRate: number;
+    discountTotal: number;
+  };
+  baseline: { avgOrderValue: number; ordersPerDay: number };
 }
 
 const base = "/promotions";
@@ -128,12 +132,6 @@ export const promotionsApi = {
       ? apiClient.put<Promotion>(`${base}/${b.id}`, b)
       : apiClient.post<Promotion>(base, b)
     ).then((r) => r.data),
-  analytics: (from: string, to: string) =>
-    apiClient
-      .get<PromotionAnalyticsResponse>(`${base}/analytics`, {
-        params: { from, to },
-      })
-      .then((r) => r.data),
 
   vouchers: () => apiClient.get<Voucher[]>(base_2).then((r) => r.data),
   activeVoucher: (id: number) =>
@@ -144,9 +142,26 @@ export const promotionsApi = {
     apiClient.post(`${base_2}/${id}/clone`).then((r) => r.data),
   removeVoucher: (id: number) =>
     apiClient.delete(`${base_2}/${id}/remove`).then((r) => r.data),
+
+  revokeVoucher: (id: number) => {
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      throw new Error("ID voucher detail không hợp lệ");
+    }
+    return apiClient
+      .post(`${base_2}/voucher-detail/${id}/revoke`)
+      .then((r) => r.data);
+  },
   saveVoucher: (b: VoucherPayload & { id?: number }) =>
     (b.id
       ? apiClient.put<Voucher>(`${base_2}/${b.id}`, b)
       : apiClient.post<Voucher>(base_2, b)
     ).then((r) => r.data),
+  saveCustomer: (b: VoucherDetailRequest & { id: number }) =>
+    apiClient
+      .post<Voucher>(`${base_2}/${b.id}/voucher-detail`, b)
+      .then((r) => r.data),
+  analytics: (from?: string, to?: string) =>
+    apiClient
+      .get<PromotionAnalytics>(`${base}/analytics`, { params: { from, to } })
+      .then((r) => r.data),
 };

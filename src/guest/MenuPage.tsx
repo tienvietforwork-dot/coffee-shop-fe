@@ -1,4 +1,9 @@
+import { useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Input, Skeleton, Empty } from "antd";
+import { SearchOutlined, TagOutlined } from "@ant-design/icons";
 
+<<<<<<< Updated upstream
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Input, Skeleton, Empty, Select, Checkbox } from 'antd'
@@ -8,11 +13,17 @@ import {
   LeftOutlined,
   RightOutlined,
 } from '@ant-design/icons'
+=======
+import { publicApi } from "@/api/public";
+import type { MenuCoffee } from "@/api/types";
+import { money, date } from "@/lib/format";
+>>>>>>> Stashed changes
 
-import { publicApi } from '@/api/public'
-import type { MenuCoffee } from '@/api/types'
-import { money, date } from '@/lib/format'
+import { CoffeeCard } from "./CoffeeCard";
+import { AddToCartModal } from "./AddToCartModal";
+import { MerchandisingSections } from "./MerchandisingSections";
 
+<<<<<<< Updated upstream
 import { CoffeeCard } from './CoffeeCard'
 import { AddToCartModal } from './AddToCartModal'
 import { MerchandisingSections } from './MerchandisingSections'
@@ -20,6 +31,12 @@ import { MerchandisingSections } from './MerchandisingSections'
 import { useGuestStore } from '@/store/guestStore'
 import { useCart } from './useCart'
 import { flyToCart } from '@/lib/flyToCart'
+=======
+import { useGuestStore } from "@/store/guestStore";
+import { useAddableCups } from "@/lib/stock";
+import { useCart } from "./useCart";
+import { flyToCart } from "@/lib/flyToCart";
+>>>>>>> Stashed changes
 
 type SortKey = 'default' | 'price-asc' | 'price-desc' | 'name'
 type PriceKey = 'all' | 'lt30' | '30to50' | 'gt50'
@@ -87,14 +104,12 @@ function ScrollRow({ children }: { children: ReactNode }) {
 }
 
 export function MenuPage() {
-  const {
-    data: menu,
-    isLoading,
-  } = useQuery({
-    queryKey: ['menu'],
+  const { data: menu, isLoading } = useQuery({
+    queryKey: ["menu"],
     queryFn: publicApi.menu,
-  })
+  });
 
+<<<<<<< Updated upstream
   const [search, setSearch] = useState('')
   const [active, setActive] = useState<number | null>(null)
   const [price, setPrice] = useState<PriceKey>('all')
@@ -104,34 +119,45 @@ export function MenuPage() {
   const [picked, setPicked] = useState<MenuCoffee | null>(null)
 
   const { add } = useCart()
+=======
+  const [search, setSearch] = useState("");
+  const [active, setActive] = useState<number | null>(null);
+  const [picked, setPicked] = useState<MenuCoffee | null>(null);
 
-  const tableNo = useGuestStore((s) => s.tableNo)
+  const { lines, add } = useCart();
+  const addable = useAddableCups(lines);
+>>>>>>> Stashed changes
 
+  const tableNo = useGuestStore((s) => s.tableNo);
+
+<<<<<<< Updated upstream
+=======
+  const sectionRefs = useRef<Record<number, HTMLElement | null>>({});
+
+>>>>>>> Stashed changes
   // Them san pham le vao gio hang
-  const quickAdd = (
-    coffee: MenuCoffee,
-    photo: HTMLImageElement | null
-  ) => {
-    flyToCart(photo, photo?.currentSrc)
+  const quickAdd = (coffee: MenuCoffee, photo: HTMLImageElement | null) => {
+    flyToCart(photo, photo?.currentSrc);
 
     add.mutate({
       coffeeId: coffee.id,
       quantity: 1,
-    })
-  }
+    });
+  };
 
   // Danh sach danh muc cho thanh chip (khong phu thuoc bo loc)
   const allCategories = menu?.categories ?? []
 
   // Loc san pham theo danh muc, ten/mo ta, gia, khuyen mai, con hang
   const categories = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = search.trim().toLowerCase();
 
     return (menu?.categories ?? [])
       .filter((c) => active === null || c.id === active)
       .map((c) => {
         const coffees = c.coffees.filter(
           (x) =>
+<<<<<<< Updated upstream
             (!q ||
               x.name.toLowerCase().includes(q) ||
               x.description?.toLowerCase().includes(q)) &&
@@ -168,6 +194,25 @@ export function MenuPage() {
     setOnSale(false)
     setInStock(false)
   }
+=======
+            !q ||
+            x.name.toLowerCase().includes(q) ||
+            x.description?.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((c) => c.coffees.length > 0);
+  }, [menu, search]);
+
+  // Chuyen den danh muc
+  const jump = (id: number) => {
+    setActive(id);
+
+    sectionRefs.current[id]?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+>>>>>>> Stashed changes
 
   return (
     <>
@@ -178,7 +223,7 @@ export function MenuPage() {
             <span className="g-eyebrow">
               {tableNo
                 ? `Bạn đang ngồi bàn ${tableNo}`
-                : 'Rang mộc · Pha tay · Mỗi ngày'}
+                : "Rang mộc · Pha tay · Mỗi ngày"}
             </span>
 
             <h1>
@@ -188,16 +233,15 @@ export function MenuPage() {
             </h1>
 
             <p>
-              Chọn món và đặt ngay — uống tại bàn,
-              mang đi hay giao tận nơi.
+              Chọn món và đặt ngay — uống tại bàn, mang đi hay giao tận nơi.
             </p>
 
             <button
               className="g-cta"
               onClick={() =>
                 document
-                  .getElementById('menu')
-                  ?.scrollIntoView({ behavior: 'smooth' })
+                  .getElementById("menu")
+                  ?.scrollIntoView({ behavior: "smooth" })
               }
             >
               Xem thực đơn
@@ -225,14 +269,17 @@ export function MenuPage() {
 
                 <span>
                   {p.discountPercent
-                    ? `Giảm ${p.discountPercent}%`
-                    : ''}
+                    ? p.discountType === "FIXED_AMOUNT"
+                      ? `Giảm ${money(p.discountPercent)}`
+                      : `Giảm ${p.discountPercent}%`
+                    : ""}
 
                   {p.minOrderAmount
                     ? ` cho đơn từ ${money(p.minOrderAmount)}`
-                    : ''}
+                    : ""}
 
-                  {' · đến '}{date(p.endDate)}
+                  {" · đến "}
+                  {date(p.endDate)}
                 </span>
               </div>
             </div>
@@ -245,10 +292,7 @@ export function MenuPage() {
       <MerchandisingSections />
 
       {/* THUC DON HIEN TAI */}
-      <section
-        id="menu"
-        className="g-container g-menu"
-      >
+      <section id="menu" className="g-container g-menu">
         <div className="g-menu-bar">
           <div className="g-chips">
             <button
@@ -261,12 +305,17 @@ export function MenuPage() {
             {allCategories.map((c) => (
               <button
                 key={c.id}
+<<<<<<< Updated upstream
                 className={`g-chip ${
                   active === c.id ? 'is-active' : ''
                 }`}
                 onClick={() =>
                   setActive(active === c.id ? null : c.id)
                 }
+=======
+                className={`g-chip ${active === c.id ? "is-active" : ""}`}
+                onClick={() => jump(c.id)}
+>>>>>>> Stashed changes
               >
                 {c.name}
               </button>
@@ -324,16 +373,24 @@ export function MenuPage() {
         </div>
         </div>
 
-        {isLoading && (
-          <Skeleton active paragraph={{ rows: 8 }} />
-        )}
+        {isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
 
         {!isLoading && categories.length === 0 && (
           <Empty description="Không tìm thấy món phù hợp" />
         )}
 
         {categories.map((c) => (
+<<<<<<< Updated upstream
           <section key={c.id} className="g-section">
+=======
+          <section
+            key={c.id}
+            className="g-section"
+            ref={(el) => {
+              sectionRefs.current[c.id] = el;
+            }}
+          >
+>>>>>>> Stashed changes
             <div className="g-section-head">
               <h2>
                 {c.name}
@@ -342,9 +399,7 @@ export function MenuPage() {
                 </span>
               </h2>
 
-              {c.description && (
-                <p>{c.description}</p>
-              )}
+              {c.description && <p>{c.description}</p>}
             </div>
 
             {/* Mon trong danh muc hien thi dang cuon ngang */}
@@ -353,11 +408,13 @@ export function MenuPage() {
                 <CoffeeCard
                   key={coffee.id}
                   coffee={coffee}
+<<<<<<< Updated upstream
                   soldOut={!coffee.available}
+=======
+                  soldOut={!coffee.available || addable(coffee.id) < 1}
+>>>>>>> Stashed changes
                   onPick={() => setPicked(coffee)}
-                  onQuickAdd={(photo) =>
-                    quickAdd(coffee, photo)
-                  }
+                  onQuickAdd={(photo) => quickAdd(coffee, photo)}
                 />
               ))}
             </ScrollRow>
@@ -366,10 +423,7 @@ export function MenuPage() {
       </section>
 
       {/* MODAL THEM VAO GIO HANG */}
-      <AddToCartModal
-        coffee={picked}
-        onClose={() => setPicked(null)}
-      />
+      <AddToCartModal coffee={picked} onClose={() => setPicked(null)} />
     </>
-  )
+  );
 }
