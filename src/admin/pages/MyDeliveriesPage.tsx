@@ -30,6 +30,10 @@ export function MyDeliveriesPage() {
   // thứ tự đi theo tuyến gợi ý
   const order = new Map([...(plan?.stops ?? []), ...(plan?.unlocated ?? [])].map((s, i) => [s.shipmentId, i + 1]))
   const sorted = view === 'open' ? [...rows].sort((a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99)) : rows
+  // Google Maps hay không tìm ra địa chỉ chữ (tên cửa hàng, tên phường mới) → có tọa độ thì chỉ đường bằng tọa độ
+  const coords = new Map((plan?.stops ?? []).filter((x) => x.lat != null && x.lng != null).map((x) => [x.shipmentId, `${x.lat},${x.lng}`]))
+  const directions = (s: Shipment) =>
+    `https://www.google.com/maps/dir/?api=1&travelmode=two-wheeler&destination=${encodeURIComponent(coords.get(s.id) ?? s.address)}`
 
   return (
     <>
@@ -60,7 +64,7 @@ export function MyDeliveriesPage() {
               {OPEN.includes(s.status) && (
                 <Space wrap style={{ marginTop: 8 }}>
                   <Button size="small" icon={<CarOutlined />} target="_blank" rel="noreferrer"
-                    href={`https://www.google.com/maps/dir/?api=1&travelmode=two-wheeler&destination=${encodeURIComponent(s.address)}`}>Chỉ đường</Button>
+                    href={directions(s)}>Chỉ đường</Button>
                   {s.status !== 'DELIVERING' ? (
                     <Button size="small" type="primary" disabled={s.orderStatus !== 'READY'} loading={save.isPending}
                       title={s.orderStatus !== 'READY' ? 'Chờ quầy pha xong' : undefined}

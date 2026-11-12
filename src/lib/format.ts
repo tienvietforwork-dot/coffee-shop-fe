@@ -17,7 +17,7 @@ const L = (text: string, color: string): Label => ({ text, color })
 
 export const ORDER_STATUS: Record<OrderStatus, Label> = {
   PENDING: L('Chờ xác nhận', 'gold'),
-  CONFIRMED: L('Đã xác nhận', 'blue'),
+  CONFIRMED: L('Chờ pha chế', 'blue'),
   PREPARING: L('Đang pha chế', 'purple'),
   READY: L('Sẵn sàng', 'cyan'),
   DELIVERING: L('Đang giao', 'geekblue'),

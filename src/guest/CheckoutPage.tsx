@@ -141,8 +141,12 @@ export function CheckoutPage() {
     ? Math.max(1, Math.round(q.deliveryDistanceKm / shipping.speedKmh * 60)) : undefined
   const at = (d: Dayjs) => d.format(d.isSame(dayjs(), 'day') ? 'HH:mm' : 'HH:mm DD/MM')
   const eta = (from: Dayjs, min: number) => `${at(from.add(min, 'minute'))} (${min} phút)`
+  // hẹn giờ: quán canh giờ pha + chạy xe để giao đúng giờ hẹn (chỉ trễ hơn khi giờ hẹn quá sát bây giờ)
+  const earliest = dayjs().add(prepMin + (travelMin ?? 0), 'minute')
   const timeHint = orderType === 'DELIVERY'
-    ? travelMin != null && `Dự kiến nhận hàng: ${eta(pickupTime ?? dayjs(), prepMin + travelMin)}`
+    ? travelMin != null && (pickupTime
+      ? `Dự kiến nhận hàng: ${at(pickupTime.isBefore(earliest) ? earliest : pickupTime)}`
+      : `Dự kiến nhận hàng: ${eta(dayjs(), prepMin + travelMin)}`)
     : pickupTime ? `Hẹn nhận lúc ${at(pickupTime)}`
     : prepMin > 0 ? `Dự kiến xong: ${eta(dayjs(), prepMin)}` : undefined
   return (

@@ -351,6 +351,8 @@ export interface Order {
   cancelReason?: string
   pickupTime?: string
   orderedAt: string
+  /** giờ phải bắt đầu pha (chỉ có ở danh sách điều phối) */
+  brewStartAt?: string
   paid: boolean
   items: OrderItem[]
   payments: Payment[]
