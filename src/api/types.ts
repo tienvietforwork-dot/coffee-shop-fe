@@ -299,6 +299,8 @@ export interface ShipperStat {
 export interface RouteStop {
   shipmentId: number; orderCode: string; recipientName: string; recipientPhone: string; address: string
   lat?: number; lng?: number; status: ShipmentStatus
+  /** WARD / PROVINCE: bản đồ không biết số nhà, điểm chỉ là trung tâm phường / tỉnh */
+  precision?: 'ADDRESS' | 'WARD' | 'PROVINCE'
 }
 /** tuyến giao gợi ý: quán → các điểm theo thứ tự; path null = nối thẳng */
 export interface RoutePlan {

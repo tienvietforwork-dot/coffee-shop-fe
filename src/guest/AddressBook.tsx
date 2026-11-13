@@ -127,7 +127,7 @@ export function AddressBook({ value, onChange, loggedIn, prefill }: {
             </Form.Item>
           </div>
           {shop?.shopAddress && <div className="g-muted" style={{ marginBottom: 8, fontSize: 13 }}>Quán: {shop.shopAddress}</div>}
-          <Form.Item name="address" label="Địa chỉ" rules={[vnAddressRule('nơi nhận')]} style={{ marginBottom: 4 }}><VnAddressInput /></Form.Item>
+          <Form.Item name="address" label="Địa chỉ" rules={[vnAddressRule('nơi nhận')]} style={{ marginBottom: 4 }}><VnAddressInput deliveryOnly /></Form.Item>
           <Form.Item noStyle shouldUpdate={(a, b) => a.address !== b.address}>
             {({ getFieldValue }) => <DistanceHint address={getFieldValue('address')} />}
           </Form.Item>

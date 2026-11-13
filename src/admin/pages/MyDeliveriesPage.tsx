@@ -30,8 +30,8 @@ export function MyDeliveriesPage() {
   // thứ tự đi theo tuyến gợi ý
   const order = new Map([...(plan?.stops ?? []), ...(plan?.unlocated ?? [])].map((s, i) => [s.shipmentId, i + 1]))
   const sorted = view === 'open' ? [...rows].sort((a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99)) : rows
-  // Google Maps hay không tìm ra địa chỉ chữ (tên cửa hàng, tên phường mới) → có tọa độ thì chỉ đường bằng tọa độ
-  const coords = new Map((plan?.stops ?? []).filter((x) => x.lat != null && x.lng != null).map((x) => [x.shipmentId, `${x.lat},${x.lng}`]))
+  // Google Maps hay không tìm ra địa chỉ chữ (tên cửa hàng, tên phường mới) → có tọa độ đúng số nhà thì chỉ đường bằng tọa độ; tọa độ gần đúng (trung tâm phường) thì để Google tự tìm địa chỉ chữ
+  const coords = new Map((plan?.stops ?? []).filter((x) => x.lat != null && x.lng != null && (!x.precision || x.precision === 'ADDRESS')).map((x) => [x.shipmentId, `${x.lat},${x.lng}`]))
   const directions = (s: Shipment) =>
     `https://www.google.com/maps/dir/?api=1&travelmode=two-wheeler&destination=${encodeURIComponent(coords.get(s.id) ?? s.address)}`
 
