@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Button, Card, Checkbox, Col, DatePicker, Descriptions, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Statistic, Switch, Table, Tabs, Tag, Timeline, Tooltip, Typography } from 'antd'
 import { PlusOutlined, MergeCellsOutlined, EditOutlined } from '@ant-design/icons'
@@ -26,9 +26,61 @@ const ORDER_STATUS_LABEL: Record<string, { label: string; color: string }> = {
 
 export function CustomersPage() {
   const [q, setQ] = useState('')
+  const [groupFilter, setGroupFilter] = useState<string>()
+  const [orderFilter, setOrderFilter] = useState<number | null>(null)
+  const [minDaysSinceOrder, setMinDaysSinceOrder] = useState<number | null>(null)
+  const [maxDaysSinceOrder, setMaxDaysSinceOrder] = useState<number | null>(null)
+  const [neverPurchasedFilter, setNeverPurchasedFilter] = useState(false)
   const { data = [], isLoading, error } = useQuery({ queryKey: ['crm-customers', q], queryFn: () => crmApi.customers(q || undefined), retry: false })
+  const groupOptions = [...new Set(data.flatMap((customer) => customer.groups))].sort()
+  const filteredCustomers = data.filter((customer) => {
+    const orders = customer.orderCount ?? 0
+    const orderMatches = orderFilter == null || orders === orderFilter
+    const daysSinceOrder = customer.lastOrderAt ? dayjs().diff(dayjs(customer.lastOrderAt), 'day') : null
+    const hasAgeRange = minDaysSinceOrder != null || maxDaysSinceOrder != null
+    const activityMatches = neverPurchasedFilter ? daysSinceOrder === null : !hasAgeRange || (daysSinceOrder !== null && (minDaysSinceOrder == null || daysSinceOrder >= minDaysSinceOrder) && (maxDaysSinceOrder == null || daysSinceOrder <= maxDaysSinceOrder))
+    return (!groupFilter || customer.groups.includes(groupFilter)) && orderMatches && activityMatches
+  })
   const [openId, setOpenId] = useState<number | null>(null)
   const [edit, setEdit] = useState<Partial<CustomerSummary> | null>(null)
+  const [customerForm] = Form.useForm()
+  const draftName = Form.useWatch('fullName', customerForm)
+  const draftPhone = Form.useWatch('phone', customerForm)
+  const draftEmail = Form.useWatch('email', customerForm)
+  const draftBirth = Form.useWatch('dateOfBirth', customerForm)
+  const draftGender = Form.useWatch('gender', customerForm)
+  const [duplicateLookup, setDuplicateLookup] = useState<{ name?: string; phone?: string; email?: string }>({})
+  const [compareDuplicateId, setCompareDuplicateId] = useState<number | null>(null)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDuplicateLookup({ name: draftName, phone: draftPhone, email: draftEmail }), 350)
+    return () => window.clearTimeout(timer)
+  }, [draftName, draftPhone, draftEmail])
+  const duplicateCheck = useQuery({
+    queryKey: ['crm-customer-duplicate-check', duplicateLookup],
+    queryFn: async () => {
+      const terms = [duplicateLookup.phone, duplicateLookup.email, duplicateLookup.name]
+        .map((value) => value?.trim()).filter((value): value is string => !!value && value.length >= 3)
+      if (!terms.length) return []
+      const results = await Promise.all(terms.map((term) => crmApi.customers(term)))
+      const normalize = (value?: string) => value?.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi') ?? ''
+      const byId = new Map<number, CustomerSummary>()
+      results.flat().forEach((customer) => byId.set(customer.id, customer))
+      return [...byId.values()].filter((customer) =>
+        (normalize(duplicateLookup.phone) && normalize(customer.phone) === normalize(duplicateLookup.phone)) ||
+        (normalize(duplicateLookup.email) && normalize(customer.email) === normalize(duplicateLookup.email)) ||
+        (normalize(duplicateLookup.name) && normalize(customer.fullName) === normalize(duplicateLookup.name)),
+      )
+    },
+    enabled: !!edit && !edit.id && (!!duplicateLookup.phone || !!duplicateLookup.email || !!duplicateLookup.name),
+    retry: false,
+  })
+  const duplicateLookupIsCurrent = duplicateLookup.name === draftName && duplicateLookup.phone === draftPhone && duplicateLookup.email === draftEmail
+  const duplicateProfile = useQuery({
+    queryKey: ['crm-customer-duplicate-compare', compareDuplicateId],
+    queryFn: () => crmApi.customer360(compareDuplicateId!),
+    enabled: !!compareDuplicateId,
+    retry: false,
+  })
   const [mergeFor, setMergeFor] = useState<number | null>(null)
   const [mergeCandidateId, setMergeCandidateId] = useState<number | null>(null)
   const [mergeForm] = Form.useForm()
@@ -57,10 +109,15 @@ export function CustomersPage() {
       <PageHeader title="Hồ sơ khách hàng" subtitle="Customer 360: lịch sử mua, chi tiêu, tương tác, phản hồi"
         extra={<>
           <Input.Search placeholder="Tên / SĐT" allowClear onSearch={setQ} style={{ width: 220 }} />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setEdit({})}>Tạo hồ sơ</Button>
+          <Select allowClear placeholder="Lọc theo nhóm" style={{ width: 170 }} value={groupFilter} onChange={setGroupFilter} options={groupOptions.map((name) => ({ value: name, label: name }))} />
+          <InputNumber min={0} precision={0} placeholder="Số đơn chính xác" style={{ width: 145 }} value={orderFilter} onChange={setOrderFilter} />
+          <InputNumber min={0} precision={0} placeholder="Mua ít nhất (ngày)" style={{ width: 155 }} value={minDaysSinceOrder} onChange={setMinDaysSinceOrder} />
+          <InputNumber min={0} precision={0} placeholder="Mua nhiều nhất (ngày)" style={{ width: 165 }} value={maxDaysSinceOrder} onChange={setMaxDaysSinceOrder} />
+          <Checkbox checked={neverPurchasedFilter} onChange={(event) => setNeverPurchasedFilter(event.target.checked)}>Chưa từng mua</Checkbox>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { customerForm.resetFields(); setEdit({}) }}>Tạo hồ sơ</Button>
         </>} />
       <ServiceGate module="CRM" loading={isLoading} error={error}>
-        <Table rowKey="id" dataSource={data} onRow={(c) => ({ onClick: () => setOpenId(c.id), style: { cursor: 'pointer' } })}
+        <Table rowKey="id" dataSource={filteredCustomers} onRow={(c) => ({ onClick: () => setOpenId(c.id), style: { cursor: 'pointer' } })}
           columns={[
             { title: 'Khách hàng', render: (_, c) => <><b>{c.fullName || 'Chưa có tên'}</b><div className="a-muted">ID #{c.id} · {c.phone}</div></> },
             { title: 'Nhóm', render: (_, c) => c.groups.length === 0 ? '—' : <Space size={[0, 4]} wrap>
@@ -72,15 +129,31 @@ export function CustomersPage() {
             { title: 'Mua gần nhất', dataIndex: 'lastOrderAt', render: date },
             { title: 'Điểm', dataIndex: 'loyaltyPoints', render: (v, c) => <Button type="link" size="small" onClick={(e) => { e.stopPropagation(); setOpenId(c.id) }}>{v ?? 0}</Button> },
             { title: 'Thao tác', render: (_, c) => <>
-              <Button size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); setEdit(c) }}>Sửa</Button>{' '}
+              <Button size="small" icon={<EditOutlined />} onClick={(e) => {
+                e.stopPropagation()
+                customerForm.resetFields()
+                customerForm.setFieldsValue({ ...c, dateOfBirth: c.dateOfBirth ? dayjs(c.dateOfBirth) : undefined })
+                setEdit(c)
+              }}>Sửa</Button>{' '}
               <Button size="small" icon={<MergeCellsOutlined />} onClick={(e) => { e.stopPropagation(); setMergeFor(c.id) }}>Gộp</Button>
             </> },
           ]} />
       </ServiceGate>
       <Customer360Drawer id={openId} onClose={() => setOpenId(null)} />
-      <Modal open={!!edit} title={edit?.id ? `Sửa hồ sơ khách hàng #${edit.id}` : 'Tạo hồ sơ khách hàng'} footer={null} onCancel={() => setEdit(null)} destroyOnHidden>
+      <Modal open={!!edit} title={edit?.id ? `Sửa hồ sơ khách hàng #${edit.id}` : 'Tạo hồ sơ khách hàng'} footer={null} onCancel={() => { setEdit(null); customerForm.resetFields() }} destroyOnHidden>
         {/* {!edit?.id && <Alert type="info" showIcon style={{ marginBottom: 16 }} message="Số điện thoại đã được dùng thì không thể tạo hồ sơ mới; hãy tìm hồ sơ cũ để cập nhật. Gộp hồ sơ chỉ dành cho dữ liệu trùng đã phát sinh từ nhập dữ liệu cũ hoặc sai thông tin, sau khi xác nhận là cùng một khách." />} */}
-        <Form layout="vertical" initialValues={{ ...edit, dateOfBirth: edit?.dateOfBirth ? dayjs(edit.dateOfBirth) : undefined }} onFinish={(v) => save.mutate({ ...v, dateOfBirth: v.dateOfBirth?.format('YYYY-MM-DD'), id: edit?.id }, { onSuccess: () => setEdit(null) })}>
+        <Form form={customerForm} layout="vertical" initialValues={{ ...edit, dateOfBirth: edit?.dateOfBirth ? dayjs(edit.dateOfBirth) : undefined }} onFinish={(v) => save.mutate({ ...v, dateOfBirth: v.dateOfBirth?.format('YYYY-MM-DD'), id: edit?.id }, { onSuccess: () => { setEdit(null); customerForm.resetFields() } })}>
+          {!edit?.id && duplicateLookupIsCurrent && duplicateCheck.data && duplicateCheck.data.length > 0 && (
+            <Alert type="warning" showIcon style={{ marginBottom: 16 }} message="Phát hiện hồ sơ có thông tin trùng"
+              description={<div>
+                <div>Đối chiếu các hồ sơ dưới đây trước khi tạo để tránh lưu trùng khách hàng.</div>
+                <Space wrap style={{ marginTop: 8 }}>
+                  {duplicateCheck.data.map((candidate) => <Button key={candidate.id} size="small" onClick={() => setCompareDuplicateId(candidate.id)}>
+                    Đối chiếu #{candidate.id} · {candidate.fullName || 'Chưa có tên'} · {candidate.phone}
+                  </Button>)}
+                </Space>
+              </div>} />
+          )}
           <Form.Item name="fullName" label="Họ tên" rules={[
             { required: true, whitespace: true, message: 'Vui lòng nhập họ tên khách hàng' },
             { max: 100, message: 'Họ tên tối đa 100 ký tự' },
@@ -121,6 +194,30 @@ export function CustomersPage() {
           </Form.Item>
           <Button type="primary" htmlType="submit" block loading={save.isPending}>Lưu</Button>
         </Form>
+      </Modal>
+      <Modal open={!!compareDuplicateId} title={`Đối chiếu hồ sơ · #${compareDuplicateId ?? ''}`} footer={<Button onClick={() => setCompareDuplicateId(null)}>Đóng</Button>} onCancel={() => setCompareDuplicateId(null)} destroyOnHidden>
+        {duplicateProfile.isLoading ? <Alert type="info" showIcon message="Đang tải hồ sơ để đối chiếu…" />
+          : duplicateProfile.isError || !duplicateProfile.data ? <Alert type="error" showIcon message="Không tải được hồ sơ khách hàng để đối chiếu." />
+            : <Row gutter={12}>
+                <Col span={12}><Card size="small" title="Hồ sơ đang nhập">
+                  <Descriptions size="small" column={1}>
+                    <Descriptions.Item label="Họ tên">{draftName || '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Số điện thoại">{draftPhone || '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Email">{draftEmail || '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Ngày sinh">{draftBirth ? dayjs(draftBirth).format('DD/MM/YYYY') : '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Giới tính">{draftGender || '—'}</Descriptions.Item>
+                  </Descriptions>
+                </Card></Col>
+                <Col span={12}><Card size="small" title={`Hồ sơ hiện có · #${compareDuplicateId}`}>
+                  <Descriptions size="small" column={1}>
+                    <Descriptions.Item label="Họ tên">{duplicateProfile.data.customer.fullName || '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Số điện thoại">{duplicateProfile.data.customer.phone || '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Email">{duplicateProfile.data.customer.email || '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Ngày sinh">{duplicateProfile.data.customer.dateOfBirth ? date(duplicateProfile.data.customer.dateOfBirth) : '—'}</Descriptions.Item>
+                    <Descriptions.Item label="Giới tính">{duplicateProfile.data.customer.gender || '—'}</Descriptions.Item>
+                  </Descriptions>
+                </Card></Col>
+              </Row>}
       </Modal>
       <Modal open={!!mergeFor} title="Kiểm tra và gộp hồ sơ trùng" footer={null} onCancel={() => { setMergeFor(null); setMergeCandidateId(null); mergeForm.resetFields() }} destroyOnHidden>
         <p>Chỉ gộp khi xác nhận đây là cùng một người. Đơn hàng, điểm, địa chỉ, tương tác và phản hồi của hồ sơ thứ hai sẽ chuyển vào hồ sơ đang giữ; hồ sơ thứ hai sẽ bị xóa mềm.</p>
@@ -167,6 +264,7 @@ function Customer360Drawer({ id, onClose }: { id: number | null; onClose: () => 
   const [addressDialog, setAddressDialog] = useState(false)
   const [addressEdit, setAddressEdit] = useState<Partial<CustomerAddress> | null>(null)
   const [addressForm] = Form.useForm()
+  const history = useQuery({ queryKey: ['crm-customer-history', id], queryFn: () => crmApi.customerHistory(id!), enabled: !!id, retry: false })
   const [firstPeriod, setFirstPeriod] = useState<[Dayjs, Dayjs]>([dayjs().subtract(2, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')])
   const [secondPeriod, setSecondPeriod] = useState<[Dayjs, Dayjs]>([dayjs().startOf('month'), dayjs()])
   const comparison = useQuery({
@@ -249,6 +347,20 @@ function Customer360Drawer({ id, onClose }: { id: number | null; onClose: () => 
                 ]} />
               </> },
               { key: 'p', label: 'Điểm tích lũy', children: <Table size="small" rowKey="id" dataSource={data.pointHistory} pagination={false} columns={[{ title: 'Ngày', dataIndex: 'createdAt', render: dateTime }, { title: 'Điểm', dataIndex: 'pointsChange', render: (v: number) => v > 0 ? `+${v}` : v }, { title: 'Đơn hàng', dataIndex: 'orderCode', render: (v?: string) => v || '—' }, { title: 'Lý do', dataIndex: 'reason', render: (v?: string) => v || '—' }]} /> },
+              { key: 'h', label: 'Lịch sử hồ sơ', children: <Timeline pending={history.isLoading} items={(history.data ?? []).map((entry) => {
+                const labels: Record<string, string> = { fullName: 'Họ tên', phone: 'Số điện thoại', email: 'Email', dateOfBirth: 'Ngày sinh', gender: 'Giới tính', description: 'Mô tả' }
+                const valueLabel = (field: string, value: unknown) => {
+                  if (value == null || value === '') return 'Trống'
+                  if (field === 'gender') return ({ MALE: 'Nam', FEMALE: 'Nữ', OTHER: 'Khác' } as Record<string, string>)[String(value)] ?? String(value)
+                  return String(value)
+                }
+                const changed = Object.keys(entry.after).filter((field) => entry.before[field] !== entry.after[field])
+                return { children: <Card size="small" title={`${dateTime(entry.changedAt)} · ${entry.actor}`}>
+                  {changed.length ? <Descriptions size="small" column={1}>{changed.map((field) => <Descriptions.Item key={field} label={labels[field] ?? field}>
+                    <span style={{ color: '#888' }}>{valueLabel(field, entry.before[field])}</span> <span aria-label="thành">→</span> <b>{valueLabel(field, entry.after[field])}</b>
+                  </Descriptions.Item>)}</Descriptions> : 'Không có trường nào thay đổi'}
+                </Card> }
+              })} /> },
             ]} />
           </>
         )}

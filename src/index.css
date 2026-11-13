@@ -145,6 +145,22 @@ img { max-width: 100%; }
 .g-panel { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
 .g-panel h3 { font-size: 16px; margin: 0 0 14px; color: var(--espresso); }
 .g-panel h3:not(:first-child) { margin-top: 26px; }
+.g-survey { max-width: 760px; margin: 0 auto; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+.g-survey-guide { margin-bottom: 18px; border-radius: 14px; }
+.g-survey .ant-form-item { margin-bottom: 20px; }
+.g-survey-stars { font-size: 30px; }
+.g-survey-stars .ant-rate-star { transition: transform .15s ease, color .15s ease; }
+.g-survey-stars .ant-rate-star:hover { transform: scale(1.12); }
+.g-survey-nps { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 7px; }
+.g-survey-nps .ant-btn { min-width: 0; height: 42px; padding: 0; border-radius: 10px; color: var(--roast); border-color: var(--line); background: #fbf8f4; transition: transform .15s ease, background .15s ease, color .15s ease; }
+.g-survey-nps .ant-btn:hover { color: var(--roast) !important; border-color: var(--caramel) !important; transform: translateY(-2px); }
+.g-survey-nps .ant-btn.is-selected { color: #fff !important; border-color: var(--roast) !important; background: var(--roast) !important; }
+.g-survey-nps-hints { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.g-survey-checks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.g-survey-checks .ant-checkbox-wrapper { min-height: 42px; display: flex; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fffdfa; }
+.g-survey-checks .ant-checkbox-checked .ant-checkbox-inner { background-color: var(--roast); border-color: var(--roast); }
+.g-survey-submit { min-width: 160px; height: 44px; border-radius: 12px; background: var(--roast); border-color: var(--roast); }
+.g-survey-submit:hover { background: var(--mocha) !important; border-color: var(--mocha) !important; }
 .g-checkout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
 .g-summary { position: sticky; top: 88px; display: flex; flex-direction: column; gap: 14px; }
 .g-seg { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -205,6 +221,11 @@ img { max-width: 100%; }
   .g-hero-art { display: none; }
 }
 @media (max-width: 640px) {
+  .g-survey { padding: 14px; }
+  .g-survey-nps { gap: 4px; }
+  .g-survey-nps .ant-btn { height: 38px; font-size: 12px; border-radius: 8px; }
+  .g-survey-checks { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .g-survey-nps-hints { font-size: 10px; }
   .g-nav { display: none; }
   .g-header-inner { gap: 8px; justify-content: space-between; }
   .g-hide-sm { display: none; }

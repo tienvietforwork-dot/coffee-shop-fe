@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, App, Button, Drawer, Form, Input, Modal, Segmented, Select, Table, Tag, List, Typography, Space } from 'antd'
+import { Alert, App, Button, Card, Col, Drawer, Form, Input, Modal, Segmented, Select, Table, Tag, List, Typography, Space, Row } from 'antd'
 import { crmApi, crmFeedbackLabel, type Feedback, type FeedbackStatus } from '@/api/crm'
 import { coreApi } from '@/api/core'
 import { dateTime } from '@/lib/format'
@@ -14,10 +14,13 @@ const STATUS_COLOR: Record<FeedbackStatus, string> = {
 }
 const SENTIMENT_COLOR = { POSITIVE: 'green', NEUTRAL: 'default', NEGATIVE: 'red' }
 const TOPICS = ['Chất lượng đồ uống', 'Thái độ phục vụ', 'Thời gian chờ', 'Giao hàng', 'Giá cả', 'Không gian', 'Khác']
+const SURVEY_CHOICE_LABEL: Record<string, string> = { QUALITY: 'Chất lượng đồ uống', SERVICE: 'Thái độ phục vụ', WAIT_TIME: 'Thời gian chờ', DELIVERY: 'Giao hàng', PRICE: 'Giá cả', ATMOSPHERE: 'Không gian', OTHER: 'Khác' }
 
 export function FeedbacksPage() {
   const [status, setStatus] = useState<FeedbackStatus | 'ALL'>('ALL')
   const { data = [], isLoading, error } = useQuery({ queryKey: ['crm-feedbacks', status], queryFn: () => crmApi.feedbacks(status === 'ALL' ? undefined : status), retry: false })
+  const satisfaction = useQuery({ queryKey: ['crm-feedback-satisfaction'], queryFn: crmApi.feedbackSatisfactionMetrics, retry: false })
+  const alerts = useQuery({ queryKey: ['crm-manager-notifications'], queryFn: () => crmApi.managerNotifications(true), retry: false })
   const [open, setOpen] = useState<Feedback | null>(null)
   const staff = useQuery({ queryKey: ['staff'], queryFn: coreApi.staff, enabled: !!open, refetchOnMount: 'always', refetchOnWindowFocus: true })
   const [rejecting, setRejecting] = useState(false)
@@ -29,9 +32,11 @@ export function FeedbacksPage() {
   const save = useAction((v: { id: number } & Parameters<typeof crmApi.updateFeedback>[1]) => crmApi.updateFeedback(v.id, v), [['crm-feedbacks']])
   const selectedStatus = Form.useWatch('status', processForm) as FeedbackStatus | undefined
   const replyQuery = useQuery({ queryKey: ['crm-feedback-replies', open?.id], queryFn: () => crmApi.feedbackReplies(open!.id), enabled: !!open, retry: false })
+  const surveyQuery = useQuery({ queryKey: ['crm-feedback-survey', open?.id], queryFn: () => crmApi.feedbackSurvey(open!.id), enabled: !!open, retry: false })
   const reply = useAction((v: { id: number; message: string }) => crmApi.replyToFeedback(v.id, v.message), [['crm-feedback-replies', open?.id]])
   const escalate = useAction((v: { id: number; staffId?: number }) => crmApi.escalateFeedback(v.id, v.staffId), [['crm-feedbacks']], 'Đã gửi yêu cầu chuyển cấp để quản lý duyệt')
   const decideApproval = useAction((v: { id: number; decision: 'APPROVE' | 'REJECT'; note?: string }) => crmApi.decideFeedbackEscalation(v.id, v.decision, v.note), [['crm-feedbacks']], 'Đã cập nhật quyết định duyệt')
+  const markAlertRead = useAction(crmApi.markManagerNotificationRead, [['crm-manager-notifications']], '')
 
   useEffect(() => {
     if (open) {
@@ -43,6 +48,17 @@ export function FeedbacksPage() {
   return (
     <>
       <PageHeader title="Phản hồi & khiếu nại" subtitle="Tiếp nhận, phân loại, gắn chủ đề, chuyển cấp và phản hồi khách hàng" />
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12}><Card size="small" title="CSAT · tỷ lệ hài lòng (4–5/5)">{satisfaction.data ? `${satisfaction.data.csat_percent}% · ${satisfaction.data.csat_responses} câu trả lời` : 'Chưa có dữ liệu khảo sát'}</Card></Col>
+        <Col xs={24} sm={12}><Card size="small" title="NPS · mức sẵn sàng giới thiệu (-100 đến 100)">{satisfaction.data ? `${satisfaction.data.nps} · ${satisfaction.data.nps_responses} câu trả lời` : 'Chưa có dữ liệu khảo sát'}</Card></Col>
+      </Row>
+      {!!alerts.data?.length && <Alert style={{ marginBottom: 16 }} type="error" showIcon message={`Có ${alerts.data.length} phản hồi tiêu cực cần theo dõi`}
+        description={<List size="small" dataSource={alerts.data} renderItem={(item: any) => <List.Item style={{ cursor: 'pointer' }} onClick={() => {
+          const target = data.find((feedback) => feedback.id === item.feedbackId)
+          if (target) setOpen(target)
+        }} actions={[<Button key="read" size="small" onClick={(event) => { event.stopPropagation(); markAlertRead.mutate(item.id) }}>Đã xem</Button>] }>
+          <span><b>{item.customerName || `Khách #${item.customerId}`}</b> · {item.message} · {dateTime(item.createdAt)}<div className="a-muted">Bấm để mở phản hồi</div></span>
+        </List.Item>} />} />}
       <Segmented style={{ marginBottom: 12 }} value={status} onChange={(v) => setStatus(v as FeedbackStatus | 'ALL')}
         options={[{ value: 'ALL', label: 'Tất cả' }, ...Object.keys(STATUS_COLOR).map((value) => ({ value, label: crmFeedbackLabel('status', value) }))]} />
       <ServiceGate module="CRM" loading={isLoading} error={error}>
@@ -60,6 +76,11 @@ export function FeedbacksPage() {
         {open && (
           <>
             <blockquote className="a-quote">{open.content}</blockquote>
+            {surveyQuery.data && Object.keys(surveyQuery.data).length > 0 && <Card size="small" title="Khảo sát trải nghiệm" style={{ marginBottom: 16 }} loading={surveyQuery.isLoading}>
+              <p>Hài lòng: {surveyQuery.data.satisfactionScore ?? '—'} / 5</p>
+              <p>Sẵn sàng giới thiệu (NPS): {surveyQuery.data.recommendationScore ?? '—'} / 10</p>
+              <p style={{ marginBottom: 0 }}>Lựa chọn: {(surveyQuery.data.choices ?? []).map((choice: string) => SURVEY_CHOICE_LABEL[choice] ?? choice).join(', ') || 'Không chọn'}</p>
+            </Card>}
             <Typography.Title level={5}>Câu trả lời khách có thể xem</Typography.Title>
             <List
               size="small"

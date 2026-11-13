@@ -68,9 +68,10 @@ export function ReceiptModal({ order, loose, onClose, onDone }: {
     })
   }, [open, order?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const v = Form.useWatch([], form) as Values | undefined
-  const lines = v?.lines ?? []
-  const supplier = suppliers.find((s) => s.id === v?.supplierId)
+  // Watching the entire form here caused the modal and every InputNumber to rerender on
+  // every keystroke. Keep the parent stable; row/summary updates are isolated below.
+  const supplierId = Form.useWatch('supplierId', form) as number | undefined
+  const supplier = suppliers.find((s) => s.id === supplierId)
 
   /** packaging of a line: from the purchase-order line, or the package picked on a loose line */
   const lineInfo = (l: Line, idx: number) => {
@@ -83,10 +84,6 @@ export function ReceiptModal({ order, loose, onClose, onDone }: {
     return { material, unit: material?.unit ?? '', size: pkg?.size, pkgName: pkg?.name, item: undefined }
   }
   const amountOf = (l?: Line) => (l?.receivedCount && l.price != null ? Math.round(l.receivedCount * l.price) : 0)
-  const goods = lines.reduce((s, l) => s + amountOf(l), 0)
-  const afterDiscount = Math.max(0, goods - (v?.discountAmount ?? 0))
-  const vat = v?.vatRate ? Math.round((afterDiscount * v.vatRate) / 100) : 0
-  const total = afterDiscount + vat + (v?.shippingCost ?? 0)
   const termDays = order?.paymentTermDays ?? supplier?.paymentTermDays ?? 0
 
   const submit = (x: Values) => {
@@ -114,8 +111,7 @@ export function ReceiptModal({ order, loose, onClose, onDone }: {
     }, { onSuccess: (r) => { onClose(); onDone?.(r) } })
   }
 
-  const lineRow = (idx: number, remove?: () => void) => {
-    const l = lines[idx] ?? {}
+  const lineRow = (idx: number, l: Line, remove?: () => void) => {
     const info = lineInfo(l, idx)
     const per = info.pkgName ?? info.unit
     const short = (l.documentCount ?? 0) - (l.receivedCount ?? 0) - (l.rejectedCount ?? 0)
@@ -133,12 +129,13 @@ export function ReceiptModal({ order, loose, onClose, onDone }: {
                     const m = raws.find((x: Material) => x.id === id)
                     const sm = supplier?.materials.find((x) => x.materialId === id)
                     const pkg = m?.packages?.find((p) => p.id === sm?.packageId) ?? m?.packages?.[0]
-                    form.setFieldValue(['lines', idx], {
-                      ...l, materialId: id, packageId: pkg?.id ?? LOOSE,
-                      price: sm?.unitPrice == null ? undefined : Math.round(sm.unitPrice * (pkg?.size ?? 1)),
-                    })
+                    // Update only the dependent fields. Replacing the whole row from the render
+                    // snapshot can overwrite quantity fields that the user just typed.
+                    form.setFieldValue(['lines', idx, 'packageId'], pkg?.id ?? LOOSE)
+                    form.setFieldValue(['lines', idx, 'price'],
+                      sm?.unitPrice == null ? undefined : Math.round(sm.unitPrice * (pkg?.size ?? 1)))
                   }}
-                  options={raws.map((m) => ({ value: m.id, label: m.name, disabled: lines.some((x, i) => i !== idx && x?.materialId === m.id) }))} />
+                  options={raws.map((m) => ({ value: m.id, label: m.name, disabled: (form.getFieldValue('lines') ?? []).some((x: Line, i: number) => i !== idx && x?.materialId === m.id) }))} />
               </Form.Item>
               <Form.Item name={['lines', idx, 'packageId']} style={{ marginBottom: 8 }}>
                 <Select options={[
@@ -187,7 +184,7 @@ export function ReceiptModal({ order, loose, onClose, onDone }: {
   return (
     <Modal open={open} width={1040} destroyOnHidden onCancel={onClose}
       title={order ? `Nhận hàng · ${order.code} · ${order.supplierName}` : 'Phiếu nhập lẻ (không theo phiếu đặt)'}
-      footer={<Button type="primary" loading={save.isPending} onClick={() => form.submit()}>Nhập kho · {money(total)}</Button>}>
+      footer={<Button type="primary" loading={save.isPending} onClick={() => form.submit()}>Nhập kho</Button>}>
       <Alert type="info" showIcon style={{ marginBottom: 12 }}
         message="Đối chiếu phiếu giao của nhà cung cấp → kiểm hàng (số lượng, bao bì, hạn dùng, nhiệt độ hàng mát) → chỉ nhập phần đạt. Phần không đạt ghi vào 'Không nhận' và trả lại người giao." />
       <Form form={form} layout="vertical" onFinish={submit}>
@@ -207,11 +204,19 @@ export function ReceiptModal({ order, loose, onClose, onDone }: {
           </Form.Item>
         </div>
 
-        {order ? due.map((_, idx) => lineRow(idx)) : (
+        {order ? due.map((_, idx) => (
+          <Form.Item key={idx} noStyle shouldUpdate={(prev, next) => prev.lines?.[idx] !== next.lines?.[idx]}>
+            {() => lineRow(idx, form.getFieldValue(['lines', idx]) ?? {})}
+          </Form.Item>
+        )) : (
           <Form.List name="lines">
             {(fields, { add, remove }) => (
               <>
-                {fields.map((f) => lineRow(f.name, fields.length > 1 ? () => remove(f.name) : undefined))}
+                {fields.map((f) => (
+                  <Form.Item key={f.key} noStyle shouldUpdate={(prev, next) => prev.lines?.[f.name] !== next.lines?.[f.name]}>
+                    {() => lineRow(f.name, form.getFieldValue(['lines', f.name]) ?? {}, fields.length > 1 ? () => remove(f.name) : undefined)}
+                  </Form.Item>
+                ))}
                 <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add({ packageId: LOOSE })} style={{ marginBottom: 16 }}>Thêm dòng</Button>
               </>
             )}
@@ -228,7 +233,7 @@ export function ReceiptModal({ order, loose, onClose, onDone }: {
             <div className="a-grid-3">
               <Form.Item name="paidAmount" label="Trả ngay"
                 tooltip={`Phần còn lại ghi công nợ, hạn ${dayjs().add(termDays, 'day').format('DD/MM/YYYY')} (${termDays ? `nợ ${termDays} ngày` : 'trả ngay'})`}>
-                <MoneyInput max={total} />
+                <MoneyInput />
               </Form.Item>
               <Form.Item name="paymentMethod" label="Hình thức">
                 <Select options={SUPPLIER_PAY_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD[m] }))} />
@@ -243,15 +248,24 @@ export function ReceiptModal({ order, loose, onClose, onDone }: {
               </>,
             }]} />
           </div>
-          <Descriptions size="small" column={1} bordered items={[
-            { label: 'Tiền hàng thực nhận', children: money(goods) },
-            ...(v?.discountAmount ? [{ label: 'Giảm giá', children: `−${money(v.discountAmount)}` }] : []),
-            ...(v?.vatRate != null ? [{ label: `Thuế GTGT ${v.vatRate}%`, children: money(vat) }] : []),
-            ...(v?.shippingCost ? [{ label: 'Chi phí nhập', children: money(v.shippingCost) }] : []),
-            { label: <b>Cần trả nhà cung cấp</b>, children: <b>{money(total)}</b> },
-            { label: 'Trả ngay', children: money(v?.paidAmount ?? 0) },
-            { label: 'Ghi công nợ', children: <span className="a-limit">{money(Math.max(0, total - (v?.paidAmount ?? 0)))}</span> },
-          ]} />
+          <Form.Item noStyle shouldUpdate>
+            {() => {
+              const values = form.getFieldsValue() as Values
+              const goods = (values.lines ?? []).reduce((s, l) => s + amountOf(l), 0)
+              const discounted = Math.max(0, goods - (values.discountAmount ?? 0))
+              const vat = values.vatRate ? Math.round(discounted * values.vatRate / 100) : 0
+              const total = discounted + vat + (values.shippingCost ?? 0)
+              return <Descriptions size="small" column={1} bordered items={[
+                { label: 'Tiền hàng thực nhận', children: money(goods) },
+                ...(values.discountAmount ? [{ label: 'Giảm giá', children: `−${money(values.discountAmount)}` }] : []),
+                ...(values.vatRate != null ? [{ label: `Thuế GTGT ${values.vatRate}%`, children: money(vat) }] : []),
+                ...(values.shippingCost ? [{ label: 'Chi phí nhập', children: money(values.shippingCost) }] : []),
+                { label: <b>Cần trả nhà cung cấp</b>, children: <b>{money(total)}</b> },
+                { label: 'Trả ngay', children: money(values.paidAmount ?? 0) },
+                { label: 'Ghi công nợ', children: <span className="a-limit">{money(Math.max(0, total - (values.paidAmount ?? 0)))}</span> },
+              ]} />
+            }}
+          </Form.Item>
         </div>
       </Form>
     </Modal>

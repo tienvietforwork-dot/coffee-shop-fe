@@ -141,11 +141,20 @@ export interface CustomerGroup {
   criteriaRule?: Record<string, unknown>
   recalculatedAt?: string
   memberCount: number
+  classificationCode?: 'REGULAR' | 'POTENTIAL' | 'VIP' | 'CHURN_RISK'
+}
+
+export interface CustomerClassificationConfig {
+  potentialSpendMin: number
+  vipSpendMin: number
+  inactiveDays: number
 }
 
 export interface GroupMember {
   id: number
   customerId: number
+  customerName?: string
+  customerPhone?: string
   isManual: boolean
   addedAt?: string
 }
@@ -170,12 +179,13 @@ export interface CustomerInsights {
 
 type CustomerRecord = {
   id: number; fullName?: string; phone: string; email?: string; dateOfBirth?: string; gender?: string; description?: string; loyaltyPoints?: number; registeredAt?: string; groups?: string[]
+  orderCount?: number; totalSpent?: number; lastOrderAt?: string
 }
 type Page<T> = { content?: T[] }
 
 const toCustomer = (c: CustomerRecord): CustomerSummary => ({
   id: c.id, fullName: c.fullName, phone: c.phone, email: c.email, dateOfBirth: c.dateOfBirth, gender: c.gender, description: c.description,
-  loyaltyPoints: c.loyaltyPoints ?? 0, registeredAt: c.registeredAt ?? '',
+  loyaltyPoints: c.loyaltyPoints ?? 0, registeredAt: c.registeredAt ?? '', orderCount: c.orderCount ?? 0, totalSpent: c.totalSpent ?? 0, lastOrderAt: c.lastOrderAt,
   groups: c.groups ?? [],
 })
 
@@ -194,6 +204,7 @@ const toUiRule = (rule: Record<string, unknown> = {}) => ({
   maxTotalSpent: rule.maxSpend,
   minOrdersPerMonth: rule.minOrders,
   inactiveDays: rule.inactiveDays ?? rule.lastOrderDays,
+  favoriteCategoryId: rule.favoriteCategoryId,
   favoriteCoffeeId: rule.favoriteCoffeeId,
 })
 
@@ -204,6 +215,7 @@ const fromUiRule = (type: GroupCriteria | undefined, rule: Record<string, unknow
     maxSpend: rule.maxTotalSpent,
     minOrders: rule.minOrdersPerMonth,
     inactiveDays: rule.inactiveDays,
+    favoriteCategoryId: rule.favoriteCategoryId,
     favoriteCoffeeId: rule.favoriteCoffeeId,
   }
   return Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined && v !== null && v !== ''))
@@ -240,6 +252,11 @@ export const crmApi = {
     const body = { fullName: b.fullName, phone: b.phone, email: b.email, dateOfBirth: b.dateOfBirth, gender: b.gender, description: b.description }
     return (b.id ? crmClient.put(`/customers/${b.id}`, body) : crmClient.post('/customers', body)).then((r) => r.data)
   },
+  importCustomersCsv: (file: File) => {
+    const form = new FormData(); form.append('file', file)
+    return crmClient.post<{ imported: number; failed: number; errors: { row: number; message: string }[] }>('/customers/import', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data)
+  },
+  customerHistory: (id: number) => crmClient.get<{ id: number; actor: string; before: Record<string, unknown>; after: Record<string, unknown>; changedAt: string }[]>(`/customers/${id}/history`).then((r) => r.data),
   mergeCustomers: (keepId: number, duplicateId: number) =>
     crmClient.post(`/customers/${keepId}/merge`, null, { params: { duplicateId } }).then((r) => r.data),
   saveCustomerAddress: (customerId: number, address: Partial<CustomerAddress>) => {
@@ -280,6 +297,10 @@ export const crmApi = {
     const rows = content(r.data).map((f) => ({ ...f, customerName: f.customerName ?? `Khách #${f.customerId}` }))
     return status ? rows.filter((f) => f.status === status) : rows
   },
+  feedbackSatisfactionMetrics: () => crmClient.get<{ csat_responses: number; csat_percent: number; nps_responses: number; nps: number }>('/feedbacks/satisfaction-metrics').then((r) => r.data),
+  feedbackSurvey: (id: number) => crmClient.get<any>(`/feedbacks/${id}/survey`).then((r) => r.data),
+  managerNotifications: (unreadOnly = true) => crmClient.get<any[]>('/feedbacks/manager-notifications', { params: { unreadOnly } }).then((r) => r.data),
+  markManagerNotificationRead: (id: number) => crmClient.post(`/feedbacks/manager-notifications/${id}/read`).then((r) => r.data),
   updateFeedback: (id: number, b: Partial<Pick<Feedback, 'topic' | 'category' | 'issueType' | 'sentiment' | 'status' | 'escalated' | 'resolution' | 'satisfaction' | 'staffId'>>) =>
     crmClient.put(`/feedbacks/${id}`, b).then((r) => r.data),
   closeFeedback: (id: number, resolution?: string, satisfaction?: 'SATISFIED' | 'UNSATISFIED') =>
@@ -298,6 +319,8 @@ export const crmApi = {
       topic: b.topic,
       content: b.content,
     }).then((r) => r.data),
+  submitFeedbackSurvey: (b: { fullName?: string; phone: string; topic?: string; content: string; satisfactionScore: number; recommendationScore: number; surveyChoices: string[] }) =>
+    crmClient.post('/feedbacks/public', b).then((r) => r.data),
 
   customerPortalFeedbacks: async () => {
     const r = await crmClient.get<Page<CustomerPortalFeedback> | CustomerPortalFeedback[]>('/customer-portal/feedbacks', { params: { page: 0, size: 100 } })
@@ -321,6 +344,8 @@ export const crmApi = {
       return { ...g, criteriaType: criteriaType(g.groupType, rule), criteriaRule: toUiRule(rule), memberCount: members.data.length }
     }))
   },
+  classificationConfig: () => crmClient.get<CustomerClassificationConfig>('/customer-groups/classification-config').then((r) => r.data),
+  saveClassificationConfig: (config: CustomerClassificationConfig) => crmClient.put<CustomerClassificationConfig>('/customer-groups/classification-config', config).then((r) => r.data),
   saveGroup: (b: Partial<CustomerGroup> & { name: string }) => {
     const groupType = b.criteriaType === 'MANUAL' ? 'MANUAL' : 'AUTOMATIC'
     const body = { name: b.name, description: b.description, groupType, criteriaRule: fromUiRule(b.criteriaType, b.criteriaRule) }
@@ -329,7 +354,13 @@ export const crmApi = {
   deleteGroup: (id: number) => crmClient.delete(`/customer-groups/${id}`),
   groupMembers: async (id: number): Promise<GroupMember[]> => {
     const r = await crmClient.get<any[]>(`/customer-groups/${id}/members`)
-    return r.data.map((m) => ({ id: m.id, customerId: m.customerId, isManual: m.isManual, addedAt: m.addedAt }))
+    return r.data.map((m) => ({ id: m.id, customerId: m.customerId, customerName: m.customerName, customerPhone: m.customerPhone, isManual: m.isManual, addedAt: m.addedAt }))
+  },
+  exportGroupMembers: async (id: number) => {
+    const response = await crmClient.get(`/customer-groups/${id}/members/export`, { responseType: 'blob' })
+    const url = URL.createObjectURL(response.data)
+    const link = document.createElement('a'); link.href = url; link.download = `nhom-khach-hang-${id}.csv`
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url)
   },
   addMember: (id: number, customerId: number) => crmClient.post(`/customer-groups/${id}/members/${customerId}`),
   removeMember: (id: number, customerId: number) => crmClient.delete(`/customer-groups/${id}/members/${customerId}`),

@@ -1,21 +1,26 @@
 import { useMutation } from '@tanstack/react-query'
-import { Form, Input, Result, Select } from 'antd'
+import { Checkbox, Form, Input, Rate, Result, Select } from 'antd'
 import { crmApi } from '@/api/crm'
 import { errorMessage, isServiceUnavailable } from '@/api/client'
 import { useGuestStore } from '@/store/guestStore'
 
 const TOPICS = ['Chất lượng đồ uống', 'Thái độ phục vụ', 'Thời gian chờ', 'Giao hàng', 'Giá cả', 'Không gian', 'Khác']
+const SURVEY_CHOICES = [
+  { value: 'QUALITY', label: 'Chất lượng đồ uống' }, { value: 'SERVICE', label: 'Thái độ phục vụ' },
+  { value: 'WAIT_TIME', label: 'Thời gian chờ' }, { value: 'DELIVERY', label: 'Giao hàng' },
+  { value: 'PRICE', label: 'Giá cả' }, { value: 'ATMOSPHERE', label: 'Không gian' }, { value: 'OTHER', label: 'Khác' },
+]
 
 export function FeedbackPage() {
   const { name, phone } = useGuestStore()
-  const send = useMutation({ mutationFn: crmApi.submitFeedback })
+  const send = useMutation({ mutationFn: crmApi.submitFeedbackSurvey })
 
   if (send.isSuccess) {
     return (
       <Result
         status="success"
         title="Cảm ơn bạn đã góp ý!"
-        subTitle="Coffeeholic sẽ phản hồi qua số điện thoại bạn để lại trong thời gian sớm nhất."
+        subTitle="Ý kiến và câu trả lời khảo sát của bạn đã được ghi nhận."
       />
     )
   }
@@ -46,6 +51,15 @@ export function FeedbackPage() {
         </Form.Item>
         <Form.Item name="content" label="Nội dung" rules={[{ required: true, whitespace: true, message: 'Bạn muốn chia sẻ điều gì?' }, { max: 2000, message: 'Nội dung tối đa 2.000 ký tự' }]}>
           <Input.TextArea rows={5} maxLength={2000} showCount />
+        </Form.Item>
+        <Form.Item name="satisfactionScore" label="Bạn hài lòng với trải nghiệm ở mức nào?" rules={[{ required: true, message: 'Vui lòng chọn mức độ hài lòng' }]}>
+          <Rate />
+        </Form.Item>
+        <Form.Item name="recommendationScore" label="Bạn có sẵn sàng giới thiệu Coffeeholic? (0–10)" rules={[{ required: true, message: 'Vui lòng chọn điểm giới thiệu' }]}>
+          <Select placeholder="Chọn điểm từ 0 đến 10" options={Array.from({ length: 11 }, (_, score) => ({ value: score, label: String(score) }))} />
+        </Form.Item>
+        <Form.Item name="surveyChoices" label="Bạn muốn chúng mình cải thiện hoặc ghi nhận điều gì? (có thể chọn nhiều)">
+          <Checkbox.Group options={SURVEY_CHOICES} />
         </Form.Item>
         {send.isError && (
           <p className="g-error">

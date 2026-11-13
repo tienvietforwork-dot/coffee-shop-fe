@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Alert, Button, Collapse, Empty, Form, Input, List, Spin, Tabs, Tag, Typography } from 'antd'
+import { App, Alert, Button, Checkbox, Collapse, Empty, Form, Input, List, Rate, Spin, Tabs, Tag, Typography } from 'antd'
 import { accountApi } from '@/api/auth'
 import { crmApi, type CustomerPortalFeedback, type CustomerPortalInteraction, type FeedbackReply } from '@/api/crm'
 import { errorMessage } from '@/api/client'
@@ -14,6 +14,11 @@ const VOUCHER: Record<string, { t: string; c: string }> = {
   ISSUED: { t: 'Có thể dùng', c: 'green' }, USED: { t: 'Đã dùng', c: 'default' }, EXPIRED: { t: 'Hết hạn', c: 'default' }, REVOKED: { t: 'Đã thu hồi', c: 'red' },
 }
 const INTERACTION_CHANNEL: Record<string, string> = { CALL: 'Cuộc gọi', CHAT: 'Trò chuyện', EMAIL: 'Email', IN_STORE: 'Tại quán', NOTE: 'Ghi chú' }
+const SURVEY_OPTIONS = [
+  { value: 'QUALITY', label: 'Chất lượng đồ uống' }, { value: 'SERVICE', label: 'Thái độ phục vụ' },
+  { value: 'WAIT_TIME', label: 'Thời gian chờ' }, { value: 'DELIVERY', label: 'Giao hàng' },
+  { value: 'PRICE', label: 'Giá cả' }, { value: 'ATMOSPHERE', label: 'Không gian' }, { value: 'OTHER', label: 'Khác' },
+]
 
 /** "Tài khoản của tôi" – khách hàng đã đăng nhập. */
 export function AccountPage() {
@@ -22,6 +27,9 @@ export function AccountPage() {
   const qc = useQueryClient()
   const { message } = App.useApp()
   const [pwd, setPwd] = useState(false)
+  const [surveyForm] = Form.useForm()
+  const surveyChoices = Form.useWatch('surveyChoices', surveyForm) as string[] | undefined
+  const npsScore = Form.useWatch('recommendationScore', surveyForm) as number | undefined
   const enabled = isAuthenticated && can(P.ACCOUNT)
   const profile = useQuery({ queryKey: ['account'], queryFn: accountApi.profile, enabled })
   const orders = useQuery({ queryKey: ['account-orders'], queryFn: accountApi.orders, enabled })
@@ -29,6 +37,17 @@ export function AccountPage() {
   const points = useQuery({ queryKey: ['account-points'], queryFn: accountApi.points, enabled })
   const portalFeedbacks = useQuery({ queryKey: ['customer-portal-feedbacks'], queryFn: crmApi.customerPortalFeedbacks, enabled, retry: false })
   const portalInteractions = useQuery({ queryKey: ['customer-portal-interactions'], queryFn: crmApi.customerPortalInteractions, enabled, retry: false })
+  const sendSurvey = useMutation({
+    mutationFn: (values: any) => crmApi.submitFeedbackSurvey({
+      ...values,
+      content: [values.content?.trim(), values.otherDetails?.trim() ? `Nội dung khác: ${values.otherDetails.trim()}` : ''].filter(Boolean).join('\n') || `Khảo sát trải nghiệm: hài lòng ${values.satisfactionScore}/5, điểm giới thiệu ${values.recommendationScore}/10.`,
+      topic: 'Khảo sát trải nghiệm',
+      fullName: profile.data?.fullName,
+      phone: profile.data!.phone,
+    }),
+    onSuccess: () => { surveyForm.resetFields(); message.success('Đã gửi khảo sát; cửa hàng đã ghi nhận ý kiến của bạn'); qc.invalidateQueries({ queryKey: ['customer-portal-feedbacks'] }) },
+    onError: (e) => message.error(errorMessage(e)),
+  })
   const save = useMutation({
     mutationFn: accountApi.updateProfile,
     onSuccess: (p) => { qc.setQueryData(['account'], p); message.success('Đã lưu') },
@@ -107,15 +126,38 @@ export function AccountPage() {
           },
           {
             key: 'crm-feedbacks', label: <>Phản hồi & trả lời{unreadReplies > 0 && <Tag color="red" style={{ marginInlineStart: 6 }}>{unreadReplies} chưa đọc</Tag>}</>, children: (
-              portalFeedbacks.isLoading ? <div className="g-center"><Spin /></div>
+              <>
+              <div style={{marginTop:20}} />
+              {portalFeedbacks.isLoading ? <div className="g-center"><Spin /></div>
                 : portalFeedbacks.isError ? <Alert type="error" showIcon message="Chưa tải được phản hồi" description={errorMessage(portalFeedbacks.error)} />
                   : (portalFeedbacks.data?.length ?? 0) === 0 ? <Empty description="Bạn chưa có phản hồi nào" />
                     : <Collapse items={(portalFeedbacks.data ?? []).map((feedback) => ({
                       key: feedback.id,
                       label: <span><b>{feedback.topic || 'Phản hồi của bạn'}</b><span className="g-muted"> · {dateTime(feedback.createdAt)}</span>{feedback.replies.some((r) => r.senderType === 'STAFF' && !r.readAt) && <Tag color="red" style={{ marginInlineStart: 8 }}>Có trả lời mới</Tag>}</span>,
                       children: <CustomerFeedbackThread feedback={feedback} onRead={() => qc.invalidateQueries({ queryKey: ['customer-portal-feedbacks'] })} />,
-                    }))} />
+                    }))} />}
+              </>
             ),
+          },
+          {
+            key: 'survey', label: 'Khảo sát trải nghiệm', children: <Form form={surveyForm} className="g-survey" layout="vertical" disabled={sendSurvey.isPending} onFinish={(values) => sendSurvey.mutate(values)}>
+              <Alert type="info" showIcon className="g-survey-guide" message="Chia sẻ trải nghiệm của bạn" description="Chấm mức độ hài lòng, chọn điểm giới thiệu quán và những điều bạn muốn góp ý. Các câu hỏi có dấu * là bắt buộc." />
+              <Form.Item name="satisfactionScore" label="Bạn hài lòng ở mức nào? (1–5 sao)" rules={[{ required: true, message: 'Vui lòng chọn số sao' }]}>
+                <Rate className="g-survey-stars" tooltips={['Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng']} />
+              </Form.Item>
+              <Form.Item name="recommendationScore" label="Bạn có giới thiệu quán cho bạn bè không?" rules={[{ required: true, message: 'Vui lòng chọn một điểm' }]}>
+                <div className="g-survey-nps" role="group" aria-label="Điểm giới thiệu từ 0 đến 10">
+                  {Array.from({ length: 11 }, (_, score) => <Button key={score} htmlType="button" aria-pressed={npsScore === score} className={npsScore === score ? 'is-selected' : ''} onClick={() => surveyForm.setFieldValue('recommendationScore', score)}>{score}</Button>)}
+                </div>
+                <div className="g-survey-nps-hints"><span>0 · Hoàn toàn không giới thiệu</span><span>10 · Chắc chắn giới thiệu</span></div>
+              </Form.Item>
+              <Form.Item name="surveyChoices" label="Bạn muốn góp ý về điều gì? (có thể chọn nhiều)">
+                <Checkbox.Group className="g-survey-checks" options={SURVEY_OPTIONS} />
+              </Form.Item>
+              {surveyChoices?.includes('OTHER') && <Form.Item name="otherDetails" label="Mô tả nội dung khác" rules={[{ max: 500, message: 'Tối đa 500 ký tự' }]}><Input maxLength={500} placeholder="Bạn muốn góp ý thêm điều gì?" /></Form.Item>}
+              <Form.Item name="content" label="Ý kiến bổ sung (không bắt buộc)" rules={[{ max: 2000, message: 'Tối đa 2.000 ký tự' }]}><Input.TextArea rows={4} maxLength={2000} showCount placeholder="Bạn có góp ý gì để quán phục vụ tốt hơn không?" /></Form.Item>
+              <Button type="primary" htmlType="submit" className="g-survey-submit" loading={sendSurvey.isPending} disabled={!profile.data?.phone}>Gửi khảo sát</Button>
+            </Form>,
           },
           {
             key: 'crm-interactions', label: 'Chăm sóc khách hàng', children: (
