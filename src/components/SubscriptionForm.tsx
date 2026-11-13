@@ -64,7 +64,7 @@ export function SubscriptionForm({ initial, coffees, withCustomer, saving, onSub
       </div>
       <Form.Item name="address" label="Địa chỉ giao" rules={[vnAddressRule('nơi nhận')]}
         extra={area?.outside ? <span style={{ color: '#cf1322' }}>{area.message ?? 'Ngoài khu vực giao hàng'}</span> : undefined}>
-        <VnAddressInput />
+        <VnAddressInput deliveryOnly />
       </Form.Item>
 
       <div style={{ marginBottom: 8, fontWeight: 600 }}>Món mỗi lần giao</div>

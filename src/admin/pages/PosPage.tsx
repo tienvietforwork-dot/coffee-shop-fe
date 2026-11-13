@@ -158,7 +158,7 @@ export function PosPage() {
                   extra={area?.outside ? <span style={{ color: '#cf1322' }}>{area.message ?? 'Ngoài khu vực giao hàng'}</span>
                     : quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span>
                     : q?.deliveryZone ? `Giao tới ${q.deliveryZone}${q.deliveryDistanceKm != null ? ` · ~${num(q.deliveryDistanceKm)} km` : ''}` : undefined}>
-                  <VnAddressInput />
+                  <VnAddressInput deliveryOnly />
                 </Form.Item>
               </>}
               <Form.Item name="note" label="Ghi chú đơn"><Input /></Form.Item>
