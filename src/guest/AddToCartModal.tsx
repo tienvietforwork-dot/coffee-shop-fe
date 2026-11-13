@@ -6,7 +6,6 @@ import type { MenuCoffee } from '@/api/types'
 import { money, photoSrc } from '@/lib/format'
 import { useCart } from './useCart'
 import { flyToCart } from '@/lib/flyToCart'
-import { CrossSellSuggestions } from './CrossSellSuggestions'
 import { RecommendationSuggestions } from './RecommendationSuggestions'
 import { UpsellSuggestions } from './UpsellSuggestions'
 import { recommendationApi } from '@/api/recommendation'
@@ -72,9 +71,8 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
         </div>
         <UpsellSuggestions anchor={coffee} cartTotal={cart?.subtotal ?? 0} onPick={choice=>{setUpgrade(choice);setQty(1)}} />
         <RecommendationSuggestions anchor={coffee} onPick={(pick, tracking)=>{setRelated(pick);setRelatedTracking(tracking)}} />
-        <CrossSellSuggestions anchor={coffee} cartTotal={cart?.subtotal ?? 0} onPick={(pick, tracking)=>{setRelated(pick);setRelatedTracking(tracking)}} />
       </div>
-      {related && <div className="cross-sell-selection">Thêm món gợi ý: <strong>{related.name}</strong><button type="button" onClick={async()=>{try{await add.mutateAsync({coffeeId:related.id,quantity:1});if(relatedTracking?.source==='recommendation' && relatedTracking.coffeeId===related.id){recommendationApi.event(relatedTracking.ruleId,related.id,relatedTracking.impressionId,'ADD_TO_CART').catch(()=>{})}setRelated(null);setRelatedTracking(null)}catch{/* Error already shown by useCart. */}}} disabled={add.isPending || !related.available}>Thêm vào giỏ</button><button type="button" onClick={()=>{setRelated(null);setRelatedTracking(null)}}>Bỏ chọn</button></div>}
+      {related && <div className="cross-sell-selection">{relatedTracking?.source === 'cross-sell' ? 'Thêm món bán kèm:' : 'Thêm món gợi ý:'} <strong>{related.name}</strong><button type="button" onClick={async()=>{try{await add.mutateAsync({coffeeId:related.id,quantity:1});if(relatedTracking?.source==='recommendation' && relatedTracking.coffeeId===related.id){recommendationApi.event(relatedTracking.ruleId,related.id,relatedTracking.impressionId,'ADD_TO_CART').catch(()=>{})}setRelated(null);setRelatedTracking(null)}catch{/* Error already shown by useCart. */}}} disabled={add.isPending || !related.available}>Thêm vào giỏ</button><button type="button" onClick={()=>{setRelated(null);setRelatedTracking(null)}}>Bỏ chọn</button></div>}
     </Modal>
   )
 }

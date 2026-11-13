@@ -75,7 +75,17 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Giỏ hàng đang trống" />
       ) : (
         <ul className="g-cart-list">
-          {bundles.map(b=><li key={`bundle-${b.id}`}><div className="g-cart-info"><strong>🎁 {b.name}</strong><span>{b.quantity} combo · {money(b.unitPrice)}/combo</span><div className="g-cart-row"><span>Giá combo</span><strong>{money(b.total)}</strong></div></div><button className="g-icon-btn" onClick={()=>removeBundle.mutate(b.id)} aria-label="Xóa combo"><DeleteOutlined /></button></li>)}
+          {bundles.map((bundle) => <li key={`bundle-${bundle.id}`}>
+            <div className="g-cart-info">
+              <strong>🎁 {bundle.name}</strong>
+              <span>{bundle.quantity} combo · {money(bundle.unitPrice)}/combo</span>
+              {bundle.components?.map((component) => <span key={`${bundle.id}-${component.coffeeId}`}>
+                {component.quantity * bundle.quantity} × {component.name}{component.choiceGroup ? ` · ${component.choiceGroup}` : ''}
+              </span>)}
+              <div className="g-cart-row"><span>Giá combo</span><strong>{money(bundle.total)}</strong></div>
+            </div>
+            <button className="g-icon-btn" onClick={() => removeBundle.mutate(bundle.id)} aria-label="Xóa combo"><DeleteOutlined /></button>
+          </li>)}
           {items.map((i) => (
             <li key={i.id} className={i.available ? '' : 'is-out'}>
               <img src={photoSrc(i.imageUrl)} alt="" />

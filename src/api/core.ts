@@ -24,7 +24,7 @@ export const download = async (url: string, params?: object) => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 
-export interface CategoryPayload { name: string; description?: string; displayOrder?: number }
+export interface CategoryPayload { name: string; description?: string; productType: import('./types').CategoryProductType; displayOrder?: number }
 export interface CoffeePayload {
   categoryId: number; code?: string; name: string; imageId?: number; imageUrl?: string; price: number; description?: string; status?: CoffeeStatus
 }

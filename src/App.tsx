@@ -50,7 +50,6 @@ const MerchandisingSchedulePage = lazy(() => import('@/admin/pages/Merchandising
 const ProductPlacementPage = lazy(() => import('@/admin/pages/ProductPlacementPage').then((m) => ({ default: m.ProductPlacementPage })))
 const RecommendationPage = lazy(() => import('@/admin/pages/RecommendationPage').then(m => ({ default: m.RecommendationPage })))
 const UpsellPage = lazy(() => import('@/admin/pages/UpsellPage').then(m => ({ default: m.UpsellPage })))
-const CrossSellPage = lazy(() => import('@/admin/pages/CrossSellPage').then(m => ({ default: m.CrossSellPage })))
 const ProductBundlesPage = lazy(() => import('@/admin/pages/ProductBundlesPage').then((m) => ({ default: m.ProductBundlesPage })))
 const PromotionsPage = lazy(() => import('@/admin/pages/promotions/PromotionsPage').then((m) => ({ default: m.PromotionsPage })))
 const VouchersPage = lazy(() => import('@/admin/pages/promotions/VouchersPage').then((m) => ({ default: m.VouchersPage })))
@@ -108,7 +107,7 @@ export default function App() {
                   <Route path="/admin/product-placement" element={<Guard perm="menu"><ProductPlacementPage /></Guard>} />
                   <Route path="/admin/recommendation" element={<Guard perm="menu"><RecommendationPage /></Guard>} />
                   <Route path="/admin/upsell" element={<Guard perm="menu"><UpsellPage /></Guard>} />
-                  <Route path="/admin/cross-sell" element={<Guard perm="menu"><CrossSellPage /></Guard>} />
+                  <Route path="/admin/cross-sell" element={<Navigate to="/admin" replace />} />
                   <Route path="/admin/product-bundles" element={<Guard perm="menu"><ProductBundlesPage /></Guard>} />
                   <Route path="/admin/coffees" element={<Guard perm="menu"><CoffeesPage /></Guard>} />
                   <Route path="/admin/categories" element={<Guard perm="categories"><CategoriesPage /></Guard>} />

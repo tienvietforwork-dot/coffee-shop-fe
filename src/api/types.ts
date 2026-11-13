@@ -95,13 +95,17 @@ export interface Category {
   id: number
   name: string
   description?: string
+  productType: CategoryProductType
   displayOrder: number
 }
+
+export type CategoryProductType = 'DRINK' | 'FOOD' | 'ADD_ON'
 
 export interface Coffee {
   id: number
   categoryId: number
   categoryName: string
+  categoryType: CategoryProductType
   /** mã sản phẩm (SP001…) */
   code?: string
   name: string
@@ -217,7 +221,11 @@ export interface Cart {
   tableId?: number
   tableNo?: string
   items: CartItem[]
-  bundles?: { id: number; bundleId: number; name: string; quantity: number; selected: number[]; unitPrice: number; total: number }[]
+  bundles?: {
+    id: number; bundleId: number; name: string; imageUrl?: string; quantity: number; selected: number[];
+    components?: { coffeeId: number; name: string; quantity: number; optional: boolean; choiceGroup?: string | null; unitPrice: number }[];
+    unitPrice: number; total: number
+  }[]
   subtotal: number
 }
 
