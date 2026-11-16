@@ -81,7 +81,7 @@ export function ProductBundlesPage() {
   const open = (bundle?: Bundle) => {
     setEditing(bundle ?? null)
     setPriceNeedsReentry(false)
-    const items = bundle?.items.map((item) => ({ coffeeId: item.coffee.id, quantity: item.quantity })) ?? []
+    const items: { coffeeId?: number; quantity: number }[] = bundle?.items.map((item) => ({ coffeeId: item.coffee.id, quantity: item.quantity })) ?? []
     while (items.length < 2) items.push({ quantity: 1 })
 
     form.resetFields()
