@@ -65,7 +65,7 @@ const GROUPS: { label: string; icon: ReactNode; items: Entry[] }[] = [
       { key: '/admin/merchandising-analytics', icon: <BarChartOutlined />, label: 'Merchandising Analytics', perm: P.STATS },
       { key: '/admin/merchandising-schedule', icon: <StarOutlined />, label: 'Lịch trưng bày', perm: P.MENU },
       { key: '/admin/recommendation', icon: <StarOutlined />, label: 'Gợi ý', perm: P.MENU },
-      { key: '/admin/upsell', icon: <SwapOutlined />, label: 'Nâng cấp món', perm: P.MENU },
+      { key: '/admin/upsell', icon: <SwapOutlined />, label: 'Đề xuất món', perm: P.MENU },
       { key: '/admin/product-bundles', icon: <GiftOutlined />, label: 'Combo sản phẩm', perm: P.MENU },
     ],
   },
