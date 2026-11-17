@@ -8,6 +8,7 @@ import type { PaymentTransaction } from '@/api/types'
 import { PAYMENT_METHOD, PAYMENT_STATUS, dateTime, money } from '@/lib/format'
 import { PageHeader } from '../components/PageHeader'
 import { useAction } from '../components/useCrud'
+import { RefundPendingCard } from '../components/RefundPendingCard'
 
 const TX_STATUS: Record<PaymentTransaction['status'], { text: string; color: string }> = {
   PENDING: { text: 'Chờ thanh toán', color: 'gold' }, SUCCESS: { text: 'Thành công', color: 'green' },
@@ -37,6 +38,7 @@ export function PaymentReconciliationPage() {
   return (
     <>
       <PageHeader title="Đối soát thanh toán online" subtitle="Giao dịch VNPAY · kết quả từ IPN / truy vấn · đối chiếu với file đối soát của cổng" />
+      <RefundPendingCard />
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col xs={12} md={6}><Card><Statistic title="Thu qua VNPAY" value={collected} formatter={(v) => money(Number(v))} /></Card></Col>
         <Col xs={12} md={6}><Card><Statistic title="Hoàn qua VNPAY" value={refunded} formatter={(v) => money(Number(v))} /></Card></Col>

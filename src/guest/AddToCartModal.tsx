@@ -1,72 +1,78 @@
 import { useEffect, useState } from 'react'
-import { Input, Modal, Tag } from 'antd'
-import { MinusOutlined, PlusOutlined } from '@ant-design/icons'
+import { message } from 'antd'
+import { Modal } from 'antd'
+import { ArrowLeftOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import type { MenuCoffee } from '@/api/types'
-import { imageSrc, money } from '@/lib/format'
+import { money, photoSrc } from '@/lib/format'
 import { useCart } from './useCart'
-import { useAddableCups } from '@/lib/stock'
 import { flyToCart } from '@/lib/flyToCart'
+import { RecommendationSuggestions } from './RecommendationSuggestions'
+import { UpsellSuggestions } from './UpsellSuggestions'
+import { recommendationApi } from '@/api/recommendation'
+import type { SuggestionTracking } from './suggestionTracking'
 
-/** Lời dặn hay gặp ở quầy; the bar still makes the drink by its recipe, the note only tells how to serve it. */
-const QUICK_NOTES = ['Ít đá', 'Không đá', 'Đá riêng', 'Ít ngọt', 'Không đường']
-
-/**
- * One size, no options: a coffee is made by its recipe, the guest picks how many and may leave a note (ít đá, ít ngọt…).
- * Cups with a different note are a separate line in the cart.
- */
+/** The backend validates availability and final pricing when the guest adds a coffee. */
 export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null; onClose: () => void }) {
   const [qty, setQty] = useState(1)
-  const [note, setNote] = useState('')
-  const { add, lines } = useCart()
-  const addableOf = useAddableCups(lines)
+  const [submitting, setSubmitting] = useState(false)
+  const [related, setRelated] = useState<MenuCoffee | null>(null)
+  const [relatedTracking, setRelatedTracking] = useState<SuggestionTracking | null>(null)
+  const [upgrade, setUpgrade] = useState<MenuCoffee | null>(null)
+  const { add, cart } = useCart()
 
   useEffect(() => {
-    if (coffee) {
-      setQty(1)
-      setNote('')
-    }
+    if (coffee) {setQty(1);setRelated(null);setRelatedTracking(null);setUpgrade(null)}
   }, [coffee])
 
-  const parts = note.split(',').map((s) => s.trim()).filter(Boolean)
-  const toggle = (q: string) => setNote((parts.includes(q) ? parts.filter((p) => p !== q) : [...parts, q]).join(', '))
-
   if (!coffee) return null
-  const unit = coffee.salePrice != null && coffee.salePrice < coffee.price ? coffee.salePrice : coffee.price
-  const max = Math.min(99, addableOf(coffee.id))
-
-  // close at once and let the request run in the background; the photo flies into the cart
-  const submit = () => {
-    flyToCart(document.querySelector('.g-modal-img'), imageSrc(coffee.imageUrl))
-    add.mutate({ coffeeId: coffee.id, quantity: qty, note: note.trim() || undefined })
-    onClose()
+  const chosen = upgrade ?? coffee
+  const unit = chosen.salePrice != null && chosen.salePrice < chosen.price ? chosen.salePrice : chosen.price
+  const heroImage = chosen.imageUrl ?? coffee.imageUrl
+  const max = 99 // no stock cap: the shop does not track inventory
+  // Do not close the product modal (or play success animation) before the server accepts the item.
+  // The backend owns the final price and validates the coffee; leave the selection intact on error.
+  const submit = async () => {
+    if (submitting || add.isPending) return
+    if (!chosen.available || qty < 1 || qty > max) {
+      message.error('Số lượng hoặc tình trạng món không hợp lệ')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await add.mutateAsync({ coffeeId: chosen.id, quantity: qty })
+      flyToCart(document.querySelector('.g-modal-img'), photoSrc(chosen.imageUrl ?? coffee.imageUrl))
+      onClose()
+    } catch {
+      // useCart.onError shows the backend error; keep the dialog for adjustment/retry.
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <Modal open onCancel={onClose} footer={null} width={460} className="g-modal" centered destroyOnHidden>
-      {coffee.imageUrl && <img className="g-modal-img" src={imageSrc(coffee.imageUrl)} alt={coffee.name} />}
+      <img key={chosen.id} className="g-modal-img" src={photoSrc(heroImage)} alt={chosen.name} />
       <div className="g-modal-body">
-        <h3>{coffee.name}</h3>
-        {coffee.description && <p className="g-muted">{coffee.description}</p>}
-
-        {max < 10 && max > 0 && <p className="g-stock-hint">Chỉ còn pha được {max} ly</p>}
-        <div className="g-note-picker">
-          {QUICK_NOTES.map((q) => (
-            <Tag.CheckableTag key={q} checked={parts.includes(q)} onChange={() => toggle(q)}>{q}</Tag.CheckableTag>
-          ))}
-          <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={100} allowClear
-            placeholder="Ghi chú cho món (không bắt buộc)" aria-label="Ghi chú cho món" />
-        </div>
+        <h3>{chosen.name}</h3>
+        {chosen.description && <p className="g-muted">{chosen.description}</p>}
+        {upgrade && <div className="g-upgrade-selected">
+          <div className="g-upgrade-selected-copy"><span className="g-upgrade-check">✓</span><span><small>ĐÃ CHỌN NÂNG CẤP</small><strong>{upgrade.name}</strong></span><b>{money(unit)}</b></div>
+          <button type="button" className="g-upgrade-reset" onClick={()=>setUpgrade(null)}><ArrowLeftOutlined /> Quay về {coffee.name}</button>
+        </div>}
         <div className="g-modal-foot">
           <div className="g-stepper">
             <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Giảm"><MinusOutlined /></button>
             <span>{qty}</span>
             <button onClick={() => setQty((q) => Math.min(max, q + 1))} disabled={qty >= max} aria-label="Tăng"><PlusOutlined /></button>
           </div>
-          <button className="g-cta g-cta-block" onClick={submit} disabled={max < 1}>
-            {max < 1 ? 'Đã hết nguyên liệu' : `Thêm vào giỏ · ${money(unit * qty)}`}
+          <button className="g-cta g-cta-block" onClick={submit} disabled={max < 1 || !chosen.available || qty > max || submitting || add.isPending}>
+            {submitting || add.isPending ? 'Đang thêm…' : !chosen.available ? 'Đã hết món' : `Thêm vào giỏ · ${money(unit * qty)}`}
           </button>
         </div>
+        <UpsellSuggestions anchor={coffee} cartTotal={cart?.subtotal ?? 0} onPick={choice=>{setUpgrade(choice);setQty(1)}} />
+        <RecommendationSuggestions anchor={coffee} onPick={(pick, tracking)=>{setRelated(pick);setRelatedTracking(tracking)}} />
       </div>
+      {related && <div className="cross-sell-selection">{relatedTracking?.source === 'cross-sell' ? 'Thêm món bán kèm:' : 'Thêm món gợi ý:'} <strong>{related.name}</strong><button type="button" onClick={async()=>{try{await add.mutateAsync({coffeeId:related.id,quantity:1});if(relatedTracking?.source==='recommendation' && relatedTracking.coffeeId===related.id){recommendationApi.event(relatedTracking.ruleId,related.id,relatedTracking.impressionId,'ADD_TO_CART').catch(()=>{})}setRelated(null);setRelatedTracking(null)}catch{/* Error already shown by useCart. */}}} disabled={add.isPending || !related.available}>Thêm vào giỏ</button><button type="button" onClick={()=>{setRelated(null);setRelatedTracking(null)}}>Bỏ chọn</button></div>}
     </Modal>
   )
 }

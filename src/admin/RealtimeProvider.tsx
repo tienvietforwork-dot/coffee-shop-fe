@@ -5,7 +5,7 @@ import { App } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { usePerm } from '@/lib/perm'
-import type { CoffeeStatus, Material, Order } from '@/api/types'
+import type { Order } from '@/api/types'
 
 const RealtimeContext = createContext({ connected: false })
 export const useRealtime = () => useContext(RealtimeContext)
@@ -13,7 +13,6 @@ export const useRealtime = () => useContext(RealtimeContext)
 /**
  * STOMP over SockJS to app-core (/ws). Topics:
  *  /topic/orders           – order created / changed → refresh order screens, toast on new orders
- *  /topic/inventory-alerts – material below min stock
  */
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false)
@@ -42,26 +41,6 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           qc.invalidateQueries({ queryKey: ['order', order.id] })
           qc.invalidateQueries({ queryKey: ['dashboard'] })
           qc.invalidateQueries({ queryKey: ['shipments'] })
-        })
-        client.subscribe('/topic/inventory-alerts', (m) => {
-          const mat = JSON.parse(m.body) as Material
-          notification.warning({
-            message: 'Nguyên liệu sắp hết',
-            description: `${mat.name}: còn ${mat.stockQuantity} ${mat.unit} (tối thiểu ${mat.minStock})`,
-            placement: 'bottomRight',
-          })
-          qc.invalidateQueries({ queryKey: ['materials'] })
-          qc.invalidateQueries({ queryKey: ['alerts'] })
-        })
-        client.subscribe('/topic/menu', (m) => {
-          const changes = JSON.parse(m.body) as { coffeeId: number; name: string; status: CoffeeStatus }[]
-          changes.forEach((c) => notification.info({
-            message: c.status === 'SOLD_OUT' ? `${c.name}: tự chuyển Hết món` : `${c.name}: bán lại`,
-            description: c.status === 'SOLD_OUT' ? 'Không đủ nguyên liệu để pha thêm ly nào' : 'Kho đã đủ nguyên liệu',
-            placement: 'bottomRight',
-          }))
-          qc.invalidateQueries({ queryKey: ['coffees'] })
-          qc.invalidateQueries({ queryKey: ['menu'] })
         })
       },
       onWebSocketClose: () => setConnected(false),

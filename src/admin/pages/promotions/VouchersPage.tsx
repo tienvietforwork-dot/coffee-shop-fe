@@ -1,65 +1,402 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Table, Tag } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
-import { promotionsApi, type VoucherStatus } from '@/api/promotions'
-import { dateTime, money } from '@/lib/format'
-import { PageHeader } from '../../components/PageHeader'
-import { ServiceGate } from '../../components/ServiceGate'
-import { useAction } from '../../components/useCrud'
-import { MoneyInput } from '../../components/MoneyInput'
+import { useQuery } from "@tanstack/react-query";
+import {
+  Space,
+  Table,
+  Tag,
+  Button,
+  Modal,
+  Form,
+  Dropdown,
+  Input,
+  InputNumber,
+  Select,
+  Segmented,
+} from "antd";
+import {
+  promotionsApi,
+  type VoucherType,
+  type VoucherStatus,
+  Voucher,
+} from "@/api/promotions";
 
-const STATUS: Record<VoucherStatus, { t: string; c: string }> = {
-  ISSUED: { t: 'Chưa dùng', c: 'blue' }, USED: { t: 'Đã dùng', c: 'green' }, EXPIRED: { t: 'Hết hạn', c: 'default' }, REVOKED: { t: 'Thu hồi', c: 'red' },
-}
+import { date, INCIDENT_SEVERITY, INCIDENT_TYPE, money } from "@/lib/format";
+import { PageHeader } from "../../components/PageHeader";
+import { ServiceGate } from "../../components/ServiceGate";
+import { useState } from "react";
+import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
+import { useAction } from "@/admin/components/useCrud";
+import { MoneyInput } from "@/admin/components/MoneyInput";
+
+const DISCOUNT_TYPE: Record<VoucherType, { label: string; color: string }> = {
+  PERCENTAGE: { label: "Giảm theo phần trăm", color: "#FF5722" },
+  FIXED_AMOUNT: { label: "Giảm số tiền cố định", color: "#009688" },
+};
+
+const VOUCHER_STATUS: Record<VoucherStatus, { label: string; color: string }> =
+  {
+    ISSUED: { label: "Chưa dùng", color: "#8c8c8c" },
+    USED: { label: "Đã dùng", color: "#52c41a" },
+    EXPIRED: { label: "Hết hạn", color: "#ff4d4f" },
+    REVOKED: { label: "Đã thu hồi", color: "#faad14" },
+  };
+
+const VOUCHER_TYPE_STATUS = {
+  DRAFT: { label: "Nháp", color: "#8c8c8c" },
+  ACTIVE: { label: "Đang hoạt động", color: "#52c41a" },
+  ENDED: { label: "Ngừng hoạt động", color: "#ff4d4f" },
+} as const;
 
 export function VouchersPage() {
-  const [status, setStatus] = useState<VoucherStatus | 'ALL'>('ALL')
-  const { data = [], isLoading, error } = useQuery({ queryKey: ['vouchers', status], queryFn: () => promotionsApi.vouchers(status === 'ALL' ? undefined : status), retry: false })
-  const [open, setOpen] = useState(false)
-  const issue = useAction(promotionsApi.issueVouchers, [['vouchers']], 'Đã phát hành voucher')
-  const revoke = useAction(promotionsApi.revokeVoucher, [['vouchers']], 'Đã thu hồi')
+  const {
+    data = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["vouchers"],
+    queryFn: promotionsApi.vouchers,
+    retry: false,
+  });
+
+  const act = useAction(
+    (v: {
+      id: number;
+      op: "activeVoucher" | "endVoucher" | "cloneVoucher" | "removeVoucher";
+    }) => promotionsApi[v.op](v.id),
+    [["vouchers"], ["menu"]],
+    "Đã cập nhật",
+  );
+
+  const [edit, setEdit] = useState<Partial<Voucher> | null>(null);
+  const [form] = Form.useForm();
+  const key = [["vouchers"], ["menu"]];
+  const saveVoucher = useAction(promotionsApi.saveVoucher, key);
+  const openVoucher = (v: Partial<Voucher>) => {
+    form.resetFields();
+    form.setFieldsValue({
+      name: v.name,
+      discountType: v.discountType ?? "PERCENTAGE",
+      discountValue: v.discountValue,
+      minOrderValue: v.minOrderValue ?? 0,
+      quantity: v.quantity ?? 0,
+      maxQuantity: v.maxQuantity ?? 1,
+      validDays: v.validDays ?? 30,
+    });
+    setEdit(v);
+  };
+  const discountType = Form.useWatch("discountType", form);
+
+  const discountOptions = (["PERCENTAGE", "FIXED_AMOUNT"] as VoucherType[]).map(
+    (value) => ({
+      value,
+      label: (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 8,
+              height: 8,
+              flexShrink: 0,
+              borderRadius: "50%",
+              backgroundColor: DISCOUNT_TYPE[value].color,
+            }}
+          />
+          {DISCOUNT_TYPE[value].label}
+        </span>
+      ),
+    }),
+  );
 
   return (
     <>
-      <PageHeader title="Voucher" subtitle="Phát hành, gán cho khách hàng và theo dõi tình trạng sử dụng"
-        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>Phát hành voucher</Button>} />
-      <Segmented style={{ marginBottom: 12 }} value={status} onChange={(v) => setStatus(v as VoucherStatus | 'ALL')}
-        options={[{ value: 'ALL', label: 'Tất cả' }, ...Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.t }))]} />
+      <PageHeader
+        title="Voucher"
+        subtitle="Phát hành, gán cho khách hàng và theo dõi tình trạng sử dụng"
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => openVoucher({})}
+          >
+            Phát hành Voucher
+          </Button>
+        }
+      />
       <ServiceGate module="Khuyến mãi" loading={isLoading} error={error}>
-        <Table rowKey="id" dataSource={data}
+        <Table
+          className="promotion-table"
+          rowKey="id"
+          dataSource={data}
+          locale={{ emptyText: "Chưa có chương trình Voucher" }}
+          expandable={{
+            expandedRowRender: (v) => (
+              <Table
+                size="small"
+                pagination={false}
+                dataSource={v.items}
+                columns={[
+                  {
+                    title: "Mã Voucher",
+                    dataIndex: "code",
+                  },
+                  {
+                    title: "Mã hóa đơn",
+                    render: (_, v) => {
+                      return v.orderId ? v.orderCode : "_";
+                    },
+                  },
+                  {
+                    title: "Khách hàng",
+                    dataIndex: "customerName",
+                    render: (d, v) => (
+                      <>
+                        <b>{d}</b>
+                        <div className="a-muted small">
+                          SĐT: {v.customerPhone}
+                        </div>
+                      </>
+                    ),
+                  },
+                  {
+                    title: "Đền bù",
+                    render: (_, v) => {
+                      if (v.incidentId != null) {
+                        return (
+                          <>
+                            {v.incidentSeverity && (
+                              <Tag
+                                color={
+                                  INCIDENT_SEVERITY[v.incidentSeverity].color
+                                }
+                              >
+                                {INCIDENT_SEVERITY[v.incidentSeverity].text}
+                              </Tag>
+                            )}
+                            <div className="a-muted small">
+                              {v.incidentType
+                                ? INCIDENT_TYPE[v.incidentType]
+                                : "_"}
+                            </div>
+                          </>
+                        );
+                      }
+                      return "_";
+                    },
+                  },
+                  {
+                    title: "Thời gian",
+                    render: (_, p) =>
+                      `${date(p.issuedAt)} -> ${date(p.expiresAt)}`,
+                  },
+                  {
+                    title: "Trạng thái",
+                    render: (_, v) => {
+                      const status = VOUCHER_STATUS[v.status];
+                      return status ? (
+                        <Tag color={status.color}>{status.label}</Tag>
+                      ) : (
+                        <Tag>{v.status || "_"}</Tag>
+                      );
+                    },
+                  },
+                ]}
+              />
+            ),
+          }}
           columns={[
-            { title: 'Mã', dataIndex: 'code', render: (v, x) => <><code>{v}</code>{x.incidentId && <Tag color="volcano" style={{ marginLeft: 6 }}>Đền bù</Tag>}</> },
-            { title: 'Khách hàng', render: (_, v) => v.customerName || v.customerPhone || <span className="a-muted">Dùng chung</span> },
-            { title: 'Giá trị', dataIndex: 'discountValue', render: money },
-            { title: 'Đơn tối thiểu', dataIndex: 'minOrderValue', render: money },
-            { title: 'Phát hành', dataIndex: 'issuedAt', render: dateTime },
-            { title: 'Hết hạn', dataIndex: 'expiresAt', render: dateTime },
-            { title: 'Đơn sử dụng', dataIndex: 'orderCode' },
-            { title: 'Trạng thái', render: (_, v) => <Tag color={STATUS[v.status].c}>{STATUS[v.status].t}</Tag> },
-            { title: '', render: (_, v) => v.status === 'ISSUED' && <Popconfirm title="Thu hồi voucher?" onConfirm={() => revoke.mutate(v.id)}><Button size="small" danger>Thu hồi</Button></Popconfirm> },
-          ]} />
+            {
+              title: "Tên voucher",
+              dataIndex: "name",
+              render: (v: string) => <b>{v}</b>,
+            },
+            {
+              title: "Hình thức giảm",
+              render: (_, v) => {
+                const discountType =
+                  v.discountType ??
+                  (v.discountValue > 100 ? "FIXED_AMOUNT" : undefined);
+                const type = discountType
+                  ? DISCOUNT_TYPE[discountType]
+                  : undefined;
+                const value =
+                  v.discountType === "PERCENTAGE"
+                    ? `${v.discountValue}%`
+                    : money(v.discountValue);
+
+                return (
+                  <Tag color={type?.color ?? "default"}>
+                    {type ? `${type.label}: ${value}` : value}
+                  </Tag>
+                );
+              },
+            },
+            {
+              title: "Đơn tối thiểu",
+              dataIndex: "minOrderValue",
+              render: money,
+            },
+            {
+              title: "Số lượt / Tối đa",
+              render: (_, v) => `${v.quantity ?? 0} / ${v.maxQuantity ?? 0}`,
+            },
+            { title: "Hạn dùng (ngày)", dataIndex: "validDays" },
+            {
+              title: "Trạng thái",
+              dataIndex: "status",
+              render: (_, v) => {
+                const value = VOUCHER_TYPE_STATUS[v.status];
+                return <Tag color={value.color}>{value.label}</Tag>;
+              },
+            },
+            {
+              title: "Thao tác",
+              render: (_, v) => {
+                return (
+                  <Space>
+                    {v.status !== "ENDED" && (
+                      <Button onClick={() => openVoucher(v)}>Sửa</Button>
+                    )}
+                    <Dropdown
+                      menu={{
+                        items: [
+                          ...(v.status === "DRAFT"
+                            ? [{ key: "activeVoucher", label: "Kích hoạt" }]
+                            : []),
+                          ...(v.status === "ACTIVE"
+                            ? [
+                                {
+                                  key: "endVoucher",
+                                  label: "Kết thúc",
+                                  danger: true,
+                                },
+                              ]
+                            : []),
+                          ...(v.status === "ENDED"
+                            ? [{ key: "cloneVoucher", label: "Nhân bản" }]
+                            : []),
+                          ...(v.status === "DRAFT"
+                            ? [
+                                {
+                                  key: "removeVoucher",
+                                  label: "Xóa bản nháp",
+                                  danger: true,
+                                },
+                              ]
+                            : []),
+                        ],
+                        onClick: ({ key }) => {
+                          if (
+                            v.id === undefined ||
+                            (key !== "activeVoucher" &&
+                              key !== "endVoucher" &&
+                              key !== "cloneVoucher" &&
+                              key !== "removeVoucher")
+                          ) {
+                            return;
+                          }
+                          act.mutate({ id: v.id, op: key });
+                        },
+                      }}
+                    >
+                      <Button className="small" icon={<MoreOutlined />} />
+                    </Dropdown>
+                  </Space>
+                );
+              },
+            },
+          ]}
+        />
       </ServiceGate>
-      <Modal open={open} title="Phát hành voucher" footer={null} onCancel={() => setOpen(false)} destroyOnHidden>
-        <Form layout="vertical" initialValues={{ quantity: 1, codePrefix: 'CH' }}
-          onFinish={(v) => issue.mutate({
-            discountValue: v.discountValue, minOrderValue: v.minOrderValue, quantity: v.quantity, codePrefix: v.codePrefix,
-            expiresAt: v.expiresAt?.format('YYYY-MM-DDT23:59:59'),
-            customerIds: v.customerIds ? String(v.customerIds).split(/[,\s]+/).filter(Boolean).map(Number) : undefined,
-          }, { onSuccess: () => setOpen(false) })}>
-          <div className="a-grid-2">
-            <Form.Item name="discountValue" label="Giá trị giảm" rules={[{ required: true }]}><MoneyInput min={1000} /></Form.Item>
-            <Form.Item name="minOrderValue" label="Đơn tối thiểu"><MoneyInput /></Form.Item>
-            <Form.Item name="expiresAt" label="Hạn dùng"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item>
-            <Form.Item name="codePrefix" label="Tiền tố mã"><Input maxLength={6} /></Form.Item>
-          </div>
-          <Form.Item name="customerIds" label="Gán cho khách hàng (ID, cách nhau bởi dấu phẩy)" extra="Để trống để phát hành voucher dùng chung">
-            <Input placeholder="vd: 12, 15, 40" />
+      <Modal
+        open={edit !== null}
+        title={edit?.id ? "Sửa Voucher" : "Tạo Voucher"}
+        footer={null}
+        onCancel={() => {
+          setEdit(null);
+          form.resetFields();
+        }}
+        destroyOnHidden
+        width={720}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={({ validDays, ...v }) =>
+            saveVoucher.mutate(
+              { ...v, validDate: validDays ?? 30, id: edit?.id },
+              { onSuccess: () => setEdit(null) },
+            )
+          }
+        >
+          <Form.Item
+            name="name"
+            label="Tên voucher"
+            rules={[{ required: true, message: "Nhập tên voucher" }]}
+          >
+            <Input maxLength={150} />
           </Form.Item>
-          <Form.Item name="quantity" label="Số lượng (khi dùng chung)"><InputNumber min={1} max={500} style={{ width: '100%' }} /></Form.Item>
-          <Button type="primary" htmlType="submit" block loading={issue.isPending}>Phát hành</Button>
+          <Form.Item name="discountType" label="Hình thức giảm">
+            <Segmented block options={discountOptions} />
+          </Form.Item>
+          <div className="a-grid-2">
+            <Form.Item
+              name="discountValue"
+              label={
+                discountType === "PERCENTAGE"
+                  ? "Phần trăm giảm"
+                  : "Số tiền giảm"
+              }
+              rules={[{ required: true, message: "Nhập giá trị giảm" }]}
+            >
+              {discountType === "PERCENTAGE" ? (
+                <InputNumber
+                  min={1}
+                  max={100}
+                  addonAfter="%"
+                  style={{ width: "100%" }}
+                />
+              ) : (
+                <MoneyInput min={1} />
+              )}
+            </Form.Item>
+            <Form.Item name="minOrderValue" label="Đơn tối thiểu">
+              <MoneyInput />
+            </Form.Item>
+            <Form.Item
+              name="maxQuantity"
+              label="Số lượt tối đa"
+              rules={[{ required: true }]}
+            >
+              <InputNumber min={1} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item
+              name="validDays"
+              label="Hạn dùng (ngày)"
+              rules={[
+                { required: true, message: "Nhập hạn dùng" },
+                { type: "number", min: 1, message: "Hạn dùng phải từ 1 ngày" },
+              ]}
+            >
+              <InputNumber min={1} style={{ width: "100%" }} />
+            </Form.Item>
+          </div>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            loading={saveVoucher.isPending}
+          >
+            Lưu Voucher
+          </Button>
         </Form>
       </Modal>
     </>
-  )
+  );
 }

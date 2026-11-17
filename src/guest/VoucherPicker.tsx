@@ -60,7 +60,13 @@ export function VoucherPicker({ subtotal, applied, promotionName, voucherDiscoun
           const on = promotionName === p.name
           return (
             <div key={p.id} className={`g-offer ${need > 0 ? 'is-off' : ''}`}>
-              <div className="g-offer-badge is-promo">{p.discountPercent ? `-${p.discountPercent}%` : 'KM'}</div>
+              <div className="g-offer-badge is-promo">
+                {p.discountPercent
+                  ? p.discountType === 'FIXED_AMOUNT'
+                    ? `-${money(p.discountPercent)}`
+                    : `-${p.discountPercent}%`
+                  : 'KM'}
+              </div>
               <div className="g-offer-body">
                 <b>{p.name}</b>
                 <span>{p.minOrderAmount ? `Đơn từ ${money(p.minOrderAmount)}` : 'Mọi đơn hàng'} · HSD {date(p.endDate)}</span>

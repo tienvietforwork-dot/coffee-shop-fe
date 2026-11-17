@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, Table } from 'antd'
+import { Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, Table, Tag } from 'antd'
 import { PlusOutlined, DownOutlined, ExperimentOutlined, PrinterOutlined } from '@ant-design/icons'
 import { coreApi, type CoffeePayload } from '@/api/core'
 import type { Coffee, CoffeeStatus } from '@/api/types'
@@ -11,7 +11,6 @@ import { useAction } from '../components/useCrud'
 import { MoneyInput } from '../components/MoneyInput'
 import { ImageUpload, type ImageValue } from '../components/ImageUpload'
 import { RecipeDrawer } from '../components/RecipeDrawer'
-import { ServingsCell } from '../components/ServingsCell'
 import { PrintRecipesModal } from '../components/PrintRecipesModal'
 import { P, usePerm } from '@/lib/perm'
 
@@ -29,7 +28,10 @@ export function CoffeesPage() {
   const save = useAction((v: CoffeePayload & { id?: number }) => (v.id ? coreApi.updateCoffee(v.id, v) : coreApi.createCoffee(v)), [['coffees'], ['menu']])
   const setStatus = useAction((v: { id: number; status: CoffeeStatus }) => coreApi.setCoffeeStatus(v.id, v.status), [['coffees'], ['menu']], 'Đã cập nhật')
 
-  const rows = useMemo(() => data.filter((c) => (!cat || c.categoryId === cat) && (!q || c.name.toLowerCase().includes(q.toLowerCase()))), [data, cat, q])
+  const rows = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    return data.filter((c) => (!cat || c.categoryId === cat) && (!s || c.name.toLowerCase().includes(s) || !!c.code?.toLowerCase().includes(s)))
+  }, [data, cat, q])
 
   return (
     <>
@@ -45,7 +47,7 @@ export function CoffeesPage() {
       />
       <Space style={{ marginBottom: 12 }} wrap>
         <Select allowClear placeholder="Danh mục" style={{ width: 180 }} value={cat} onChange={setCat} options={categories.map((c) => ({ value: c.id, label: c.name }))} />
-        <Input.Search allowClear placeholder="Tìm món" onSearch={setQ} />
+        <Input.Search allowClear placeholder="Tìm theo tên hoặc mã" onSearch={setQ} />
       </Space>
       <Table
         rowKey="id"
@@ -53,10 +55,11 @@ export function CoffeesPage() {
         dataSource={rows}
         columns={[
           { title: '', dataIndex: 'imageUrl', width: 64, render: (v) => <Avatar shape="square" size={48} src={imageSrc(v)}>☕</Avatar> },
+          { title: 'Mã SP', dataIndex: 'code', width: 100, render: (v) => <span className="a-code">{v ?? '—'}</span>, sorter: (a, b) => (a.code ?? '').localeCompare(b.code ?? '') },
           { title: 'Tên', dataIndex: 'name', render: (v, c) => <><b>{v}</b><div className="a-muted small">{c.description}</div></> },
           { title: 'Danh mục', dataIndex: 'categoryName' },
           { title: 'Giá bán', dataIndex: 'price', render: money, align: 'right', sorter: (a, b) => a.price - b.price },
-          { title: 'Còn pha được', width: 130, render: (_, c) => <ServingsCell coffee={c} />, sorter: (a, b) => (a.servings ?? Infinity) - (b.servings ?? Infinity) },
+          { title: 'Công thức', width: 150, render: (_, c) => (c.hasRecipe ? <Tag color="green">Đã có</Tag> : <Tag color="red">Chưa có công thức</Tag>) },
           {
             title: 'Trạng thái', render: (_, c) => <>
               {canStatus && (isAdmin || c.status !== 'DISCONTINUED') ? (
@@ -64,7 +67,7 @@ export function CoffeesPage() {
                   <a><StatusTag label={COFFEE_STATUS[c.status]} /> <DownOutlined /></a>
                 </Dropdown>
               ) : <StatusTag label={COFFEE_STATUS[c.status]} />}
-              {c.autoSoldOut && <div className="a-muted small">tự động · hết nguyên liệu</div>}
+              {c.autoSoldOut && c.status === 'SOLD_OUT' && <div className="a-muted small">Tự động · thiếu nguyên liệu</div>}
             </>,
           },
           {
@@ -89,7 +92,14 @@ export function CoffeesPage() {
           <div className="a-coffee-form">
             <Form.Item name="image" label="Ảnh món"><ImageUpload /></Form.Item>
             <div>
-              <Form.Item name="name" label="Tên cà phê" rules={[{ required: true }]}><Input maxLength={150} /></Form.Item>
+              <div className="a-grid-2">
+                <Form.Item name="code" label="Mã sản phẩm" extra={edit?.id ? undefined : 'Để trống: tự sinh SP + số'}
+                  rules={[{ pattern: /^[A-Za-z0-9_.-]*$/, message: 'Chỉ gồm chữ, số và - _ .' }]}
+                  normalize={(v?: string) => v?.toUpperCase()}>
+                  <Input maxLength={20} placeholder="VD: SP018" />
+                </Form.Item>
+                <Form.Item name="name" label="Tên cà phê" rules={[{ required: true }]}><Input maxLength={150} /></Form.Item>
+              </div>
               <div className="a-grid-2">
                 <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
                   <Select options={categories.map((c) => ({ value: c.id, label: c.name }))} />

@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Table, Tag } from 'antd'
-import { PrinterOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons'
+import { Alert, Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Tooltip } from 'antd'
+import { useSearchParams } from 'react-router-dom'
+import { PrinterOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
 import type { Invoice, InvoiceBuyer } from '@/api/types'
 import { dateTime, money, num } from '@/lib/format'
-import { printInvoice } from '@/lib/purchase'
+import { printInvoice } from '@/lib/print'
 import { PageHeader } from '../components/PageHeader'
 import { useAction } from '../components/useCrud'
 import { InvoiceBuyerFields } from '../components/InvoiceBuyerForm'
+import { InvoiceSettingsForm } from '../components/InvoiceSettingsForm'
+import { P, usePerm } from '@/lib/perm'
 
 const STATUS: Record<Invoice['status'], { text: string; color: string }> = {
   PENDING: { text: 'Chờ phát hành', color: 'gold' }, ISSUED: { text: 'Đã phát hành', color: 'green' },
@@ -21,8 +24,8 @@ const buyerOf = (v: InvoiceBuyer & { kind?: string }): InvoiceBuyer => (v.kind =
   : { buyerTaxCode: v.buyerTaxCode, buyerCompany: v.buyerCompany, buyerAddress: v.buyerAddress, buyerName: v.buyerName, buyerEmail: v.buyerEmail })
 
 /**
- * Hóa đơn điện tử khởi tạo từ máy tính tiền: mỗi đơn hoàn tất có 1 hóa đơn, phát hành tự động; khách cần xuất cho công ty
- * thì nhập MST trước khi phát hành, hoặc lập hóa đơn thay thế sau đó. Hoàn tiền sau khi đã xuất → hóa đơn điều chỉnh giảm.
+ * Hóa đơn điện tử khởi tạo từ máy tính tiền: mỗi đơn hoàn tất có 1 hóa đơn, phát hành ngay (có số để in cho khách);
+ * khách cần xuất cho công ty sau đó thì lập hóa đơn thay thế. Hoàn tiền sau khi đã xuất → hóa đơn điều chỉnh giảm.
  * Hóa đơn đã phát hành không hủy, không xóa.
  */
 export function InvoicesPage() {
@@ -30,24 +33,32 @@ export function InvoicesPage() {
   const [status, setStatus] = useState<Invoice['status']>()
   const [keyword, setKeyword] = useState('')
   const params = { from: range[0].format('YYYY-MM-DD'), to: range[1].format('YYYY-MM-DD'), status, keyword: keyword || undefined }
-  const { data = [], isLoading } = useQuery({ queryKey: ['invoices', params], queryFn: () => coreApi.invoices(params) })
-  const [view, setView] = useState<Invoice | null>(null)
+  // hóa đơn phát hành ngay khi đơn hoàn tất; còn cái đang chờ (nhà cung cấp chậm / lỗi) thì tự tải lại tới khi có số
+  const { data = [], isLoading } = useQuery({
+    queryKey: ['invoices', params], queryFn: () => coreApi.invoices(params),
+    refetchInterval: (q) => (q.state.data?.some((i) => i.status === 'PENDING') ? 3000 : false),
+  })
+  const [picked, setView] = useState<Invoice | null>(null)
+  const view = picked && (data.find((i) => i.id === picked.id) ?? picked) // always the latest state of the open invoice
   const [buyerFor, setBuyerFor] = useState<{ orderCode?: string; replace?: Invoice } | null>(null)
   const [form] = Form.useForm()
   const keys = [['invoices']]
   const setBuyer = useAction((v: { code: string; b: InvoiceBuyer }) => coreApi.setInvoiceBuyer(v.code, v.b), keys, 'Đã lưu thông tin người mua')
   const replace = useAction((v: { id: number; b: InvoiceBuyer; reason: string }) => coreApi.replaceInvoice(v.id, v.b, v.reason), keys, 'Đã lập hóa đơn thay thế')
   const retry = useAction(coreApi.retryInvoice, keys, 'Đã đưa lại vào hàng đợi')
-  const issueNow = useAction(coreApi.issueInvoicesNow, keys, 'Đã phát hành')
   const failed = data.filter((i) => i.status === 'FAILED').length
+  const { can } = usePerm()
+  const [tabParams, setTabParams] = useSearchParams()
+  const tab = tabParams.get('tab') === 'settings' ? 'settings' : 'list'
 
   return (
     <>
       <PageHeader title="Hóa đơn điện tử" subtitle="Khởi tạo từ máy tính tiền · lập cho từng đơn khi hoàn tất · sai thì thay thế / điều chỉnh, không hủy"
         extra={<Space>
           <Button onClick={() => { setBuyerFor({}); form.resetFields() }}>Xuất hóa đơn công ty theo mã đơn</Button>
-          <Button icon={<SendOutlined />} loading={issueNow.isPending} onClick={() => issueNow.mutate(undefined)}>Phát hành ngay</Button>
         </Space>} />
+      <Tabs activeKey={tab} onChange={(k) => setTabParams(k === 'settings' ? { tab: 'settings' } : {}, { replace: true })}
+        items={[{ key: 'list', label: 'Danh sách hóa đơn', children: <>
       {failed > 0 && <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`${failed} hóa đơn phát hành lỗi — xem lỗi và gửi lại`} />}
       <Space wrap style={{ marginBottom: 12 }}>
         <DatePicker.RangePicker value={range} onChange={(v) => v && setRange([v[0]!, v[1]!])} format="DD/MM/YYYY" allowClear={false} />
@@ -65,13 +76,16 @@ export function InvoicesPage() {
           { title: 'Tổng tiền', dataIndex: 'totalAmount', render: money, align: 'right' },
           { title: 'Lập / phát hành', render: (_, i) => <>{dateTime(i.createdAt)}<div className="a-muted small">{dateTime(i.issuedAt)}</div></> },
           { title: 'Trạng thái', render: (_, i) => <><Tag color={STATUS[i.status].color}>{STATUS[i.status].text}</Tag>{i.lastError && <div className="small a-limit">{i.lastError}</div>}</> },
+          { title: '', width: 56, render: (_, i) => <PrintButton invoice={i} compact /> },
         ]} />
+        </> },
+        { key: 'settings', label: 'Thiết lập hóa đơn', children: <InvoiceSettingsForm readOnly={!can(P.INVOICES)} /> }]} />
 
       <Drawer open={!!view} width={760} onClose={() => setView(null)} title={view && `Hóa đơn ${view.series} · ${view.invoiceNo ?? 'chờ cấp số'}`}
         extra={view && <Tag color={STATUS[view.status].color}>{STATUS[view.status].text}</Tag>}>
         {view && <>
           <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PrinterOutlined />} onClick={() => printInvoice(view)}>In hóa đơn</Button>
+            <PrintButton invoice={view} />
             {(view.status === 'PENDING' || view.status === 'FAILED') && view.kind !== 'ADJUSTMENT' && (
               <Button onClick={() => { setBuyerFor({ orderCode: view.orderCode }); form.resetFields() }}>Nhập thông tin người mua</Button>
             )}
@@ -116,9 +130,23 @@ export function InvoicesPage() {
           )}
           <InvoiceBuyerFields />
           {buyerFor?.replace && <Form.Item name="reason" label="Lý do thay thế" rules={[{ required: true }]}><Input placeholder="Sai tên đơn vị, sai MST…" /></Form.Item>}
-          <p className="a-muted">Hóa đơn chưa phát hành: cập nhật thẳng. Đã phát hành: hệ thống lập hóa đơn thay thế, hóa đơn cũ chuyển "đã bị thay thế".</p>
+          <p className="a-muted">Hóa đơn đã phát hành: hệ thống lập hóa đơn thay thế (phát hành ngay), hóa đơn cũ chuyển "đã bị thay thế".</p>
         </Form>
       </Modal>
     </>
+  )
+}
+
+/** In bản thể hiện cho khách — chỉ khi đã có số hóa đơn (chưa có số thì không phải hóa đơn hợp lệ) */
+function PrintButton({ invoice, compact }: { invoice: Invoice; compact?: boolean }) {
+  const ready = !!invoice.invoiceNo
+  const tip = ready ? 'In hóa đơn (khổ 80mm)' : invoice.status === 'FAILED' ? 'Phát hành lỗi — gửi lại để có số hóa đơn' : 'Đang cấp số hóa đơn…'
+  return (
+    <Tooltip title={compact || !ready ? tip : undefined}>
+      <Button icon={<PrinterOutlined />} size={compact ? 'small' : undefined} type={compact ? 'text' : 'default'} disabled={!ready}
+        onClick={(e) => { e.stopPropagation(); printInvoice(invoice) }}>
+        {!compact && 'In hóa đơn'}
+      </Button>
+    </Tooltip>
   )
 }

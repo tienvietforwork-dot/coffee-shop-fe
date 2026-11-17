@@ -8,12 +8,16 @@ export type OrderChannel = 'COUNTER' | 'QR' | 'ONLINE'
 export type OrderStatus =
   | 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'DELIVERING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED'
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'E_WALLET' | 'CARD'
-export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'REFUND_PENDING'
+/** quán tự giao: chờ giao → đang giao → đã giao / giao không thành công (BOOKED, DRIVER_ACCEPTED: dữ liệu cũ) */
 export type ShipmentStatus = 'PENDING' | 'BOOKED' | 'DRIVER_ACCEPTED' | 'DELIVERING' | 'DELIVERED' | 'FAILED'
+<<<<<<< HEAD
 export type MaterialStatus = 'ACTIVE' | 'INACTIVE'
 export type BatchStatus = 'PREPARING' | 'AVAILABLE' | 'DEPLETED' | 'EXPIRED'
 export type MaterialKind = 'RAW' | 'PREPARED'
 export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCE'
+=======
+>>>>>>> main
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'INACTIVE'
 export type WorkStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED'
 export type IncidentType = 'WRONG_ITEM' | 'QUALITY' | 'LATE' | 'SPILLED' | 'MISSING_ITEM' | 'OTHER'
@@ -98,13 +102,19 @@ export interface Category {
   id: number
   name: string
   description?: string
+  productType: CategoryProductType
   displayOrder: number
 }
+
+export type CategoryProductType = 'DRINK' | 'FOOD' | 'ADD_ON'
 
 export interface Coffee {
   id: number
   categoryId: number
   categoryName: string
+  categoryType: CategoryProductType
+  /** mã sản phẩm (SP001…) */
+  code?: string
   name: string
   /** uploaded photo (images.id); imageUrl is then its /api/public/images/… path */
   imageId?: number
@@ -112,21 +122,9 @@ export interface Coffee {
   price: number
   description?: string
   status: CoffeeStatus
-  /** SOLD_OUT set by stock, reopens by itself when stock is back */
-  autoSoldOut?: boolean
   hasRecipe: boolean
-  /** cups the stock allows (null = not limited) */
-  servings?: number | null
-  stock?: StockLine[]
-}
-
-export interface StockLine {
-  materialId: number
-  materialName: string
-  unit: string
-  stock: number
-  perCup: number
-  cups: number
+  /** hệ thống tự hết món vì thiếu nguyên liệu */
+  autoSoldOut?: boolean
 }
 
 export interface MenuCoffee {
@@ -135,13 +133,10 @@ export interface MenuCoffee {
   imageUrl?: string
   description?: string
   price: number
+  sale?: number
   salePrice?: number
   promotionName?: string
   available: boolean
-  /** cups the stock allows (null = not limited) */
-  servings?: number | null
-  /** material id → quantity per cup of the active recipe */
-  perCup?: Record<string, number>
 }
 
 export interface Menu {
@@ -150,12 +145,11 @@ export interface Menu {
     id: number
     name: string
     description?: string
+    discountType?: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'SPECIAL'
     discountPercent?: number
     minOrderAmount?: number
     endDate: string
   }[]
-  /** material id → current stock, for every material used by an active recipe */
-  stock?: Record<string, number>
 }
 
 export interface Recipe {
@@ -173,10 +167,12 @@ export interface Recipe {
   updatedBy?: string
 }
 
+/** a material is just a name + unit; how much of it goes in a cup lives on the coffee's recipe */
 export interface Material {
   id: number
   name: string
   unit: string
+<<<<<<< HEAD
   stockQuantity: number
   minStock: number
   status: MaterialStatus
@@ -197,6 +193,14 @@ export interface Material {
   expiringSoon?: boolean
   /** warn this many days before a lot expires; empty = shop default (7), 0 = never */
   expiryWarningDays?: number
+=======
+  /** số lượng hiện có */
+  quantity: number
+  /** số ly pha được ít nhất trong các món dùng nguyên liệu này */
+  cupsLeft?: number | null
+  /** coffees whose active recipe uses this material (quantity per cup) */
+  usedIn?: { kind: 'COFFEE'; id: number; name: string; quantity: number }[] | null
+>>>>>>> main
 }
 
 /** one status change of an order; fromStatus empty = the order was placed */
@@ -210,6 +214,7 @@ export interface OrderStatusChange {
   at: string
 }
 
+<<<<<<< HEAD
 export interface Batch {
   id: number
   materialId: number
@@ -250,6 +255,8 @@ export interface InventoryAlerts {
   expiringBatches: Batch[]
 }
 
+=======
+>>>>>>> main
 export interface Staff {
   id: number
   fullName: string
@@ -287,6 +294,11 @@ export interface Cart {
   tableId?: number
   tableNo?: string
   items: CartItem[]
+  bundles?: {
+    id: number; bundleId: number; name: string; imageUrl?: string; quantity: number; selected: number[];
+    components?: { coffeeId: number; name: string; quantity: number; optional: boolean; choiceGroup?: string | null; unitPrice: number }[];
+    unitPrice: number; total: number
+  }[]
   subtotal: number
 }
 
@@ -310,6 +322,13 @@ export interface PriceQuote {
   shippingFee: number
   total: number
   unavailableItems: string[]
+  /** đơn giao: khu vực quyết định phí ("Phường …, Thành phố …") và quãng đường quán → địa chỉ (chỉ để ước tính giờ) */
+  deliveryZone?: string
+  deliveryDistanceKm?: number
+  /** ghi chú phí giao (miễn phí cho khách VIP / thân thiết…) */
+  deliveryNote?: string
+  /** tổng thời gian pha chế (phút): "Thời gian pha" ở công thức của từng món × số lượng */
+  prepMinutes?: number
 }
 
 export interface Payment {
@@ -321,6 +340,9 @@ export interface Payment {
   transactionCode?: string
   paidAt?: string
   refundAmount: number
+  /** hoàn tiền: lúc xong, mã giao dịch hoàn (VNPAY / chuyển khoản tay), ghi chú */
+  refundedAt?: string; refundRef?: string; refundNote?: string
+  orderCode?: string; customerName?: string; customerPhone?: string; cancelReason?: string
 }
 
 export interface Shipment {
@@ -330,22 +352,56 @@ export interface Shipment {
   recipientName: string
   recipientPhone: string
   address: string
-  carrier?: string
-  trackingCode?: string
+  /** quãng đường quán → địa chỉ (km, ước tính) và khu vực tính phí */
+  distanceKm?: number
+  zone?: string
   shippingFee: number
   status: ShipmentStatus
-  bookedAt?: string
-  driverAcceptedAt?: string
   deliveredAt?: string
   note?: string
+<<<<<<< HEAD
+=======
+  orderStatus?: OrderStatus
+  /** người giao được phân công */
+  shipperId?: number; shipperName?: string; shipperPhone?: string; assignedAt?: string
+  /** lúc mang đi giao */
+  pickedUpAt?: string
+  /** giờ hẹn giao của đơn (trống = giao ngay) */
+  pickupTime?: string
+  orderTotal?: number
+  /** đã thanh toán đủ (không phải thu hộ) */
+  paid?: boolean
+  orderNote?: string
+}
+
+/** nhân viên có thể giao + số đơn đang cầm, hôm nay đã giao / thất bại, phút giao trung bình hôm nay */
+export interface ShipperStat {
+  id: number; fullName: string; phone: string; position?: string
+  pending: number; delivering: number; deliveredToday: number; failedToday: number; avgMinutesToday?: number
+}
+export interface RouteStop {
+  shipmentId: number; orderCode: string; recipientName: string; recipientPhone: string; address: string
+  lat?: number; lng?: number; status: ShipmentStatus
+  /** WARD / PROVINCE: bản đồ không biết số nhà, điểm chỉ là trung tâm phường / tỉnh */
+  precision?: 'ADDRESS' | 'WARD' | 'PROVINCE'
+}
+/** tuyến giao gợi ý: quán → các điểm theo thứ tự; path null = nối thẳng */
+export interface RoutePlan {
+  shopAddress: string; shopLat: number; shopLng: number; stops: RouteStop[]; unlocated: RouteStop[]
+  path?: [number, number][] | null; km?: number; minutes?: number; googleMapsUrl?: string
+>>>>>>> main
 }
 
 export interface OrderItem {
   id: number
   coffeeId: number
+  /** mã sản phẩm */
+  coffeeCode?: string
   coffeeName: string
   imageUrl?: string
   quantity: number
+  /** giá niêm yết lúc đặt; > unitPrice khi món được giảm giá */
+  listPrice: number
   unitPrice: number
   lineTotal: number
   note?: string
@@ -365,7 +421,15 @@ export interface Order {
   staffId?: number
   staffName?: string
   promotionName?: string
+  /** tổng tiền món (đã trừ giảm giá theo món) */
   subtotal: number
+  /** giảm theo món: (giá niêm yết − giá bán) × SL, đã trừ sẵn trong subtotal */
+  itemDiscount: number
+  /** đợt giảm giá theo đơn */
+  promotionDiscount: number
+  voucherCode?: string
+  voucherDiscount: number
+  /** promotionDiscount + voucherDiscount, trừ trên subtotal */
   discountAmount: number
   shippingFee: number
   totalAmount: number
@@ -373,6 +437,8 @@ export interface Order {
   cancelReason?: string
   pickupTime?: string
   orderedAt: string
+  /** giờ phải bắt đầu pha (chỉ có ở danh sách điều phối) */
+  brewStartAt?: string
   paid: boolean
   items: OrderItem[]
   payments: Payment[]
@@ -396,6 +462,17 @@ export interface Incident {
   vouchers: { code: string; discountValue: number; expiresAt?: string }[]
 }
 
+/** Loại voucher đang phát được, để chọn khi đền bù sự cố */
+export interface IncidentVoucherOption {
+  id: number
+  name: string
+  discountValue: number
+  minOrderValue: number
+  quantity: number
+  validDays?: number
+  remaining: number
+}
+
 export interface CustomerLookup {
   id: number
   fullName?: string
@@ -415,8 +492,6 @@ export interface Dashboard {
   todayOrders: number
   todayRevenue: number
   activeOrders: number
-  lowStockCount: number
-  expiringBatchCount: number
   topCoffeesThisWeek: { coffeeId: number; name: string; quantity: number }[]
 }
 
@@ -427,7 +502,158 @@ export interface DeliveryAddress {
   address: string
 }
 
+<<<<<<< HEAD
 export interface AccountAddress extends DeliveryAddress {
   id: number
   isDefault: boolean
+=======
+/** ca thu ngân; while open the sales figures are live */
+export interface CashShift {
+  id: number
+  code: string
+  open: boolean
+  staffName?: string
+  openedAt: string
+  openingCash: number
+  closedAt?: string
+  closedByName?: string
+  orderCount: number
+  cashSales: number
+  transferSales: number
+  cardSales: number
+  ewalletSales: number
+  totalSales: number
+  cashIn: number
+  cashOut: number
+  /** tiền mặt lý thuyết = đầu ca + bán tiền mặt + thu − chi */
+  expectedCash: number
+  countedCash?: number
+  /** thực đếm − lý thuyết (âm = thiếu) */
+  difference?: number
+  /** "500000:2,200000:5" */
+  denominations?: string
+  differenceReason?: string
+  nextOpeningCash?: number
+  handoverCash?: number
+  receivedBy?: string
+  note?: string
+  movements: { id: number; type: 'IN' | 'OUT'; amount: number; reason: string; staffName?: string; at: string }[]
+}
+
+export interface WorkShift { id: number; name: string; startTime: string; endTime: string; graceMinutes: number; color?: string; active: boolean; minutes: number }
+/** SCHEDULED, WORKING, DONE, MISSING_OUT (quên chấm ra), ABSENT (vắng), LEAVE (nghỉ P / KL) */
+export type AttendanceState = 'SCHEDULED' | 'WORKING' | 'DONE' | 'MISSING_OUT' | 'ABSENT' | 'LEAVE'
+export interface ShiftAssignment {
+  id: number
+  staffId: number
+  staffName: string
+  shiftId: number
+  shiftName: string
+  color?: string
+  workDate: string
+  startTime: string
+  endTime: string
+  position?: string
+  checkInAt?: string
+  checkOutAt?: string
+  leaveType?: 'P' | 'KL'
+  state: AttendanceState
+  lateMinutes: number
+  earlyLeaveMinutes: number
+  workedMinutes: number
+  note?: string
+  adjustedBy?: string
+}
+export interface TimesheetRow {
+  staffId: number; staffName: string; position?: string; scheduled: number; worked: number; workedHours: number
+  lateTimes: number; lateMinutes: number; earlyTimes: number; absent: number; leavePaid: number; leaveUnpaid: number; missingOut: number
+  /** day of month → giờ công "6.0", P, KL, V (vắng), ? (quên chấm ra) */
+  days: Record<number, string>
+}
+export interface Timesheet { year: number; month: number; daysInMonth: number; rows: TimesheetRow[] }
+
+export interface AuditLog {
+  id: number; username?: string; module: string; action: string; method: string; path: string; entityId?: string
+  statusCode: number; durationMs: number; ip?: string; detail?: string; createdAt: string
+}
+
+/** giao dịch cổng thanh toán (VNPAY) để đối soát; mismatch = why it needs a look */
+export interface PaymentTransaction {
+  id: number; provider: string; type: 'PAY' | 'REFUND'; txnRef: string; amount: number
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'EXPIRED'
+  bankCode?: string; providerTxnNo?: string; responseCode?: string; responseText?: string
+  createdAt: string; completedAt?: string; expireAt?: string; ipnCount: number
+  orderId: number; orderCode: string; paymentId: number; paymentMethod: PaymentMethod; paymentAmount: number; paymentStatus: PaymentStatus
+  mismatch?: string; reconciled: boolean; reconciledBy?: string; reconciledAt?: string; reconcileNote?: string
+}
+
+/** cửa hàng: địa chỉ (điểm xuất phát người giao), giờ mở cửa "HH:mm[:ss]", miễn phí ship từ, đơn tối thiểu, nhóm khách CRM miễn phí ship */
+export interface DeliverySettings {
+  shopAddress: string; shopLat?: number; shopLng?: number; openTime?: string; closeTime?: string
+  freeShipThreshold?: number; minOrderAmount?: number; speedKmh?: number; provider?: string
+  freeShipGroupIds?: number[]
+  /** mọi nhóm khách CRM (chỉ đọc) */
+  groups?: { id: number; name: string }[]
+}
+/** phường / xã khác tỉnh: phí riêng (fee trống = theo tỉnh) hoặc không giao */
+export interface DeliveryWardRule { name: string; fee?: number | null; blocked: boolean }
+/** tỉnh / thành giao được + phí mặc định */
+export interface DeliveryArea { id: number; name: string; fee: number; active: boolean; wards: DeliveryWardRule[] }
+export interface ShipmentEvent { id: number; source: 'STAFF' | 'PARTNER' | 'SYSTEM'; status?: ShipmentStatus; note?: string; by?: string; at: string }
+
+/** hóa đơn điện tử khởi tạo từ máy tính tiền */
+export interface Invoice {
+  id: number; orderId: number; orderCode: string
+  kind: 'ORIGINAL' | 'REPLACEMENT' | 'ADJUSTMENT'; relatedId?: number; relatedNo?: string
+  status: 'PENDING' | 'ISSUED' | 'FAILED' | 'REPLACED'
+  templateCode: string; series: string; invoiceNo?: string; taxAuthorityCode?: string; lookupCode?: string; lookupUrl?: string
+  sellerName: string; sellerTaxCode: string; sellerAddress: string
+  buyerName?: string; buyerCompany?: string; buyerTaxCode?: string; buyerAddress?: string; buyerEmail?: string; buyerPhone?: string; buyerIdNumber?: string
+  amountBeforeTax: number; vatRate?: number; vatAmount: number; totalAmount: number; paymentMethod?: string; reason?: string
+  attempts: number; lastError?: string; issuedAt?: string; createdAt: string
+  lines: { lineNo: number; name: string; unit: string; quantity: number; unitPrice: number; amount: number }[]
+}
+export interface InvoiceSettings {
+  sellerName: string; sellerTaxCode: string; sellerAddress?: string; vatRate?: number
+  seriesSuffix: string; taxOfficeCode?: string; lookupUrl?: string
+  // chỉ đọc: địa chỉ quán (dùng khi để trống địa chỉ), ký hiệu năm nay, số cuối đã cấp, chế độ nhà cung cấp
+  shopAddress?: string; templateCode?: string; series?: string; lastNo?: string; simulated?: boolean
+}
+export interface InvoiceBuyer {
+  buyerName?: string; buyerCompany?: string; buyerTaxCode?: string; buyerAddress?: string; buyerEmail?: string; buyerPhone?: string; buyerIdNumber?: string
+}
+export interface NotificationTemplate { code: string; name: string; enabled: boolean; znsTemplateId?: string; smsContent: string; smsFallback: boolean; updatedBy?: string }
+export interface NotificationMessage {
+  id: number; orderCode?: string; templateCode: string; phone: string; status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED'
+  channel?: 'ZNS' | 'SMS'; content?: string; attempts: number; providerRef?: string; error?: string; sentAt?: string; createdAt: string
+>>>>>>> main
+}
+
+export type SubscriptionFrequency = 'DAILY' | 'WEEKLY'
+export type SubscriptionStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED'
+/** gói giao cà phê định kỳ: lịch (mỗi ngày / các thứ), giờ giao cố định; đơn tự tạo trước giờ giao, trả khi nhận */
+export interface Subscription {
+  id: number; code: string; customerId: number; customerName?: string; customerPhone: string
+  addressId: number; recipientName: string; recipientPhone: string; address: string
+  frequency: SubscriptionFrequency; days: number[]; schedule: string; deliveryTime: string
+  startDate: string; endDate?: string; status: SubscriptionStatus; note?: string
+  items: { coffeeId: number; coffeeName: string; price: number; quantity: number; note?: string; available: boolean }[]
+  itemsTotal: number
+  /** lần giao kế tiếp (trống = không hoạt động / hết hạn) */
+  nextDelivery?: string
+  lastRunDate?: string; lastError?: string; lastOrderCode?: string; orderCount: number
+}
+export interface SubscriptionPayload {
+  customerName?: string; customerPhone?: string
+  delivery: { recipientName: string; recipientPhone: string; address: string }
+  items: { coffeeId: number; quantity: number; note?: string }[]
+  frequency: SubscriptionFrequency; days?: number[]; deliveryTime: string; startDate: string; endDate?: string; note?: string
+}
+/** một dòng lịch hẹn giao / nhận; orderId trống = lần giao dự kiến của gói định kỳ (đơn sẽ tự tạo lúc autoCreateAt) */
+export interface ScheduleRow {
+  orderId?: number; orderCode?: string; status?: OrderStatus; orderType: OrderType
+  customerName?: string; phone?: string; address?: string; zone?: string; items: string; cups: number
+  scheduled: boolean; deliverAt: string; prepMinutes: number; travelMinutes: number; brewStartAt: string
+  urgency: 'LATE' | 'NOW' | 'SOON' | 'LATER' | 'STARTED'
+  shipperName?: string; subscriptionCode?: string; autoCreateAt?: string; note?: string
 }

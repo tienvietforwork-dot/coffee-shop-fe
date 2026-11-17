@@ -7,16 +7,15 @@ import { VoucherPicker } from './VoucherPicker'
 import { estimateDiscounts, useVoucherOptions } from './voucherOptions'
 import { useDebounced } from '@/lib/useDebounced'
 import { useCart } from './useCart'
-import { useAddableCups } from '@/lib/stock'
-import { imageSrc, money } from '@/lib/format'
+import { money, photoSrc } from '@/lib/format'
 import { useGuestStore } from '@/store/guestStore'
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { cart, lines, update, remove } = useCart()
-  const addable = useAddableCups(lines)
+  const { cart, update, remove, removeBundle } = useCart()
   const { tableNo, tableQr, voucherCode, setVoucher } = useGuestStore()
   const navigate = useNavigate()
   const items = cart?.items ?? []
+  const bundles = cart?.bundles ?? []
   const unavailable = items.some((i) => !i.available)
   // Running total while shopping (no shipping — that depends on the order type chosen at checkout).
   // Instant: estimated here from the menu's promotions and the known voucher; the server quote is only asked once
@@ -26,7 +25,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   const orderType = tableQr ? 'DINE_IN' : 'TAKE_AWAY'
   const quote = useQuery({
     queryKey: ['quote', cart?.sessionCode, settledSubtotal, orderType, voucherCode ?? undefined, null],
-    enabled: open && !!cart && items.length > 0 && settledSubtotal === subtotal,
+    enabled: open && !!cart && (items.length > 0 || bundles.length > 0) && settledSubtotal === subtotal,
     queryFn: () => publicApi.quote(cart!.sessionCode, { orderType, voucherCode: voucherCode ?? undefined }),
     placeholderData: keepPreviousData,
   })
@@ -50,7 +49,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       width={420}
       className="g-drawer"
       footer={
-        items.length > 0 && (
+        (items.length > 0 || bundles.length > 0) && (
           <div className="g-drawer-foot">
             <VoucherPicker subtotal={subtotal} applied={voucherCode ?? undefined} promotionName={shown.promoName}
               voucherDiscount={shown.voucher} onApply={(code) => setVoucher(code ?? null)} />
@@ -72,13 +71,24 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         )
       }
     >
-      {items.length === 0 ? (
+      {items.length === 0 && bundles.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Giỏ hàng đang trống" />
       ) : (
         <ul className="g-cart-list">
+          {bundles.map((bundle) => <li key={`bundle-${bundle.id}`}>
+            <div className="g-cart-info">
+              <strong>🎁 {bundle.name}</strong>
+              <span>{bundle.quantity} combo · {money(bundle.unitPrice)}/combo</span>
+              {bundle.components?.map((component) => <span key={`${bundle.id}-${component.coffeeId}`}>
+                {component.quantity * bundle.quantity} × {component.name}{component.choiceGroup ? ` · ${component.choiceGroup}` : ''}
+              </span>)}
+              <div className="g-cart-row"><span>Giá combo</span><strong>{money(bundle.total)}</strong></div>
+            </div>
+            <button className="g-icon-btn" onClick={() => removeBundle.mutate(bundle.id)} aria-label="Xóa combo"><DeleteOutlined /></button>
+          </li>)}
           {items.map((i) => (
             <li key={i.id} className={i.available ? '' : 'is-out'}>
-              {i.imageUrl && <img src={imageSrc(i.imageUrl)} alt="" />}
+              <img src={photoSrc(i.imageUrl)} alt="" />
               <div className="g-cart-info">
                 <strong>{i.coffeeName}</strong>
                 {i.note && <span className="g-cart-note">Ghi chú: {i.note}</span>}
@@ -92,7 +102,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                       <MinusOutlined />
                     </button>
                     <span>{i.quantity}</span>
-                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} disabled={addable(i.coffeeId) < 1} aria-label="Tăng">
+                    <button onClick={() => update.mutate({ itemId: i.id, quantity: i.quantity + 1, note: i.note })} disabled={i.quantity >= 99} aria-label="Tăng">
                       <PlusOutlined />
                     </button>
                   </div>

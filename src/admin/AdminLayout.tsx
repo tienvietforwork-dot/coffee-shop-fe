@@ -1,14 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Badge, Button, Dropdown, Grid, Layout, Menu, Tag, Tooltip, type MenuProps } from 'antd'
+import { Avatar, Badge, Button, Dropdown, Grid, Input, Layout, Menu, Tag, Tooltip, type MenuProps } from 'antd'
 import {
   DashboardOutlined, ProfileOutlined, ShopOutlined, CarOutlined, WarningOutlined, CoffeeOutlined,
-  AppstoreOutlined, ExperimentOutlined, InboxOutlined, HistoryOutlined, TableOutlined, TeamOutlined,
+  AppstoreOutlined, ExperimentOutlined, TableOutlined, TeamOutlined,
   UserOutlined, IdcardOutlined, MessageOutlined, CommentOutlined, ClusterOutlined, BarChartOutlined,
   GiftOutlined, TagsOutlined, FundOutlined, LineChartOutlined, LogoutOutlined, ArrowLeftOutlined,
-  SafetyCertificateOutlined, KeyOutlined, ShoppingCartOutlined, SolutionOutlined, FileDoneOutlined, RollbackOutlined,
-  WalletOutlined, AuditOutlined, ContainerOutlined, PercentageOutlined, DollarOutlined, ScheduleOutlined, FileSearchOutlined,
-  CreditCardOutlined, EnvironmentOutlined, FileTextOutlined, NotificationOutlined,
+  SafetyCertificateOutlined, KeyOutlined, StarOutlined, SwapOutlined,
+  DollarOutlined, ScheduleOutlined, FileSearchOutlined,
+  CreditCardOutlined, FileTextOutlined, NotificationOutlined, SearchOutlined, NodeIndexOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
@@ -22,46 +22,33 @@ type MenuItem = Required<MenuProps>['items'][number]
 
 interface Entry { key: string; icon: ReactNode; label: string; perm: string }
 
-const GROUPS: { label: string; items: Entry[] }[] = [
+const GROUPS: { label: string; icon: ReactNode; items: Entry[] }[] = [
   {
-    label: '', items: [{ key: '/admin', icon: <DashboardOutlined />, label: 'Tổng quan', perm: P.DASHBOARD }],
+    label: '', icon: null, items: [{ key: '/admin', icon: <DashboardOutlined />, label: 'Tổng quan', perm: P.DASHBOARD }],
   },
   {
-    label: 'Bán hàng & vận hành', items: [
+    label: 'Bán hàng & vận hành', icon: <ShopOutlined />, items: [
       { key: '/admin/orders', icon: <ProfileOutlined />, label: 'Điều phối đơn hàng', perm: P.ORDERS },
       { key: '/admin/pos', icon: <ShopOutlined />, label: 'Order tại quầy', perm: P.POS },
       { key: '/admin/cash-shifts', icon: <DollarOutlined />, label: 'Ca thu ngân', perm: P.CASH_SHIFTS },
       { key: '/admin/payment-reconciliation', icon: <CreditCardOutlined />, label: 'Đối soát thanh toán', perm: P.PAYMENT_RECONCILIATION },
       { key: '/admin/invoices', icon: <FileTextOutlined />, label: 'Hóa đơn điện tử', perm: P.INVOICES },
       { key: '/admin/shipments', icon: <CarOutlined />, label: 'Giao hàng', perm: P.SHIPMENTS },
-      { key: '/admin/delivery-zones', icon: <EnvironmentOutlined />, label: 'Khu vực giao hàng', perm: P.DELIVERY_ZONES },
+      { key: '/admin/my-deliveries', icon: <NodeIndexOutlined />, label: 'Đơn giao của tôi', perm: P.MY_DELIVERIES },
+      { key: '/admin/subscriptions', icon: <SyncOutlined />, label: 'Gói giao định kỳ', perm: P.SUBSCRIPTIONS },
       { key: '/admin/incidents', icon: <WarningOutlined />, label: 'Sự cố đơn hàng', perm: P.INCIDENTS },
       { key: '/admin/tables', icon: <TableOutlined />, label: 'Bàn & mã QR', perm: P.TABLES },
     ],
   },
   {
-    label: 'Thực đơn & kho', items: [
+    label: 'Thực đơn', icon: <CoffeeOutlined />, items: [
       { key: '/admin/coffees', icon: <CoffeeOutlined />, label: 'Cà phê & công thức', perm: P.MENU },
+      { key: '/admin/materials', icon: <ExperimentOutlined />, label: 'Nguyên liệu', perm: P.MATERIALS },
       { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục', perm: P.CATEGORIES },
-      { key: '/admin/coffee-costs', icon: <PercentageOutlined />, label: 'Giá vốn món', perm: P.COFFEE_COSTS },
-      { key: '/admin/materials', icon: <ExperimentOutlined />, label: 'Nguyên liệu & lô', perm: P.MATERIALS },
-      { key: '/admin/stock', icon: <InboxOutlined />, label: 'Nhập / xuất kho', perm: P.STOCK },
-      { key: '/admin/stocktakes', icon: <AuditOutlined />, label: 'Kiểm kê kho', perm: P.STOCKTAKES },
-      { key: '/admin/stock-history', icon: <HistoryOutlined />, label: 'Lịch sử kho', perm: P.STOCK_HISTORY },
-      { key: '/admin/inventory-report', icon: <ContainerOutlined />, label: 'Xuất – nhập – tồn', perm: P.INVENTORY_REPORT },
     ],
   },
   {
-    label: 'Mua hàng', items: [
-      { key: '/admin/suppliers', icon: <SolutionOutlined />, label: 'Nhà cung cấp', perm: P.SUPPLIERS },
-      { key: '/admin/purchase-orders', icon: <ShoppingCartOutlined />, label: 'Phiếu đặt hàng', perm: P.PURCHASE_ORDERS },
-      { key: '/admin/goods-receipts', icon: <FileDoneOutlined />, label: 'Phiếu nhập kho', perm: P.STOCK },
-      { key: '/admin/supplier-returns', icon: <RollbackOutlined />, label: 'Trả hàng nhập', perm: P.SUPPLIER_RETURNS },
-      { key: '/admin/supplier-debts', icon: <WalletOutlined />, label: 'Công nợ nhà cung cấp', perm: P.SUPPLIER_DEBTS },
-    ],
-  },
-  {
-    label: 'Khách hàng', items: [
+    label: 'Khách hàng', icon: <TeamOutlined />, items: [
       { key: '/admin/crm/customers', icon: <IdcardOutlined />, label: 'Hồ sơ khách hàng', perm: P.CRM_CUSTOMERS },
       { key: '/admin/crm/interactions', icon: <MessageOutlined />, label: 'Tương tác & chăm sóc', perm: P.CRM_INTERACTIONS },
       { key: '/admin/crm/feedbacks', icon: <CommentOutlined />, label: 'Phản hồi & khiếu nại', perm: P.CRM_FEEDBACKS },
@@ -70,14 +57,20 @@ const GROUPS: { label: string; items: Entry[] }[] = [
     ],
   },
   {
-    label: 'Khuyến mãi', items: [
+    label: 'Khuyến mãi', icon: <GiftOutlined />, items: [
       { key: '/admin/promotions', icon: <GiftOutlined />, label: 'Đợt giảm giá', perm: P.PROMOTIONS },
       { key: '/admin/vouchers', icon: <TagsOutlined />, label: 'Voucher', perm: P.VOUCHERS },
       { key: '/admin/promotions/analytics', icon: <FundOutlined />, label: 'Hiệu quả khuyến mãi', perm: P.PROMOTIONS_ANALYTICS },
+      { key: '/admin/product-placement', icon: <StarOutlined />, label: 'Trưng bày sản phẩm', perm: P.MENU },
+      { key: '/admin/merchandising-analytics', icon: <BarChartOutlined />, label: 'Merchandising Analytics', perm: P.STATS },
+      { key: '/admin/merchandising-schedule', icon: <StarOutlined />, label: 'Lịch trưng bày', perm: P.MENU },
+      { key: '/admin/recommendation', icon: <StarOutlined />, label: 'Gợi ý', perm: P.MENU },
+      { key: '/admin/upsell', icon: <SwapOutlined />, label: 'Nâng cấp món', perm: P.MENU },
+      { key: '/admin/product-bundles', icon: <GiftOutlined />, label: 'Combo sản phẩm', perm: P.MENU },
     ],
   },
   {
-    label: 'Thống kê & hệ thống', items: [
+    label: 'Thống kê & hệ thống', icon: <LineChartOutlined />, items: [
       { key: '/admin/stats', icon: <LineChartOutlined />, label: 'Thống kê doanh thu', perm: P.STATS },
       { key: '/admin/staff', icon: <TeamOutlined />, label: 'Nhân viên', perm: P.STAFF },
       { key: '/admin/work-shifts', icon: <ScheduleOutlined />, label: 'Phân ca & chấm công', perm: P.WORK_SHIFTS },
@@ -89,6 +82,12 @@ const GROUPS: { label: string; items: Entry[] }[] = [
   },
 ]
 
+// Bo dau tieng Viet de tim "phan quyen" van ra "Phân quyền"
+const fold = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
+
+const groupKey = (label: string) => `group:${label}`
+
 export function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -98,17 +97,52 @@ export function AdminLayout() {
   const screens = Grid.useBreakpoint()
   const [collapsed, setCollapsed] = useState(false)
   const [pwdOpen, setPwdOpen] = useState(false)
+  const [filter, setFilter] = useState('')
 
   // Menu = only the screens this account has a permission for
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => can(i.perm)) })).filter((g) => g.items.length)
-  const items = groups.flatMap<MenuItem>((g) => {
+
+  // Loc menu theo tu khoa (khong phan biet dau); khop ten nhom thi giu ca nhom
+  const q = fold(filter.trim())
+  const shown = q
+    ? groups
+        .map((g) => ({ ...g, items: fold(g.label).includes(q) ? g.items : g.items.filter((i) => fold(i.label).includes(q)) }))
+        .filter((g) => g.items.length)
+    : groups
+  // Moi nhom la mot submenu thu gon / mo rong duoc
+  const items = shown.flatMap<MenuItem>((g) => {
     const children = g.items.map(({ key, icon, label }) => ({ key, icon, label }))
-    return g.label ? [{ key: g.label, label: g.label, type: 'group' as const, children }] : children
+    return g.label ? [{ key: groupKey(g.label), icon: g.icon, label: g.label, children }] : children
   })
   const keys = groups.flatMap((g) => g.items.map((i) => i.key))
   const selected = keys
     .filter((k) => location.pathname === k || (k !== '/admin' && location.pathname.startsWith(k + '/')))
     .sort((a, b) => b.length - a.length)[0] ?? '/admin'
+
+  // Nhom dang mo: mac dinh mo nhom chua man hinh hien tai; khi dang loc thi mo het nhom khop
+  const currentGroup = groups.find((g) => g.label && g.items.some((i) => i.key === selected))?.label
+  const [openKeys, setOpenKeys] = useState<string[]>(currentGroup ? [groupKey(currentGroup)] : [])
+  useEffect(() => {
+    if (!currentGroup) return
+    const k = groupKey(currentGroup)
+    setOpenKeys((prev) => (prev.includes(k) ? prev : [...prev, k]))
+  }, [currentGroup])
+  const menuOpenKeys = q ? shown.filter((g) => g.label).map((g) => groupKey(g.label)) : openKeys
+
+  // Cuon menu toi muc dang mo (vd. vao thang /admin/roles)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const box = scrollRef.current
+      const item = box?.querySelector<HTMLElement>('.ant-menu-item-selected')
+      if (!box || !item) return
+      const top = item.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop
+      if (top < box.scrollTop || top + item.offsetHeight > box.scrollTop + box.clientHeight) {
+        box.scrollTop = top - (box.clientHeight - item.offsetHeight) / 2
+      }
+    })
+    return () => cancelAnimationFrame(id)
+  }, [selected, collapsed])
 
   return (
     <Layout className="admin" style={{ minHeight: '100vh' }}>
@@ -125,7 +159,34 @@ export function AdminLayout() {
         <Link to="/admin" className="a-brand">
           <span>☕</span>{!collapsed && <b>Coffeeholic</b>}
         </Link>
-        <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={(e) => navigate(e.key)} />
+        {!collapsed && (
+          <div className="a-menu-filter">
+            <Input
+              allowClear
+              size="small"
+              prefix={<SearchOutlined />}
+              placeholder="Tìm chức năng…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter -> mo chuc nang dau tien khop
+                const first = shown[0]?.items[0]
+                if (e.key === 'Enter' && q && first) { navigate(first.key); setFilter('') }
+              }}
+            />
+          </div>
+        )}
+        <div className="a-menu-scroll" ref={scrollRef}>
+          <Menu
+            mode="inline"
+            inlineIndent={14}
+            selectedKeys={[selected]}
+            items={items}
+            onClick={(e) => navigate(e.key)}
+            {...(collapsed ? {} : { openKeys: menuOpenKeys, onOpenChange: (k: string[]) => { if (!q) setOpenKeys(k) } })}
+          />
+          {!items.length && <div className="a-menu-empty">Không có chức năng phù hợp</div>}
+        </div>
       </Sider>
       <Layout>
         <Header className="a-header">

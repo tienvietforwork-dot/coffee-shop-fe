@@ -13,7 +13,7 @@ let overlapped = false
 
 /**
  * Server-backed guest cart. The cart is created lazily on the first "add".
- * Feels instant: adds still on their way to the server already count (badge, stock caps),
+ * Feels instant: adds still on their way to the server already count (badge),
  * and +/−/remove change the cached cart first and roll back if the server refuses.
  */
 export function useCart() {
@@ -69,6 +69,17 @@ export function useCart() {
       } else if (cart) setData(cart)
     },
   })
+  const addBundle = useMutation({
+    mutationFn: async (v: { bundleId: number; quantity: number; optionalItemIds: number[] }) =>
+      publicApi.addBundle(await ensureCart(),v),
+    onSuccess: (cart) => { setData(cart); qc.invalidateQueries({queryKey:['quote']}); message.success('Đã thêm combo vào giỏ') },
+    onError: (e) => message.error(errorMessage(e)),
+  })
+  const removeBundle = useMutation({
+    mutationFn: (id: number) => publicApi.removeBundle(cartCode!,id),
+    onSuccess: setData,
+    onError: (e) => message.error(errorMessage(e)),
+  })
   const pending = useMutationState<AddVars>({
     filters: { mutationKey: ADD_KEY, status: 'pending' },
     select: (m) => m.state.variables as AddVars,
@@ -84,22 +95,28 @@ export function useCart() {
     if (ctx?.prev) qc.setQueryData(['cart', cartCode], ctx.prev)
     message.error(errorMessage(e))
   }
+  // the optimistic cart already re-ran the price quote before the server saved the change: quote again once it has.
+  // That quote may still be in flight (a fresh key has no data, so invalidate alone would just reuse it): cancel it first.
+  const savedAndRequote = async (cart: Cart) => {
+    setData(cart)
+    await qc.cancelQueries({ queryKey: ['quote'] })
+    qc.invalidateQueries({ queryKey: ['quote'] })
+  }
   const withItems = (c: Cart, items: Cart['items']) =>
-    ({ ...c, items, subtotal: items.reduce((s, i) => s + i.subtotal, 0) })
+    ({ ...c, items, subtotal: items.reduce((s, i) => s + i.subtotal, 0) + (c.bundles ?? []).reduce((s,b)=>s+b.total,0) })
 
   const update = useMutation({
-    // the server replaces the line's note too: always send it back
     mutationFn: (v: { itemId: number; quantity: number; note?: string }) =>
       publicApi.updateItem(cartCode!, v.itemId, { quantity: v.quantity, note: v.note }),
     onMutate: (v) => patchCart((c) => withItems(c, c.items.map((i) =>
-      i.id === v.itemId ? { ...i, quantity: v.quantity, subtotal: i.unitPrice * v.quantity } : i))),
-    onSuccess: setData,
+      i.id === v.itemId ? { ...i, quantity: v.quantity, note: v.note ?? i.note, subtotal: i.unitPrice * v.quantity } : i))),
+    onSuccess: savedAndRequote,
     onError: rollback,
   })
   const remove = useMutation({
     mutationFn: (itemId: number) => publicApi.removeItem(cartCode!, itemId),
     onMutate: (itemId) => patchCart((c) => withItems(c, c.items.filter((i) => i.id !== itemId))),
-    onSuccess: setData,
+    onSuccess: savedAndRequote,
     onError: rollback,
   })
 
@@ -108,6 +125,6 @@ export function useCart() {
     ...(cart?.items.map((i) => ({ coffeeId: i.coffeeId, quantity: i.quantity })) ?? []),
     ...pending.filter(Boolean),
   ], [cart, pending])
-  const count = lines.reduce((n, l) => n + l.quantity, 0)
-  return { cart, count, lines, loading: query.isLoading, add, update, remove }
+  const count = lines.reduce((n, l) => n + l.quantity, 0) + (cart?.bundles ?? []).reduce((n,b)=>n+b.quantity,0)
+  return { cart, count, lines, loading: query.isLoading, add, addBundle, removeBundle, update, remove }
 }

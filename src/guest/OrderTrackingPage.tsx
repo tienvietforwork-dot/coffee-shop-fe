@@ -11,6 +11,7 @@ import { ORDER_STATUS, ORDER_TYPE, PAYMENT_METHOD, PAYMENT_STATUS, SHIPMENT_STAT
 function steps(order: Order): { key: OrderStatus; title: string }[] {
   const s: { key: OrderStatus; title: string }[] = [
     { key: 'PENDING', title: 'Đã gửi đơn' },
+    { key: 'CONFIRMED', title: order.pickupTime ? 'Đã xác nhận · hẹn giờ' : 'Đã xác nhận' },
     { key: 'PREPARING', title: 'Đang pha chế' },
     { key: 'READY', title: order.orderType === 'DINE_IN' ? 'Đang mang ra bàn' : 'Sẵn sàng' },
   ]
@@ -64,7 +65,7 @@ export function OrderTrackingPage() {
 
   const closed = order.status === 'CANCELLED' || order.status === 'REJECTED'
   const st = steps(order)
-  const current = Math.max(0, st.findIndex((s) => s.key === (order.status === 'CONFIRMED' ? 'PREPARING' : order.status)))
+  const current = Math.max(0, st.findIndex((s) => s.key === order.status))
 
   return (
     <div className="g-container g-page g-narrow">
@@ -106,9 +107,11 @@ export function OrderTrackingPage() {
           <div className="g-row g-total"><span>Tổng cộng</span><span>{money(order.totalAmount)}</span></div>
         </div>
         {order.payments.map((p) => (
-          <div key={p.id} className="g-row g-muted">
+          <div key={p.id}><div className="g-row g-muted">
             <span>{PAYMENT_METHOD[p.method]}</span><span>{PAYMENT_STATUS[p.status].text}</span>
           </div>
+          {p.status === 'REFUND_PENDING' && <div className="g-muted" style={{ fontSize: 12, color: '#d46b08' }}>Quán sẽ liên hệ để chuyển khoản trả lại {money(p.amount - p.refundAmount)}.</div>}
+          {p.status === 'REFUNDED' && p.refundRef && <div className="g-muted" style={{ fontSize: 12 }}>Mã hoàn tiền: {p.refundRef}</div>} </div>
         ))}
         {order.status === 'PENDING' && order.channel !== 'COUNTER' && order.payments.some((p) => p.method !== 'CASH' && p.status === 'PENDING') && (
           <div className="g-row" style={{ marginTop: 8 }}>
@@ -121,8 +124,7 @@ export function OrderTrackingPage() {
             <strong>Giao đến:</strong> {order.shipment.recipientName} · {order.shipment.address}
             <div className="g-muted">
               {SHIPMENT_STATUS[order.shipment.status].text}
-              {order.shipment.carrier && ` · ${order.shipment.carrier}`}
-              {order.shipment.trackingCode && ` · ${order.shipment.trackingCode}`}
+              {order.shipment.distanceKm != null && ` · ${order.shipment.distanceKm.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km`}
             </div>
           </div>
         )}

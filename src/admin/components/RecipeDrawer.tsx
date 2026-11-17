@@ -10,7 +10,7 @@ import { BREW_METHOD, dateTime } from '@/lib/format'
 
 
 /**
- * One recipe is in use per coffee (pha chế and trừ kho follow it). A new formula can be tried as a bản nháp first:
+ * One recipe is in use per coffee (pha chế follows it). A new formula can be tried as a bản nháp first:
  * saved beside the active one, then "Áp dụng" swaps it in, or "Xóa nháp" drops it. Opens in view mode.
  */
 export function RecipeDrawer({ coffee, onClose, editable, startEditing = false }: {
@@ -54,7 +54,7 @@ export function RecipeDrawer({ coffee, onClose, editable, startEditing = false }
           onFinish={(v) => save.mutate({ ...v, activate: true }, { onSuccess: () => { setEditing(false); setViewId(undefined) } })}>
           <div className="a-grid-2">
             <Form.Item name="brewMethod" label="Cách pha"><Select options={BREW_METHOD} /></Form.Item>
-            <Form.Item name="brewTimeMin" label="Thời gian pha (phút)"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="brewTimeMin" label="Thời gian pha (phút)" tooltip="Cộng theo số lượng món để ước tính giờ xong / giờ giao tới ở trang đặt hàng"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
           </div>
           <Form.Item name="description" label="Mô tả"><Input.TextArea rows={2} /></Form.Item>
           <h4>Định lượng nguyên liệu (cho 1 ly)</h4>
@@ -94,7 +94,7 @@ export function RecipeDrawer({ coffee, onClose, editable, startEditing = false }
           </Space>
         </Form>
       ) : !recipe ? (
-        <Empty description="Món chưa có công thức — cần tạo công thức để pha chế và trừ kho khi bán" />
+        <Empty description="Món chưa có công thức — cần tạo công thức để pha chế" />
       ) : (
         <>
           {drafts.length > 0 && (
@@ -108,7 +108,7 @@ export function RecipeDrawer({ coffee, onClose, editable, startEditing = false }
           )}
           {!recipe.active && editable && (
             <Space wrap style={{ marginBottom: 12 }}>
-              <Popconfirm title="Áp dụng công thức này?" description="Món sẽ pha và trừ kho theo bản này; công thức đang dùng thành bản cũ."
+              <Popconfirm title="Áp dụng công thức này?" description="Món sẽ pha theo bản này; công thức đang dùng thành bản cũ."
                 onConfirm={() => apply.mutate(recipe.id, { onSuccess: () => setViewId(undefined) })}>
                 <Button type="primary" loading={apply.isPending}>{isOld(recipe) ? 'Áp dụng lại' : 'Áp dụng'}</Button>
               </Popconfirm>

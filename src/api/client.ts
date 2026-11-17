@@ -11,6 +11,8 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+let redirectingToAdminLogin = false
+
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) {
@@ -22,22 +24,59 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401 && !error.config?.url?.startsWith('/auth/login')) {
+    const requestUrl = error.config?.url ?? ''
+    const isLoginRequest = /\/auth\/login(?:\?|$)/.test(requestUrl)
+
+    if (error.response?.status === 401 && !isLoginRequest) {
       useAuthStore.getState().logout()
-      window.location.href = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/'
+
+      // Public pages must stay in the SPA. Redirecting to `/` on a 401 while
+      // already at `/` reloads the app, repeats the same request, and can loop.
+      const path = window.location.pathname
+      const isAdminRoute = path === '/admin' || path.startsWith('/admin/')
+      const isAdminLogin = path === '/admin/login' || path.startsWith('/admin/login/')
+
+      if (isAdminRoute && !isAdminLogin && !redirectingToAdminLogin) {
+        redirectingToAdminLogin = true
+        window.location.replace('/admin/login')
+      }
     }
     return Promise.reject(error)
   },
 )
 
-/** Human-readable message from an API error (backend returns { error, fields? }). */
+/** Human-readable message from app-core errors and Spring ProblemDetail responses. */
 export function errorMessage(err: unknown, fallback = 'Có lỗi xảy ra, vui lòng thử lại'): string {
+<<<<<<< HEAD
   const e = err as AxiosError<{ error?: string; message?: string; fields?: Record<string, string> }>
   const data = e?.response?.data
   if (data?.fields) return Object.entries(data.fields).map(([k, v]) => `${k}: ${v}`).join('; ')
+=======
+  const e = err as AxiosError<{ error?: string; fields?: Record<string, string>; detail?: string; message?: string; title?: string }>
+  const data = e?.response?.data
+  if (data?.fields) {
+    const labels: Record<string, string> = {
+      coffeeId: 'Sản phẩm', section: 'Khu vực', title: 'Tiêu đề', displayOrder: 'Thứ tự ưu tiên',
+      targetCategoryId: 'Danh mục trưng bày', startsAt: 'Thời gian bắt đầu', endsAt: 'Thời gian kết thúc', status: 'Trạng thái',
+    }
+    return Object.entries(data.fields).map(([key, value]) => `${labels[key] || key}: ${value}`).join('; ')
+  }
+  if (data?.detail) return data.detail
+>>>>>>> main
   if (data?.message) return data.message
   if (data?.error) return data.error
+  if (data?.title) return data.title
+  switch (e?.response?.status) {
+    case 400: return 'Thông tin chưa hợp lệ hoặc thao tác chưa thể thực hiện'
+    case 401: return 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại'
+    case 403: return 'Tài khoản hiện không có quyền thực hiện thao tác này'
+    case 404: return 'Dữ liệu không còn tồn tại, vui lòng tải lại trang'
+    case 409: return 'Dữ liệu đã thay đổi hoặc đang xung đột, vui lòng tải lại trang'
+    case 422: return 'Dữ liệu chưa đáp ứng điều kiện xử lý'
+    case 500: return 'Máy chủ gặp lỗi khi xử lý yêu cầu, vui lòng thử lại sau'
+  }
   if (e?.code === 'ERR_NETWORK') return 'Không kết nối được máy chủ'
+  if (!e?.response && err instanceof Error) return err.message
   return fallback
 }
 

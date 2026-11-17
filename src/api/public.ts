@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { Cart, DiningTable, Menu, Order, OrderType, PaymentMethod, PriceQuote, DeliveryAddress, PublicDeliveryZone, Invoice, InvoiceBuyer } from './types'
+import type { Cart, DiningTable, Menu, Order, OrderType, PaymentMethod, PriceQuote, DeliveryAddress } from './types'
 
 // Guest endpoints (no login) – app-core /api/public/**
 
@@ -15,7 +15,12 @@ export const publicApi = {
     apiClient.put<Cart>(`/public/carts/${code}/items/${itemId}`, body).then((r) => r.data),
   removeItem: (code: string, itemId: number) =>
     apiClient.delete<Cart>(`/public/carts/${code}/items/${itemId}`).then((r) => r.data),
-  quote: (code: string, body: { orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryDistrict?: string }) =>
+  addBundle: (code: string, body: { bundleId: number; quantity: number; optionalItemIds: number[] }) =>
+    apiClient.post<Cart>(`/public/carts/${code}/bundles`,body).then(r=>r.data),
+  removeBundle: (code: string, lineId: number) =>
+    apiClient.delete<Cart>(`/public/carts/${code}/bundles/${lineId}`).then(r=>r.data),
+  recommended: () => apiClient.get<number[]>('/public/recommendations').then(r=>r.data),
+  quote: (code: string, body: { orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryAddress?: string | null; deliveryTime?: string }) =>
     apiClient.post<PriceQuote>(`/public/carts/${code}/quote`, body).then((r) => r.data),
 
   checkout: (body: {
@@ -23,28 +28,39 @@ export const publicApi = {
     orderType: OrderType
     customerName?: string
     customerPhone?: string
+<<<<<<< HEAD
+=======
+    /** địa chỉ trong sổ địa chỉ của khách đăng nhập */
+>>>>>>> main
     addressId?: number
     delivery?: DeliveryAddress
-    deliveryDistrict?: string
     pickupTime?: string
     paymentMethod: PaymentMethod
     voucherCode?: string
     note?: string
   }) => apiClient.post<Order>('/public/checkout', body).then((r) => r.data),
 
-  /** quận giao được + phí ship theo khu vực */
-  deliveryZones: () => apiClient.get<PublicDeliveryZone[]>('/public/delivery-zones').then((r) => r.data),
-  invoices: (code: string) => apiClient.get<Invoice[]>(`/public/orders/${code}/invoices`).then((r) => r.data),
-  /** thông tin xuất hóa đơn công ty / cá nhân */
-  requestInvoice: (code: string, b: InvoiceBuyer) => apiClient.post<Invoice>(`/public/orders/${code}/invoice-request`, b).then((r) => r.data),
   order: (code: string) => apiClient.get<Order>(`/public/orders/${code}`).then((r) => r.data),
-  /** VNPAY link for an order paid online (also "thanh toán lại") */
-  pay: (code: string) =>
-    apiClient.post<{ paymentUrl: string; txnRef: string; expireAt: string }>(`/public/orders/${code}/pay`).then((r) => r.data),
-  /** what VNPAY put on the return URL, checked by the server */
-  paymentReturn: (search: string) =>
-    apiClient.get<{ validSignature: boolean; orderCode: string; status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'EXPIRED'; responseCode?: string; message?: string; amount: number }>(
-      `/public/payments/vnpay/return${search}`).then((r) => r.data),
   cancelOrder: (code: string, reason: string) =>
     apiClient.post<Order>(`/public/orders/${code}/cancel`, { reason }).then((r) => r.data),
+
+  // giao hàng (quán tự giao): giờ mở cửa, miễn phí từ, đơn tối thiểu, các tỉnh giao được
+  deliverySettings: () => apiClient.get<{ shopAddress: string; provinces?: string[]; openTime?: string; closeTime?: string; freeShipThreshold?: number | null; minOrderAmount?: number | null; speedKmh?: number | null }>('/public/delivery-settings').then((r) => r.data),
+  // phường đã chọn có giao được không, phí bao nhiêu (message: vì sao không giao)
+  deliveryArea: (ward: string, province?: string) =>
+    apiClient.get<{ outside: boolean; fee?: number; zone?: string; message?: string }>('/public/delivery-area', { params: { ward, province } }).then((r) => r.data),
+  // gợi ý địa chỉ khi gõ (Google / Goong / OpenStreetMap tuỳ cấu hình app-core)
+  addressSuggest: (q: string, area?: { ward?: string; province?: string }) =>
+    apiClient.get<string[]>('/public/address-suggest', { params: { q, ...area } }).then((r) => r.data),
+
+  // Invoice endpoints are not present in the BE snapshot supplied on 27/10.
+  invoices: (code: string) => apiClient.get<Array<Record<string, any>>>(`/public/orders/${encodeURIComponent(code)}/invoices`).then((r) => r.data),
+
+  requestInvoice: (code: string, buyer: object) => apiClient.post<Record<string, any>>(`/public/orders/${encodeURIComponent(code)}/invoices`, buyer).then((r) => r.data),
+
+  // Payment URL must be generated and signed by Backend, never by the browser.
+  pay: (code: string) => apiClient.post<{ paymentUrl: string }>(`/public/orders/${encodeURIComponent(code)}/pay`).then((r) => r.data),
+
+  // Return parameters are sent to Backend for verification; frontend must not trust raw status.
+  paymentReturn: (search: string) => apiClient.get<Record<string, any> & { orderCode: string }>(`/public/payments/return${search.startsWith('?') ? search : '?' + search}`).then((r) => r.data),
 }

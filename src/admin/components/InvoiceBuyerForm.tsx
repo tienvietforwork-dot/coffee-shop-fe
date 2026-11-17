@@ -1,4 +1,5 @@
 import { Form, Input, Radio } from 'antd'
+import { AddressInput } from '@/components/AddressInput'
 
 /** Thông tin người mua trên hóa đơn: công ty (MST, tên đơn vị, địa chỉ) or cá nhân (họ tên, CCCD). Fields only — the parent owns the form. */
 export function InvoiceBuyerFields() {
@@ -18,7 +19,7 @@ export function InvoiceBuyerFields() {
               <Form.Item name="buyerName" label="Người mua hàng"><Input /></Form.Item>
             </div>
             <Form.Item name="buyerCompany" label="Tên đơn vị" rules={[{ required: true }]}><Input /></Form.Item>
-            <Form.Item name="buyerAddress" label="Địa chỉ" rules={[{ required: true }]}><Input /></Form.Item>
+            <Form.Item name="buyerAddress" label="Địa chỉ" rules={[{ required: true }]}><AddressInput /></Form.Item>
           </>
         )}
       </Form.Item>

@@ -32,7 +32,7 @@ export function PromotionAnalyticsPage() {
               <Table style={{ marginTop: 16 }} size="small" rowKey="id" pagination={false} dataSource={data.promotions}
                 columns={[
                   { title: 'Đợt', dataIndex: 'name' },
-                  { title: 'Trạng thái', render: (_, p) => <Tag color={PROMO_STATUS[p.status].c}>{PROMO_STATUS[p.status].t}</Tag> },
+                  { title: 'Trạng thái', render: (_, p) => <Tag color={PROMO_STATUS[p.status]?.color}>{PROMO_STATUS[p.status]?.label ?? p.status}</Tag> },
                   { title: 'Số đơn', dataIndex: 'orders' },
                   { title: 'Doanh thu', dataIndex: 'revenue', render: money },
                   { title: 'Tiền giảm', dataIndex: 'discountTotal', render: money },
