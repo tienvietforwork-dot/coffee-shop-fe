@@ -198,6 +198,7 @@ export interface DiningTable {
   id: number
   tableNo: string
   qrCode: string
+  floor?: string
   area?: string
   capacity?: number
   status: TableStatus
@@ -576,4 +577,23 @@ export interface ScheduleRow {
   scheduled: boolean; deliverAt: string; prepMinutes: number; travelMinutes: number; brewStartAt: string
   urgency: 'LATE' | 'NOW' | 'SOON' | 'LATER' | 'STARTED'
   shipperName?: string; subscriptionCode?: string; autoCreateAt?: string; note?: string
+}
+
+/** Một ô trên sơ đồ bàn (order tại quầy) */
+export interface TableBoard {
+  id: number
+  tableNo: string
+  floor?: string
+  area?: string
+  capacity?: number
+  status: TableStatus
+  /** còn đơn đang làm hoặc chưa thu tiền */
+  occupied: boolean
+  orderCount: number
+  total: number
+  unpaid: number
+  /** giờ gọi đơn đầu tiên */
+  since?: string
+  /** đơn khách tự gọi qua QR chưa nhận pha */
+  waiting: number
 }
