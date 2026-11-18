@@ -1,17 +1,12 @@
 import apiClient from "./client";
 
 /*
- * app-promotions API (routed by nginx-gateway: /api/promotions/* -> app-promotions).
- * Contract expected by the admin UI. Tables: promotions, promotion_items, vouchers.
- * Checkout itself (applying running promotions / validating vouchers) is done by app-core.
+- app-promotions API (routed by nginx-gateway: /api/promotions/* -> app-promotions).
+- Contract expected by the admin UI. Tables: promotions, promotion_items, vouchers.
+- Checkout itself (applying running promotions / validating vouchers) is done by app-core.
  */
 export type PromotionScope = "ORDER" | "COFFEE";
-export type PromotionStatus =
-  | "DRAFT"
-  | "ACTIVE"
-  | "PAUSED"
-  | "PAUSE"
-  | "ENDED";
+export type PromotionStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "PAUSE" | "ENDED";
 export type PromotionType = "PERCENTAGE" | "FIXED_AMOUNT" | "SPECIAL";
 export type VoucherStatus = "ISSUED" | "USED" | "EXPIRED" | "REVOKED";
 export type IncidentType =
@@ -58,7 +53,7 @@ export type VoucherPayload = Omit<Voucher, "id" | "status" | "validDays"> & {
 };
 
 export interface VoucherDetail {
-  id?: number;
+  id: number;
   orderId?: number;
   orderCode?: string;
   customerId: number;
@@ -71,6 +66,21 @@ export interface VoucherDetail {
   status: VoucherStatus;
   issuedAt: string;
   expiresAt: string;
+}
+
+export interface VoucherDetailRequest {
+  customerId: number;
+  orderId?: number;
+  incidentId?: number;
+  code?: string;
+  status?: VoucherStatus;
+  issuedAt?: string;
+  expiresAt?: string;
+}
+
+export interface VoucherDetailIssueResponse {
+  customerId: number;
+  status: VoucherStatus;
 }
 
 export interface Voucher {
@@ -144,9 +154,57 @@ export const promotionsApi = {
     apiClient.post(`${base_2}/${id}/clone`).then((r) => r.data),
   removeVoucher: (id: number) =>
     apiClient.delete(`${base_2}/${id}/remove`).then((r) => r.data),
+  revokeVoucher: (id: number) => {
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      throw new Error("ID voucher detail không hợp lệ");
+    }
+    return apiClient
+      .post(`${base_2}/voucher-detail/${id}/revoke`)
+      .then((r) => r.data);
+  },
   saveVoucher: (b: VoucherPayload & { id?: number }) =>
     (b.id
       ? apiClient.put<Voucher>(`${base_2}/${b.id}`, b)
       : apiClient.post<Voucher>(base_2, b)
     ).then((r) => r.data),
+  saveCustomer: (b: VoucherDetailRequest & { id: number }) =>
+    apiClient
+      .put<Voucher>(`${base_2}/${b.id}/voucher-detail`, b)
+      .then((r) => r.data),
+
+  createVoucherDetails: (
+    id: number,
+    requests: Pick<VoucherDetailRequest, "customerId">[],
+  ) =>
+    (() => {
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new Error("ID voucher không hợp lệ");
+      }
+
+      const uniqueRequests = Array.from(
+        new Map(
+          requests
+            .filter(
+              (request) =>
+                Number.isSafeInteger(request.customerId) &&
+                request.customerId > 0,
+            )
+            .map((request) => [
+              request.customerId,
+              { customerId: request.customerId, status: "ISSUED" as const },
+            ]),
+        ).values(),
+      );
+
+      if (uniqueRequests.length === 0) {
+        throw new Error("Danh sách khách hàng không hợp lệ");
+      }
+
+      return apiClient
+        .put<VoucherDetailIssueResponse[]>(
+          `${base_2}/${id}/voucher-detail`,
+          uniqueRequests,
+        )
+        .then((r) => r.data);
+    })(),
 };

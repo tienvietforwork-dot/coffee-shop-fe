@@ -130,6 +130,19 @@ export function MenuPage() {
   const allCategories = menu?.categories ?? []
   const menuCoffeesById = useMemo(() => new Map(allCategories.flatMap(c => c.coffees).map(c => [c.id, c])), [allCategories])
 
+  // Cac mon coffee dang co gia giam (khong trung lap)
+  const discountedCoffees = useMemo(() => {
+    const coffeesById = new Map<number, MenuCoffee>()
+    for (const category of allCategories) {
+      for (const coffee of category.coffees) {
+        if (coffee.salePrice != null && coffee.salePrice < coffee.price) {
+          coffeesById.set(coffee.id, coffee)
+        }
+      }
+    }
+    return [...coffeesById.values()]
+  }, [allCategories])
+
   // Loc san pham theo danh muc, ten/mo ta, gia, khuyen mai, con hang
   const categories = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -251,6 +264,32 @@ export function MenuPage() {
               </div>
             </div>
           ))}
+        </section>
+      )}
+
+      {/* COFFEE DANG KHUYEN MAI */}
+      {!!discountedCoffees.length && (
+        <section className="g-container g-section">
+          <div className="g-section-head">
+            <h2>
+              Coffee đang khuyến mãi
+              <span className="g-section-count">
+                {discountedCoffees.length} món
+              </span>
+            </h2>
+            <p>Ưu đãi trên các món coffee đang có giá giảm.</p>
+          </div>
+          <ScrollRow>
+            {discountedCoffees.map((coffee) => (
+              <CoffeeCard
+                key={coffee.id}
+                coffee={coffee}
+                soldOut={!coffee.available}
+                onPick={() => setPicked(coffee)}
+                onQuickAdd={(photo) => quickAdd(coffee, photo)}
+              />
+            ))}
+          </ScrollRow>
         </section>
       )}
 

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Space,
   Table,
@@ -11,11 +11,14 @@ import {
   InputNumber,
   Select,
   Segmented,
+  Popconfirm,
 } from "antd";
 import {
   promotionsApi,
   type VoucherType,
   type VoucherStatus,
+  type VoucherDetail,
+  type VoucherDetailRequest,
   Voucher,
 } from "@/api/promotions";
 
@@ -23,9 +26,13 @@ import { date, INCIDENT_SEVERITY, INCIDENT_TYPE, money } from "@/lib/format";
 import { PageHeader } from "../../components/PageHeader";
 import { ServiceGate } from "../../components/ServiceGate";
 import { useState } from "react";
+import type { Key } from "react";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { useAction } from "@/admin/components/useCrud";
 import { MoneyInput } from "@/admin/components/MoneyInput";
+import { crmApi } from "@/api/crm";
+
+// 1. CONSTANTS & MAPPINGS
 
 const DISCOUNT_TYPE: Record<VoucherType, { label: string; color: string }> = {
   PERCENTAGE: { label: "Giảm theo phần trăm", color: "#FF5722" },
@@ -46,7 +53,85 @@ const VOUCHER_TYPE_STATUS = {
   ENDED: { label: "Ngừng hoạt động", color: "#ff4d4f" },
 } as const;
 
+type MinOrderRange =
+  | "none"
+  | "1-50"
+  | "50-100"
+  | "100-200"
+  | "200-500"
+  | "500-1000"
+  | "over-1000";
+
+type CustomerTargetType = "INDIVIDUAL" | "GROUP";
+
+const DISCOUNT_FILTER_OPTIONS = (
+  Object.keys(DISCOUNT_TYPE) as VoucherType[]
+).map((value) => ({ value, label: DISCOUNT_TYPE[value].label }));
+
+const MIN_ORDER_FILTER_OPTIONS: { value: MinOrderRange; label: string }[] = [
+  { value: "none", label: "Không yêu cầu đơn tối thiểu" },
+  { value: "1-50", label: "1.000 – 50.000đ" },
+  { value: "50-100", label: "50.000 – 100.000đ" },
+  { value: "100-200", label: "100.000 – 200.000đ" },
+  { value: "200-500", label: "200.000 – 500.000đ" },
+  { value: "500-1000", label: "500.000 – 1.000.000đ" },
+  { value: "over-1000", label: "Trên 1.000.000đ" },
+];
+
+// 2. HELPER FUNCTIONS
+
+function matchesMinOrderRange(
+  voucher: Voucher,
+  filter: MinOrderRange | undefined,
+) {
+  const minOrder = voucher.minOrderValue ?? 0;
+
+  switch (filter) {
+    case "none":
+      return minOrder <= 0;
+    case "1-50":
+      return minOrder >= 1_000 && minOrder <= 50_000;
+    case "50-100":
+      return minOrder > 50_000 && minOrder <= 100_000;
+    case "100-200":
+      return minOrder > 100_000 && minOrder <= 200_000;
+    case "200-500":
+      return minOrder > 200_000 && minOrder <= 500_000;
+    case "500-1000":
+      return minOrder > 500_000 && minOrder <= 1_000_000;
+    case "over-1000":
+      return minOrder > 1_000_000;
+    default:
+      return true;
+  }
+}
+
+// 3. COMPONENT IMPLEMENTATION
+
 export function VouchersPage() {
+  const queryClient = useQueryClient();
+
+  // A. UI STATE
+  const [edit, setEdit] = useState<Partial<Voucher> | null>(null);
+  const [voucherForCustomer, setVoucherForCustomer] = useState<number | null>(
+    null,
+  );
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerTargetType, setCustomerTargetType] =
+    useState<CustomerTargetType>("INDIVIDUAL");
+  const [customerGroupId, setCustomerGroupId] = useState<number>();
+  const [voucherHolderSearch, setVoucherHolderSearch] = useState("");
+  const [discountTypeFilter, setDiscountTypeFilter] = useState<VoucherType>();
+  const [minOrderRangeFilter, setMinOrderRangeFilter] =
+    useState<MinOrderRange>();
+  const [expandedVoucherKeys, setExpandedVoucherKeys] = useState<Key[]>([]);
+
+  // Forms
+  const [form] = Form.useForm();
+  const [customerForm] = Form.useForm();
+  const discountType = Form.useWatch("discountType", form);
+
+  // B. QUERIES (DATA FETCHING)
   const {
     data = [],
     isLoading,
@@ -57,19 +142,127 @@ export function VouchersPage() {
     retry: false,
   });
 
+  const {
+    data: customerGroups = [],
+    isLoading: isLoadingCustomerGroups,
+    error: customerGroupsError,
+  } = useQuery({
+    queryKey: ["crm-groups"],
+    queryFn: crmApi.groups,
+    enabled: voucherForCustomer !== null,
+    retry: false,
+  });
+
+  const {
+    data: customerGroupMembers = [],
+    isFetching: isLoadingCustomerGroupMembers,
+    error: customerGroupMembersError,
+  } = useQuery({
+    queryKey: ["crm-members", customerGroupId],
+    queryFn: () => crmApi.groupMembers(customerGroupId!),
+    enabled: customerTargetType === "GROUP" && customerGroupId !== undefined,
+    retry: false,
+  });
+
+  const {
+    data: customers = [],
+    isFetching: isLoadingCustomers,
+    error: customerError,
+  } = useQuery({
+    queryKey: ["crm-customers", "voucher", customerSearch],
+    queryFn: () =>
+      crmApi.customers(customerSearch || undefined),
+    enabled: voucherForCustomer !== null,
+    retry: false,
+  });
+  const selectedVoucher =
+    voucherForCustomer === null
+      ? undefined
+      : data.find((voucher) => voucher.id === voucherForCustomer);
+  const existingCustomerIds = new Set(
+    (selectedVoucher?.items ?? []).map((item) => item.customerId),
+  );
+  const remainingVoucherQuantity = selectedVoucher
+    ? Math.max(
+        (selectedVoucher.maxQuantity ?? 0) - (selectedVoucher.quantity ?? 0),
+        0,
+      )
+    : 0;
+
+  // C. MUTATIONS & ACTIONS
+  const key = [["vouchers"], ["menu"]];
   const act = useAction(
     (v: {
       id: number;
       op: "activeVoucher" | "endVoucher" | "cloneVoucher" | "removeVoucher";
     }) => promotionsApi[v.op](v.id),
-    [["vouchers"], ["menu"]],
+    key,
     "Đã cập nhật",
   );
-
-  const [edit, setEdit] = useState<Partial<Voucher> | null>(null);
-  const [form] = Form.useForm();
-  const key = [["vouchers"], ["menu"]];
+  const revokeVoucher = useAction(
+    promotionsApi.revokeVoucher,
+    key,
+    "Đã thu hồi voucher",
+  );
   const saveVoucher = useAction(promotionsApi.saveVoucher, key);
+
+  const saveCustomer = useAction(
+    (b: { id: number; customerId: number }) =>
+      promotionsApi.createVoucherDetails(b.id, [{ customerId: b.customerId }]),
+    key,
+    "Đã thêm khách hàng vào voucher",
+  );
+
+  const saveCustomers = useAction(
+    (b: { id: number; customerIds: number[] }) =>
+      promotionsApi.createVoucherDetails(
+        b.id,
+        b.customerIds.map((customerId) => ({ customerId })),
+      ),
+    key,
+    "Đã thêm danh sách khách hàng vào voucher",
+  );
+
+  // D. DERIVED DATA & COMPUTATIONS
+  const eligibleCustomerIds =
+    voucherForCustomer === null
+      ? []
+      : (() => {
+          return customerGroupMembers
+            .map((member) => member.customerId)
+            .filter(
+              (customerId, index, ids) =>
+                ids.indexOf(customerId) === index &&
+                !existingCustomerIds.has(customerId),
+            )
+            .slice(0, remainingVoucherQuantity);
+        })();
+
+  const normalizedHolderSearch = voucherHolderSearch.trim().toLocaleLowerCase();
+
+  const matchingVoucherDetails = (voucher: Voucher) =>
+    (voucher.items ?? []).filter((item) =>
+      [item.customerName, item.customerPhone, item.code].some((value) =>
+        String(value ?? "")
+          .toLocaleLowerCase()
+          .includes(normalizedHolderSearch),
+      ),
+    );
+
+  const visibleVouchers = data.filter(
+    (voucher) =>
+      (!normalizedHolderSearch || matchingVoucherDetails(voucher).length > 0) &&
+      (!discountTypeFilter ||
+        (voucher.discountType ??
+          (voucher.discountValue > 100 ? "FIXED_AMOUNT" : undefined)) ===
+          discountTypeFilter) &&
+      matchesMinOrderRange(voucher, minOrderRangeFilter),
+  );
+
+  const hasVoucherFilters =
+    !!normalizedHolderSearch || !!discountTypeFilter || !!minOrderRangeFilter;
+
+  // E. HANDLERS & FORM ACTIONS
   const openVoucher = (v: Partial<Voucher>) => {
     form.resetFields();
     form.setFieldsValue({
@@ -83,7 +276,6 @@ export function VouchersPage() {
     });
     setEdit(v);
   };
-  const discountType = Form.useWatch("discountType", form);
 
   const discountOptions = (["PERCENTAGE", "FIXED_AMOUNT"] as VoucherType[]).map(
     (value) => ({
@@ -114,6 +306,7 @@ export function VouchersPage() {
     }),
   );
 
+  // F. RENDER COMPONENT
   return (
     <>
       <PageHeader
@@ -130,17 +323,61 @@ export function VouchersPage() {
         }
       />
       <ServiceGate module="Khuyến mãi" loading={isLoading} error={error}>
+        {/* Bộ lọc tìm kiếm */}
+        <Space wrap style={{ marginBottom: 16 }}>
+          <Input.Search
+            allowClear
+            aria-label="Tìm người dùng voucher"
+            placeholder="Tìm người dùng theo tên, số điện thoại hoặc mã voucher"
+            value={voucherHolderSearch}
+            onChange={(event) => setVoucherHolderSearch(event.target.value)}
+            style={{ width: 440 }}
+          />
+          <Select<VoucherType>
+            allowClear
+            aria-label="Lọc theo hình thức giảm"
+            placeholder="Hình thức giảm"
+            value={discountTypeFilter}
+            onChange={setDiscountTypeFilter}
+            options={DISCOUNT_FILTER_OPTIONS}
+            style={{ width: 220 }}
+          />
+          <Select<MinOrderRange>
+            allowClear
+            aria-label="Lọc theo đơn tối thiểu"
+            placeholder="Đơn tối thiểu"
+            value={minOrderRangeFilter}
+            onChange={setMinOrderRangeFilter}
+            options={MIN_ORDER_FILTER_OPTIONS}
+            style={{ width: 220 }}
+          />
+        </Space>
+
+        {/* Bảng danh sách Voucher chính */}
         <Table
           className="promotion-table"
           rowKey="id"
-          dataSource={data}
-          locale={{ emptyText: "Chưa có chương trình Voucher" }}
+          dataSource={visibleVouchers}
+          locale={{
+            emptyText: hasVoucherFilters
+              ? "Không tìm thấy voucher phù hợp"
+              : "Chưa có chương trình Voucher",
+          }}
           expandable={{
+            expandedRowKeys: normalizedHolderSearch
+              ? visibleVouchers.flatMap((voucher) =>
+                  voucher.id === undefined ? [] : [voucher.id],
+                )
+              : expandedVoucherKeys,
+            onExpandedRowsChange: (keys) => setExpandedVoucherKeys([...keys]),
             expandedRowRender: (v) => (
               <Table
                 size="small"
+                rowKey="id"
                 pagination={false}
-                dataSource={v.items}
+                dataSource={
+                  normalizedHolderSearch ? matchingVoucherDetails(v) : v.items
+                }
                 columns={[
                   {
                     title: "Mã Voucher",
@@ -206,6 +443,37 @@ export function VouchersPage() {
                       );
                     },
                   },
+                  {
+                    title: "Thao tác",
+                    render: (_, voucherDetail: VoucherDetail) => {
+                      return (
+                        <Space>
+                          {voucherDetail.status === "ISSUED" && (
+                            <Popconfirm
+                              title="Thu hồi voucher này?"
+                              description="Khách hàng sẽ không thể sử dụng voucher sau khi thu hồi."
+                              okText="Thu hồi"
+                              cancelText="Hủy"
+                              okButtonProps={{ danger: true }}
+                              onConfirm={() =>
+                                revokeVoucher.mutate(voucherDetail.id)
+                              }
+                            >
+                              <Button
+                                danger
+                                loading={
+                                  revokeVoucher.isPending &&
+                                  revokeVoucher.variables === voucherDetail.id
+                                }
+                              >
+                                Thu hồi
+                              </Button>
+                            </Popconfirm>
+                          )}
+                        </Space>
+                      );
+                    },
+                  },
                 ]}
               />
             ),
@@ -260,7 +528,23 @@ export function VouchersPage() {
               render: (_, v) => {
                 return (
                   <Space>
-                    {v.status !== "ENDED" && (
+                    {v.status === "ACTIVE" && v.id !== undefined && (
+                      <Button
+                        onClick={() => {
+                          customerForm.resetFields();
+                          setCustomerSearch("");
+                          setCustomerTargetType("INDIVIDUAL");
+                          setCustomerGroupId(undefined);
+                          customerForm.setFieldsValue({
+                            targetType: "INDIVIDUAL",
+                          });
+                          setVoucherForCustomer(v.id!);
+                        }}
+                      >
+                        Thêm khách hàng
+                      </Button>
+                    )}
+                    {v.status === "DRAFT" && (
                       <Button onClick={() => openVoucher(v)}>Sửa</Button>
                     )}
                     <Dropdown
@@ -314,6 +598,8 @@ export function VouchersPage() {
           ]}
         />
       </ServiceGate>
+
+      {/* Modal Tạo / Sửa Voucher */}
       <Modal
         open={edit !== null}
         title={edit?.id ? "Sửa Voucher" : "Tạo Voucher"}
@@ -394,6 +680,202 @@ export function VouchersPage() {
             loading={saveVoucher.isPending}
           >
             Lưu Voucher
+          </Button>
+        </Form>
+      </Modal>
+
+      {/* Modal Thêm Khách Hàng vào Voucher */}
+      <Modal
+        open={voucherForCustomer !== null}
+        title="Thêm khách hàng vào voucher"
+        footer={null}
+        onCancel={() => {
+          setVoucherForCustomer(null);
+          setCustomerTargetType("INDIVIDUAL");
+          setCustomerGroupId(undefined);
+          customerForm.resetFields();
+        }}
+        destroyOnHidden
+      >
+        <Form
+          form={customerForm}
+          layout="vertical"
+          initialValues={{ targetType: "INDIVIDUAL" }}
+          onFinish={(
+            values: VoucherDetailRequest & {
+              targetType: "INDIVIDUAL" | "GROUP";
+              groupId?: number;
+            },
+          ) => {
+            if (voucherForCustomer === null) return;
+
+            if (values.targetType === "GROUP") {
+              if (
+                remainingVoucherQuantity === 0 ||
+                eligibleCustomerIds.length === 0
+              ) {
+                return;
+              }
+              saveCustomers.mutate(
+                { id: voucherForCustomer, customerIds: eligibleCustomerIds },
+                {
+                  onSuccess: () => {
+                    setVoucherForCustomer(null);
+                    setCustomerTargetType("INDIVIDUAL");
+                    setCustomerGroupId(undefined);
+                    customerForm.resetFields();
+                  },
+                  onError: () => {
+                    void queryClient.invalidateQueries({
+                      queryKey: ["vouchers"],
+                    });
+                  },
+                },
+              );
+              return;
+            }
+
+            if (
+              remainingVoucherQuantity === 0 ||
+              values.customerId === undefined ||
+              existingCustomerIds.has(values.customerId)
+            ) {
+              return;
+            }
+
+            saveCustomer.mutate(
+              { id: voucherForCustomer, customerId: values.customerId },
+              {
+                onSuccess: () => {
+                  setVoucherForCustomer(null);
+                  setCustomerTargetType("INDIVIDUAL");
+                  setCustomerGroupId(undefined);
+                  customerForm.resetFields();
+                },
+              },
+            );
+          }}
+        >
+          <Form.Item name="targetType" label="Phương thức thêm">
+            <Segmented
+              block
+              options={[
+                { value: "INDIVIDUAL", label: "Theo khách hàng" },
+                { value: "GROUP", label: "Theo nhóm khách hàng" },
+              ]}
+              onChange={(value) => {
+                const targetType = value as "INDIVIDUAL" | "GROUP";
+                setCustomerTargetType(targetType);
+                customerForm.setFieldValue("customerId", undefined);
+                customerForm.setFieldValue("groupId", undefined);
+                setCustomerGroupId(undefined);
+              }}
+            />
+          </Form.Item>
+
+          {customerTargetType === "INDIVIDUAL" ? (
+            <Form.Item
+              name="customerId"
+              label="Thông tin khách hàng"
+              rules={[{ required: true, message: "Vui lòng chọn khách hàng" }]}
+              help={
+                remainingVoucherQuantity === 0
+                  ? "Voucher đã phát hành hết số lượt cho phép"
+                  : customerError
+                    ? "Không thể tải danh sách khách hàng. Vui lòng thử lại."
+                    : undefined
+              }
+              validateStatus={
+                customerError || remainingVoucherQuantity === 0
+                  ? "error"
+                  : undefined
+              }
+            >
+              <Select
+                showSearch
+                filterOption={false}
+                onSearch={setCustomerSearch}
+                loading={isLoadingCustomers}
+                placeholder="Tìm theo tên hoặc số điện thoại"
+                notFoundContent={
+                  customerError
+                    ? "Không thể tải khách hàng"
+                    : isLoadingCustomers
+                      ? "Đang tải..."
+                      : "Không tìm thấy khách hàng"
+                }
+                options={customers
+                  .filter((customer) => !existingCustomerIds.has(customer.id))
+                  .map((customer) => ({
+                    value: customer.id,
+                    label: `${customer.fullName || "Chưa có tên"} · ${customer.phone}`,
+                  }))}
+              />
+            </Form.Item>
+          ) : (
+            <>
+              <Form.Item
+                name="groupId"
+                label="Nhóm khách hàng"
+                rules={[
+                  { required: true, message: "Vui lòng chọn nhóm khách hàng" },
+                ]}
+                help={
+                  customerGroupsError
+                    ? "Không thể tải danh sách nhóm khách hàng."
+                    : undefined
+                }
+                validateStatus={customerGroupsError ? "error" : undefined}
+              >
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  loading={isLoadingCustomerGroups}
+                  placeholder="Chọn nhóm khách hàng"
+                  onChange={(groupId: number) => setCustomerGroupId(groupId)}
+                  options={customerGroups.map((group) => ({
+                    value: group.id,
+                    label: group.name,
+                  }))}
+                />
+              </Form.Item>
+              {customerGroupId !== undefined && (
+                <div className="a-muted small" style={{ marginBottom: 12 }}>
+                  {customerGroupMembersError
+                    ? "Không thể tải danh sách thành viên."
+                    : isLoadingCustomerGroupMembers
+                      ? "Đang tải danh sách thành viên..."
+                      : eligibleCustomerIds.length > 0
+                        ? `Sẽ thêm ${eligibleCustomerIds.length} khách hàng chưa có voucher trong nhóm`
+                        : remainingVoucherQuantity === 0
+                          ? "Voucher đã phát hành hết số lượt cho phép"
+                          : "Tất cả khách trong nhóm đã có voucher hoặc nhóm không có thành viên"}
+                </div>
+              )}
+            </>
+          )}
+
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            loading={
+              customerTargetType === "GROUP"
+                ? saveCustomers.isPending
+                : saveCustomer.isPending
+            }
+            disabled={
+              remainingVoucherQuantity === 0 ||
+              (customerTargetType === "GROUP" &&
+                (customerGroupId === undefined ||
+                  isLoadingCustomerGroupMembers ||
+                  !!customerGroupMembersError ||
+                  eligibleCustomerIds.length === 0))
+            }
+          >
+            {customerTargetType === "GROUP"
+              ? "Thêm toàn bộ nhóm"
+              : "Thêm khách hàng"}
           </Button>
         </Form>
       </Modal>
