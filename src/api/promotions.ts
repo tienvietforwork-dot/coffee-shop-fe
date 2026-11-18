@@ -1,9 +1,9 @@
 import apiClient from "./client";
 
 /*
- * app-promotions API (routed by nginx-gateway: /api/promotions/* -> app-promotions).
- * Contract expected by the admin UI. Tables: promotions, promotion_items, vouchers.
- * Checkout itself (applying running promotions / validating vouchers) is done by app-core.
+- app-promotions API (routed by nginx-gateway: /api/promotions/* -> app-promotions).
+- Contract expected by the admin UI. Tables: promotions, promotion_items, vouchers.
+- Checkout itself (applying running promotions / validating vouchers) is done by app-core.
  */
 export type PromotionScope = "ORDER" | "COFFEE";
 export type PromotionStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "PAUSE" | "ENDED";
@@ -58,7 +58,7 @@ export interface VoucherDetail {
   orderCode?: string;
   customerId: number;
   customerName: string;
-  customerPhone: string;
+  customerPhone: number;
   incidentId?: string;
   incidentType?: IncidentType;
   incidentSeverity?: IncidentSeverity;
@@ -78,6 +78,11 @@ export interface VoucherDetailRequest {
   expiresAt?: string;
 }
 
+export interface VoucherDetailIssueResponse {
+  customerId: number;
+  status: VoucherStatus;
+}
+
 export interface Voucher {
   id?: number;
   name: string;
@@ -91,25 +96,26 @@ export interface Voucher {
   items?: VoucherDetail[];
 }
 
-export interface PromotionAnalytics {
-  promotions: {
+export interface PromotionAnalyticsResponse {
+  vouchers: {
+    issued: number;
+    used: number;
+    usageRate: number;
+    discountTotal: number;
+  };
+  baseline: {
+    avgOrderValue: number;
+  };
+  promotions: Array<{
     id: number;
     name: string;
-    status: PromotionStatus;
+    status: PromotionStatus | string;
     orders: number;
     revenue: number;
     discountTotal: number;
     avgOrderValue: number;
-    roi?: number;
-  }[];
-  vouchers: {
-    issued: number;
-    used: number;
-    expired: number;
-    usageRate: number;
-    discountTotal: number;
-  };
-  baseline: { avgOrderValue: number; ordersPerDay: number };
+    roi?: number | null;
+  }>;
 }
 
 const base = "/promotions";
@@ -132,6 +138,12 @@ export const promotionsApi = {
       ? apiClient.put<Promotion>(`${base}/${b.id}`, b)
       : apiClient.post<Promotion>(base, b)
     ).then((r) => r.data),
+  analytics: (from: string, to: string) =>
+    apiClient
+      .get<PromotionAnalyticsResponse>(`${base}/analytics`, {
+        params: { from, to },
+      })
+      .then((r) => r.data),
 
   vouchers: () => apiClient.get<Voucher[]>(base_2).then((r) => r.data),
   activeVoucher: (id: number) =>
@@ -142,7 +154,6 @@ export const promotionsApi = {
     apiClient.post(`${base_2}/${id}/clone`).then((r) => r.data),
   removeVoucher: (id: number) =>
     apiClient.delete(`${base_2}/${id}/remove`).then((r) => r.data),
-
   revokeVoucher: (id: number) => {
     if (!Number.isSafeInteger(id) || id <= 0) {
       throw new Error("ID voucher detail không hợp lệ");
@@ -158,10 +169,42 @@ export const promotionsApi = {
     ).then((r) => r.data),
   saveCustomer: (b: VoucherDetailRequest & { id: number }) =>
     apiClient
-      .post<Voucher>(`${base_2}/${b.id}/voucher-detail`, b)
+      .put<Voucher>(`${base_2}/${b.id}/voucher-detail`, b)
       .then((r) => r.data),
-  analytics: (from?: string, to?: string) =>
-    apiClient
-      .get<PromotionAnalytics>(`${base}/analytics`, { params: { from, to } })
-      .then((r) => r.data),
+
+  createVoucherDetails: (
+    id: number,
+    requests: Pick<VoucherDetailRequest, "customerId">[],
+  ) =>
+    (() => {
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new Error("ID voucher không hợp lệ");
+      }
+
+      const uniqueRequests = Array.from(
+        new Map(
+          requests
+            .filter(
+              (request) =>
+                Number.isSafeInteger(request.customerId) &&
+                request.customerId > 0,
+            )
+            .map((request) => [
+              request.customerId,
+              { customerId: request.customerId, status: "ISSUED" as const },
+            ]),
+        ).values(),
+      );
+
+      if (uniqueRequests.length === 0) {
+        throw new Error("Danh sách khách hàng không hợp lệ");
+      }
+
+      return apiClient
+        .put<VoucherDetailIssueResponse[]>(
+          `${base_2}/${id}/voucher-detail`,
+          uniqueRequests,
+        )
+        .then((r) => r.data);
+    })(),
 };

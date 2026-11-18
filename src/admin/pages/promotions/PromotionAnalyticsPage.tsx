@@ -51,7 +51,7 @@ export function PromotionAnalyticsPage() {
                 <Card>
                   <Statistic
                     title="Tỷ lệ sử dụng"
-                    value={data.vouchers.usageRate}
+                    value={data.vouchers.usageRate * 100}
                     precision={1}
                     suffix="%"
                   />
@@ -74,7 +74,7 @@ export function PromotionAnalyticsPage() {
                 </Card>
               </Col>
             </Row>
-            <Card title="So sánh các đợt khuyến mãi" style={{ marginTop: 16 }}>
+            <Card title="So sánh các đợt giảm giá" style={{ marginTop: 16 }}>
               <Column
                 height={260}
                 data={data.promotions.flatMap((p) => [
@@ -93,27 +93,14 @@ export function PromotionAnalyticsPage() {
                 pagination={false}
                 dataSource={data.promotions}
                 columns={[
-<<<<<<< Updated upstream
-                  { title: 'Đợt', dataIndex: 'name' },
-                  { title: 'Trạng thái', render: (_, p) => <Tag color={PROMO_STATUS[p.status]?.color}>{PROMO_STATUS[p.status]?.label ?? p.status}</Tag> },
-                  { title: 'Số đơn', dataIndex: 'orders' },
-                  { title: 'Doanh thu', dataIndex: 'revenue', render: money },
-                  { title: 'Tiền giảm', dataIndex: 'discountTotal', render: money },
-                  { title: 'TB / đơn', dataIndex: 'avgOrderValue', render: money },
-                  { title: 'ROI', dataIndex: 'roi', render: (v) => (v == null ? '—' : `${(v * 100).toFixed(0)}%`) },
-                ]} />
-=======
                   { title: "Đợt", dataIndex: "name" },
                   {
                     title: "Trạng thái",
-                    render: (_, p) => {
-                      const status = PROMO_STATUS[p.status];
-                      return status ? (
-                        <Tag color={status.color}>{status.label}</Tag>
-                      ) : (
-                        <Tag>{p.status || "—"}</Tag>
-                      );
-                    },
+                    render: (_, p) => (
+                      <Tag color={PROMO_STATUS[p.status]?.color}>
+                        {PROMO_STATUS[p.status]?.label ?? p.status}
+                      </Tag>
+                    ),
                   },
                   { title: "Số đơn", dataIndex: "orders" },
                   { title: "Doanh thu", dataIndex: "revenue", render: money },
@@ -135,7 +122,6 @@ export function PromotionAnalyticsPage() {
                   },
                 ]}
               />
->>>>>>> Stashed changes
             </Card>
           </>
         )}

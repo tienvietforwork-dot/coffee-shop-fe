@@ -26,12 +26,15 @@ import {
   MinusCircleOutlined,
   MoreOutlined,
   PlusOutlined,
+  SearchOutlined,
 } from "@ant-design/icons";
 import { useState } from "react";
 import { useAction } from "@/admin/components/useCrud";
 import { MoneyInput } from "@/admin/components/MoneyInput";
 import dayjs from "dayjs";
 import { coreApi } from "@/api/core";
+
+// 1. CONSTANTS & MAPPINGS
 
 const DISCOUNT_SCOPE: Record<PromotionScope, { label: string; color: string }> =
   {
@@ -47,12 +50,33 @@ const DISCOUNT_TYPE: Record<PromotionType, { label: string; color: string }> = {
 
 export const PROMO_STATUS: Record<string, { label: string; color: string }> = {
   DRAFT: { label: "Nháp", color: "#8c8c8c" },
-  ACTIVE: { label: "Đang sử dụng", color: "#52c41a" },
+  ACTIVE: { label: "Đang diễn ra", color: "#52c41a" },
   PAUSED: { label: "Tạm dừng", color: "#faad14" },
   ENDED: { label: "Đã kết thúc", color: "#ff4d4f" },
 };
 
+const SCOPE_FILTER_OPTIONS = (
+  Object.keys(DISCOUNT_SCOPE) as PromotionScope[]
+).map((value) => ({ value, label: DISCOUNT_SCOPE[value].label }));
+
+const TYPE_FILTER_OPTIONS = (Object.keys(DISCOUNT_TYPE) as PromotionType[]).map(
+  (value) => ({ value, label: DISCOUNT_TYPE[value].label }),
+);
+
+// 2. COMPONENT IMPLEMENTATION
+
 export function PromotionsPage() {
+  // A. UI STATE & FORMS
+  const [edit, setEdit] = useState<Partial<Promotion> | null>(null);
+  const [nameSearch, setNameSearch] = useState("");
+  const [scopeFilter, setScopeFilter] = useState<PromotionScope>();
+  const [typeFilter, setTypeFilter] = useState<PromotionType>();
+
+  const [form] = Form.useForm();
+  const scope = Form.useWatch("applyScope", form);
+  const discountType = Form.useWatch("discountType", form);
+
+  // B. QUERIES (DATA FETCHING)
   const {
     data = [],
     isLoading,
@@ -62,20 +86,98 @@ export function PromotionsPage() {
     queryFn: promotionsApi.list,
     retry: false,
   });
+
   const { data: coffees = [] } = useQuery({
     queryKey: ["coffees"],
     queryFn: coreApi.coffees,
   });
-  const [edit, setEdit] = useState<Partial<Promotion> | null>(null);
+
+  // C. MUTATIONS & ACTIONS
+  const mutationKeys = [["promotions"], ["menu"]];
 
   const act = useAction(
     (v: { id: number; op: "active" | "pause" | "end" | "clone" | "remove" }) =>
       promotionsApi[v.op](v.id),
-    [["promotions"], ["menu"]],
+    mutationKeys,
     "Đã cập nhật",
   );
 
-  const [form] = Form.useForm();
+  const save = useAction(promotionsApi.save, mutationKeys);
+
+  // D. DERIVED DATA & COMPUTATIONS
+  const normalizedNameSearch = nameSearch.trim().toLocaleLowerCase("vi");
+
+  const visiblePromotions = data.filter(
+    (promotion) =>
+      (!normalizedNameSearch ||
+        promotion.name
+          .toLocaleLowerCase("vi")
+          .includes(normalizedNameSearch)) &&
+      (!scopeFilter || promotion.applyScope === scopeFilter) &&
+      (!typeFilter || promotion.discountType === typeFilter),
+  );
+
+  const hasPromotionFilters =
+    !!normalizedNameSearch || !!scopeFilter || !!typeFilter;
+
+  const discountFieldLabel =
+    discountType === "FIXED_AMOUNT"
+      ? "Số tiền giảm"
+      : discountType === "SPECIAL"
+        ? "Giá đồng giá"
+        : "Phần trăm giảm";
+
+  const coffeeDiscountPlaceholder =
+    discountType === "FIXED_AMOUNT"
+      ? "Số tiền giảm"
+      : discountType === "SPECIAL"
+        ? "Giá đồng giá"
+        : "Phần trăm giảm";
+
+  const discountTypes: PromotionType[] =
+    scope === "COFFEE"
+      ? ["PERCENTAGE", "FIXED_AMOUNT", "SPECIAL"]
+      : ["PERCENTAGE", "FIXED_AMOUNT"];
+
+  const applyScopeOptions = (
+    Object.keys(DISCOUNT_SCOPE) as PromotionScope[]
+  ).map((value) => ({
+    value,
+    label: (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span
+          aria-hidden="true"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            backgroundColor: DISCOUNT_SCOPE[value].color,
+          }}
+        />
+        {DISCOUNT_SCOPE[value].label}
+      </span>
+    ),
+  }));
+
+  const discountOptions = discountTypes.map((value) => ({
+    value,
+    label: (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span
+          aria-hidden="true"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            backgroundColor: DISCOUNT_TYPE[value].color,
+          }}
+        />
+        {DISCOUNT_TYPE[value].label}
+      </span>
+    ),
+  }));
+
+  // E. HANDLERS & FORM ACTIONS
   const openPromotion = (promotion: Partial<Promotion>) => {
     form.setFieldsValue({
       name: promotion.name,
@@ -91,8 +193,7 @@ export function PromotionsPage() {
     });
     setEdit(promotion);
   };
-  const scope = Form.useWatch("applyScope", form);
-  const discountType = Form.useWatch("discountType", form);
+
   const updateItemSalePrice = (
     index: number,
     changed: { coffeeId?: number; customDiscount?: number | null },
@@ -119,65 +220,10 @@ export function PromotionsPage() {
     form.setFieldValue(["items", index, "salePrice"], salePrice);
   };
 
-  const discountFieldLabel =
-    discountType === "FIXED_AMOUNT"
-      ? "Số tiền giảm"
-      : discountType === "SPECIAL"
-        ? "Giá đồng giá"
-        : "Phần trăm giảm";
-  const coffeeDiscountPlaceholder =
-    discountType === "FIXED_AMOUNT"
-      ? "Số tiền giảm"
-      : discountType === "SPECIAL"
-        ? "Giá đồng giá"
-        : "Phần trăm giảm";
-  const keys = [["promotions"], ["menu"]];
-  const save = useAction(promotionsApi.save, keys);
-  const applyScopeOptions = (
-    Object.keys(DISCOUNT_SCOPE) as PromotionScope[]
-  ).map((value) => ({
-    value,
-    label: (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-        <span
-          aria-hidden="true"
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            backgroundColor: DISCOUNT_SCOPE[value].color,
-          }}
-        />
-        {DISCOUNT_SCOPE[value].label}
-      </span>
-    ),
-  }));
-
-  const discountTypes: PromotionType[] =
-    scope === "COFFEE"
-      ? ["PERCENTAGE", "FIXED_AMOUNT", "SPECIAL"]
-      : ["PERCENTAGE", "FIXED_AMOUNT"];
-  const discountOptions = discountTypes.map((value) => ({
-    value,
-    label: (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-        <span
-          aria-hidden="true"
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            backgroundColor: DISCOUNT_TYPE[value].color,
-          }}
-        />
-        {DISCOUNT_TYPE[value].label}
-      </span>
-    ),
-  }));
-
+  // F. RENDER COMPONENT
   return (
     <>
-      {/* Header */}
+      {/* Page Header */}
       <PageHeader
         title="Đợi giảm giá"
         subtitle="Giảm giá hóa đơn ( % và đơn tối thiểu ) hoặc cho cà phê cụ thể ( mức giảm giá riêng và số lượng tối đa )"
@@ -194,12 +240,42 @@ export function PromotionsPage() {
         }
       />
 
-      {/* Table */}
+      {/* Main Content & Filters */}
       <ServiceGate module="Khuyến mãi" loading={isLoading} error={error}>
+        <Space wrap style={{ marginBottom: 12 }}>
+          <Input.Search
+            allowClear
+            aria-label="Tìm khuyến mãi theo tên"
+            prefix={<SearchOutlined />}
+            placeholder="Tìm theo tên khuyến mãi"
+            value={nameSearch}
+            onChange={(event) => setNameSearch(event.target.value)}
+            style={{ width: 300 }}
+          />
+          <Select<PromotionScope>
+            allowClear
+            aria-label="Lọc theo phạm vi áp dụng"
+            placeholder="Áp dụng cho"
+            value={scopeFilter}
+            onChange={setScopeFilter}
+            options={SCOPE_FILTER_OPTIONS}
+            style={{ width: 190 }}
+          />
+          <Select<PromotionType>
+            allowClear
+            aria-label="Lọc theo hình thức giảm"
+            placeholder="Hình thức giảm"
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={TYPE_FILTER_OPTIONS}
+            style={{ width: 220 }}
+          />
+        </Space>
+
         <Table
           className="promotions-table"
           rowKey="id"
-          dataSource={data}
+          dataSource={visiblePromotions}
           rowClassName={(promotion) => {
             if (promotion.status === "ACTIVE") {
               return "promotion-row-activate";
@@ -209,7 +285,11 @@ export function PromotionsPage() {
             }
             return "";
           }}
-          locale={{ emptyText: "Chưa có chương trình khuyến mãi" }}
+          locale={{
+            emptyText: hasPromotionFilters
+              ? "Không tìm thấy khuyến mãi phù hợp"
+              : "Chưa có chương trình khuyến mãi",
+          }}
           expandable={{
             rowExpandable: (p) => p.applyScope === "COFFEE",
             expandedRowRender: (p) => (
@@ -230,7 +310,6 @@ export function PromotionsPage() {
                       if (p.discountType === "FIXED_AMOUNT") {
                         return money(v);
                       }
-
                       if (p.discountType === "SPECIAL") {
                         return `Đồng giá ${money(v)}`;
                       }
@@ -259,8 +338,8 @@ export function PromotionsPage() {
             {
               title: "Áp dụng cho",
               render: (_, p) => {
-                const scope = DISCOUNT_SCOPE[p.applyScope];
-                return <Tag color={scope.color}>{scope.label}</Tag>;
+                const scopeItem = DISCOUNT_SCOPE[p.applyScope];
+                return <Tag color={scopeItem?.color}>{scopeItem?.label}</Tag>;
               },
             },
             {
@@ -282,7 +361,6 @@ export function PromotionsPage() {
                 );
               },
             },
-
             {
               title: "Thời gian",
               render: (_, p) => `${date(p.startDate)} -> ${date(p.endDate)}`,
@@ -298,13 +376,12 @@ export function PromotionsPage() {
                 );
               },
             },
-
             {
               title: "Thao tác",
               render: (_, p) => {
                 return (
                   <Space>
-                    {p.status !== "ENDED" && (
+                    {p.status !== "ENDED" && p.status !== "ACTIVE" && (
                       <Button
                         className="small"
                         onClick={() => openPromotion(p)}
@@ -346,10 +423,7 @@ export function PromotionsPage() {
                         },
                       }}
                     >
-                      <Button
-                        className="small"
-                        icon={<MoreOutlined />}
-                      ></Button>
+                      <Button className="small" icon={<MoreOutlined />} />
                     </Dropdown>
                   </Space>
                 );
@@ -359,7 +433,7 @@ export function PromotionsPage() {
         />
       </ServiceGate>
 
-      {/* Form */}
+      {/* Modal Create / Edit Promotion */}
       <Modal
         open={!!edit}
         title={edit?.id ? "Sửa đợt giảm giá" : "Tạo đợt giảm giá"}
@@ -447,6 +521,7 @@ export function PromotionsPage() {
               <DatePicker.RangePicker showTime format="DD/MM HH:mm" />
             </Form.Item>
           </div>
+
           {scope === "COFFEE" && (
             <Form.List name="items">
               {(fields, { add, remove }) => (
@@ -525,6 +600,7 @@ export function PromotionsPage() {
               )}
             </Form.List>
           )}
+
           <Button
             type="primary"
             htmlType="submit"
