@@ -1,7 +1,8 @@
 import apiClient from './client'
-export type ScheduleSlot = 'MORNING' | 'AFTERNOON' | 'WEEKEND' | 'SEASONAL' | 'CUSTOM'
+export type ScheduleSlot = 'MORNING' | 'AFTERNOON' | 'WEEKEND'
+export type LegacyScheduleSlot = 'SEASONAL' | 'CUSTOM'
 export type ScheduleSection = 'HOME' | 'FEATURED' | 'BEST_SELLER' | 'NEW_ARRIVAL' | 'RECOMMENDED'
-export interface ScheduleRow { id: number; name: string; coffeeId: number; coffeeName: string; price: number; imageUrl?: string | null; section: ScheduleSection; slot: ScheduleSlot; priority: number; startsAt: string; endsAt: string; weekdays: number[]; months: number[]; status: 'DRAFT' | 'PUBLISHED'; visibleNow: boolean }
+export interface ScheduleRow { id: number; name: string; coffeeId: number; coffeeName: string; price: number; imageUrl?: string | null; section: ScheduleSection; slot: ScheduleSlot | LegacyScheduleSlot; priority: number; startsAt: string; endsAt: string; weekdays: number[]; months: number[]; status: 'DRAFT' | 'PUBLISHED'; visibleNow: boolean }
 export type SchedulePayload = { name: string; coffeeId: number; section: ScheduleSection; slot: ScheduleSlot; priority: number; startsAt: string; endsAt: string; weekdays: number[]; months: number[] }
 const root = '/stats/merchandising-schedules'
 export const merchandisingScheduleApi = {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Button, Card, Checkbox, Col, Form, Input, InputNumber, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd'
+import { App, Button, Card, Form, Input, InputNumber, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 import { upsellApi, type UpsellPayload, type UpsellRule, type UpsellType } from '@/api/upsell'
 import { merchandisingApi } from '@/api/merchandising'
 import { coreApi } from '@/api/core'
@@ -11,9 +11,6 @@ type ProductUpsellForm = {
   anchorCoffeeId?: number
   upgradeCoffeeId?: number
   priority?: number
-  minCartAmount?: number
-  experienceNote?: string
-  experienceConfirmed?: boolean
 }
 
 const type: UpsellType = 'PREMIUM_VERSION'
@@ -29,14 +26,17 @@ export function UpsellProductsSection() {
   const list = useQuery({ queryKey: ['upsell-product-rules'], queryFn: upsellApi.rules })
   const menu = useQuery({ queryKey: ['upsell-menu'], queryFn: merchandisingApi.placementOverview })
   const recipes = useQuery({ queryKey: ['upsell-active-recipes'], queryFn: coreApi.activeRecipes })
-  const allCoffees = menu.data?.coffees || []
+  const allCoffees = (menu.data?.coffees || []).filter(coffee => coffee.categoryType === 'DRINK')
   const isSellable = (coffee: typeof allCoffees[number]) => coffee.status === 'AVAILABLE' && !coffee.autoSoldOut
   const coffees = allCoffees.filter(isSellable)
   const activeRecipeCoffeeIds = new Set((recipes.data || []).map(recipe => recipe.coffeeId))
   const anchorId = Form.useWatch('anchorCoffeeId', form)
-  const anchor = coffees.find(c => c.id === anchorId)
+  const duplicateTargetIds = new Set((list.data || [])
+    .filter(rule => rule.anchorCoffeeId === anchorId && rule.id !== edit?.id)
+    .map(rule => rule.upgradeCoffeeId))
   const targetOptions = coffees
-    .filter(c => c.id !== anchorId && activeRecipeCoffeeIds.has(c.id) && (!anchor || Number(c.price) > Number(anchor.price)))
+    .filter(c => c.id !== anchorId && activeRecipeCoffeeIds.has(c.id)
+      && ((edit !== null && edit.anchorCoffeeId === anchorId && c.id === edit.upgradeCoffeeId) || !duplicateTargetIds.has(c.id)))
     .map(c => ({ value: c.id, label: c.name + ' (' + money(c.price) + ')' }))
 
   function start(rule: UpsellRule | null) {
@@ -47,13 +47,8 @@ export function UpsellProductsSection() {
       anchorCoffeeId: rule.anchorCoffeeId,
       upgradeCoffeeId: rule.upgradeCoffeeId,
       priority: rule.priority,
-      minCartAmount: Number(rule.minCartAmount),
-      experienceNote: rule.experienceNote || '',
-      experienceConfirmed: false,
     } : {
       priority: 100,
-      minCartAmount: 0,
-      experienceConfirmed: false,
     })
     setOpen(true)
   }
@@ -62,42 +57,43 @@ export function UpsellProductsSection() {
     try {
       const values = await form.validateFields()
       const base = coffees.find(c => c.id === values.anchorCoffeeId)
-      const upgrade = coffees.find(c => c.id === values.upgradeCoffeeId)
-      if (!base || !upgrade || !isSellable(base) || !isSellable(upgrade) || !activeRecipeCoffeeIds.has(upgrade.id)) {
-        message.error('Món gốc và món nâng cấp phải đang bán, còn hàng; món nâng cấp cần có công thức đang áp dụng')
+      const suggestion = coffees.find(c => c.id === values.upgradeCoffeeId)
+      if (!base || !suggestion || !isSellable(base) || !isSellable(suggestion) || !activeRecipeCoffeeIds.has(suggestion.id)) {
+        message.error('Món gốc phải đang bán, còn hàng; món được đề xuất cần đang bán, còn hàng và có công thức đang áp dụng')
         return
       }
-      if (base.id === upgrade.id || Number(upgrade.price) <= Number(base.price)) {
-        message.error('Món nâng cấp phải là món khác và có giá cao hơn')
+      if (base.id === suggestion.id) {
+        message.error('Món được đề xuất phải khác món khách đang chọn')
         return
       }
-      if (values.experienceConfirmed !== true) {
-        message.error('Hãy xác nhận hai món có cùng gu trải nghiệm')
+      const duplicate = (list.data || []).find(rule => rule.id !== edit?.id
+        && rule.anchorCoffeeId === base.id
+        && rule.upgradeCoffeeId === suggestion.id
+        && rule.upgradeType === type)
+      if (duplicate) {
+        message.error('Cặp món này đã có quy tắc đề xuất. Hãy sửa quy tắc hiện có hoặc chọn món khác.')
         return
       }
       setSaving(true)
       await upsellApi.registerVariant({
         baseCoffeeId: base.id,
-        variantCoffeeId: upgrade.id,
+        variantCoffeeId: suggestion.id,
         upgradeType: type,
-        recipeConfirmed: true,
-        experienceConfirmed: true,
-        experienceNote: (values.experienceNote || '').trim(),
       })
       const payload: UpsellPayload = {
-        name: (values.name || '').trim() || ('Nâng cấp ' + base.name + ' → ' + upgrade.name),
+        name: (values.name || '').trim() || ('Gợi ý ' + base.name + ' → ' + suggestion.name),
         anchorCoffeeId: base.id,
-        upgradeCoffeeId: upgrade.id,
+        upgradeCoffeeId: suggestion.id,
         upgradeType: type,
         priority: values.priority ?? 100,
-        minCartAmount: values.minCartAmount ?? 0,
+        minCartAmount: 0,
         startsAt: null,
         endsAt: null,
       }
       if (edit) await upsellApi.update(edit.id, payload)
       else await upsellApi.create(payload)
       setOpen(false)
-      message.success(edit ? 'Đã cập nhật quy tắc nâng cấp' : 'Đã lưu nháp. Hãy kích hoạt để hiển thị cho khách.')
+      message.success(edit ? 'Đã cập nhật gợi ý món' : 'Đã lưu nháp. Hãy kích hoạt để hiển thị cho khách.')
       await qc.invalidateQueries({ queryKey: ['upsell-product-rules'] })
     } catch (e) {
       if (e && typeof e === 'object' && 'errorFields' in e) return
@@ -119,11 +115,19 @@ export function UpsellProductsSection() {
 
   const columns = [
     { title: 'Món gốc', dataIndex: 'anchorName', key: 'anchor' },
-    { title: 'Món nâng cấp', dataIndex: 'upgradeName', key: 'upgrade' },
-    { title: 'Chênh lệch', key: 'difference', render: (_: unknown, r: UpsellRule) => '+' + money(Number(r.upgradePrice) - Number(r.basePrice)) },
-    { title: 'Vì sao cùng gu', dataIndex: 'experienceNote', key: 'experience', render: (v?: string | null) => v || 'Cần bổ sung ghi chú' },
+    { title: 'Món được đề xuất', dataIndex: 'upgradeName', key: 'upgrade' },
+    { title: 'Chênh lệch giá', key: 'difference', render: (_: unknown, r: UpsellRule) => {
+      const difference = Number(r.upgradePrice) - Number(r.basePrice)
+      return difference > 0 ? `Tăng ${money(difference)}` : difference < 0 ? `Giảm ${money(Math.abs(difference))}` : 'Không đổi'
+    } },
     { title: 'Ưu tiên', dataIndex: 'priority', key: 'priority' },
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === 'ACTIVE' ? 'green' : v === 'DRAFT' ? 'default' : 'orange'}>{v}</Tag> },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (v: string, r: UpsellRule) => {
+      const duplicate = (list.data || []).some(other => other.id !== r.id
+        && other.anchorCoffeeId === r.anchorCoffeeId
+        && other.upgradeCoffeeId === r.upgradeCoffeeId
+        && other.upgradeType === r.upgradeType)
+      return <Space><Tag color={v === 'ACTIVE' ? 'green' : v === 'DRAFT' ? 'default' : 'orange'}>{v}</Tag>{duplicate && <Tag color="red">Trùng cặp</Tag>}</Space>
+    } },
     {
       title: 'Thao tác', key: 'actions', render: (_: unknown, r: UpsellRule) => <Space wrap>
         <Button size="small" disabled={r.status === 'ACTIVE'} onClick={() => start(r)}>Sửa</Button>
@@ -131,7 +135,7 @@ export function UpsellProductsSection() {
           {r.status === 'ACTIVE' ? 'Tạm dừng' : 'Kích hoạt'}
         </Button>
         <Button size="small" danger disabled={r.status === 'ACTIVE'} onClick={() => Modal.confirm({
-          title: 'Xóa quy tắc nâng cấp này?',
+          title: 'Xóa gợi ý món này?',
           content: r.anchorName + ' → ' + r.upgradeName,
           okType: 'danger',
           onOk: () => action(() => upsellApi.remove(r.id)),
@@ -143,11 +147,11 @@ export function UpsellProductsSection() {
   return <>
     <Card
       style={{ marginTop: 16 }}
-      title="Gợi ý nâng cấp sang một món cà phê khác"
-      extra={<Button type="primary" onClick={() => start(null)}>+ Tạo gợi ý</Button>}
+      title="Đề xuất món phù hợp cho khách"
+      extra={<Button type="primary" onClick={() => start(null)}>+ Tạo đề xuất</Button>}
     >
       <Typography.Paragraph type="secondary">
-        Chọn món khác có giá cao hơn và cùng trải nghiệm vị. Ví dụ: Americano → Cold Brew truyền thống giữ gu cà phê đen không sữa, nhưng đổi sang cách ủ lạnh và hậu vị chocolate.
+        Chọn một món khác phù hợp với gu của món khách đang xem. Món được đề xuất có thể có giá cao hơn, thấp hơn hoặc bằng giá món hiện tại; giá không đại diện cho chất lượng nguyên liệu.
       </Typography.Paragraph>
       {recipes.isError && <Typography.Paragraph type="danger">Không tải được danh sách công thức đang áp dụng. Hãy thử tải lại trang trước khi tạo quy tắc.</Typography.Paragraph>}
       <Table<UpsellRule>
@@ -160,7 +164,7 @@ export function UpsellProductsSection() {
       />
     </Card>
     <Modal
-      title={edit ? 'Sửa gợi ý nâng cấp' : 'Tạo gợi ý nâng cấp'}
+      title={edit ? 'Sửa đề xuất món' : 'Tạo đề xuất món'}
       open={open}
       onCancel={() => setOpen(false)}
       onOk={save}
@@ -176,37 +180,14 @@ export function UpsellProductsSection() {
         <Form.Item name="anchorCoffeeId" label="Món khách đang chọn" rules={[{ required: true, message: 'Chọn món gốc' }]}>
           <Select showSearch optionFilterProp="label" options={coffees.map(c => ({ value: c.id, label: c.name + ' (' + money(c.price) + ')' }))} onChange={() => form.setFieldValue('upgradeCoffeeId', undefined)} />
         </Form.Item>
-        <Form.Item name="upgradeCoffeeId" label="Món nâng cấp (giá cao hơn, có công thức)" rules={[{ required: true, message: 'Chọn món nâng cấp có công thức đang áp dụng' }]}>
+        <Form.Item name="upgradeCoffeeId" label="Món được đề xuất (có công thức)" rules={[{ required: true, message: 'Chọn món được đề xuất có công thức đang áp dụng' }]}>
           <Select showSearch optionFilterProp="label" loading={recipes.isLoading} disabled={recipes.isError} options={targetOptions} />
         </Form.Item>
         <Typography.Paragraph type="secondary" style={{ marginTop: -16 }}>
-          Chỉ hiển thị món đang bán và còn hàng. Món nâng cấp cần có công thức đang áp dụng và giá cao hơn món gốc.
+          Món gốc cần đang bán và còn hàng; món được đề xuất cần có công thức đang áp dụng.
         </Typography.Paragraph>
-        <Row gutter={16}>
-          <Col span={12}><Form.Item name="priority" label="Ưu tiên" rules={[{ required: true }]}><InputNumber min={0} max={10000} style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={12}><Form.Item name="minCartAmount" label="Giỏ tối thiểu (đ)" rules={[{ required: true }]}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
-        </Row>
-        <Form.Item
-          name="experienceNote"
-          label="Điểm chung về trải nghiệm vị"
-          rules={[
-            { required: true, message: 'Mô tả lý do hai món hợp cùng một gu' },
-            { min: 12, max: 500, message: 'Nhập từ 12 đến 500 ký tự' },
-          ]}
-        >
-          <Input.TextArea
-            rows={3}
-            maxLength={500}
-            showCount
-            placeholder="Ví dụ: Cùng gu cà phê đen, không sữa; cold brew ủ lạnh cho hậu vị chocolate và cảm giác êm dịu."
-          />
-        </Form.Item>
-        <Form.Item
-          name="experienceConfirmed"
-          valuePropName="checked"
-          rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('Cần xác nhận cặp món phù hợp')) }]}
-        >
-          <Checkbox>Xác nhận món nâng cấp là SKU khác, có công thức riêng, giá cao hơn và cùng gu trải nghiệm với món gốc.</Checkbox>
+        <Form.Item name="priority" label="Ưu tiên" rules={[{ required: true }]}>
+          <InputNumber min={0} max={10000} precision={0} style={{ width: '100%' }} />
         </Form.Item>
       </Form>
       <Typography.Text type="secondary">Quy tắc được lưu ở trạng thái nháp. Sau khi lưu, bấm Kích hoạt để khách nhìn thấy gợi ý.</Typography.Text>

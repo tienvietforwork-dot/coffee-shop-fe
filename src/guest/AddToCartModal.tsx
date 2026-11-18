@@ -17,15 +17,15 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
   const [submitting, setSubmitting] = useState(false)
   const [related, setRelated] = useState<MenuCoffee | null>(null)
   const [relatedTracking, setRelatedTracking] = useState<SuggestionTracking | null>(null)
-  const [upgrade, setUpgrade] = useState<MenuCoffee | null>(null)
+  const [suggestion, setSuggestion] = useState<MenuCoffee | null>(null)
   const { add, cart } = useCart()
 
   useEffect(() => {
-    if (coffee) {setQty(1);setRelated(null);setRelatedTracking(null);setUpgrade(null)}
+    if (coffee) {setQty(1);setRelated(null);setRelatedTracking(null);setSuggestion(null)}
   }, [coffee])
 
   if (!coffee) return null
-  const chosen = upgrade ?? coffee
+  const chosen = suggestion ?? coffee
   const unit = chosen.salePrice != null && chosen.salePrice < chosen.price ? chosen.salePrice : chosen.price
   const heroImage = chosen.imageUrl ?? coffee.imageUrl
   const max = 99 // no stock cap: the shop does not track inventory
@@ -55,9 +55,9 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
       <div className="g-modal-body">
         <h3>{chosen.name}</h3>
         {chosen.description && <p className="g-muted">{chosen.description}</p>}
-        {upgrade && <div className="g-upgrade-selected">
-          <div className="g-upgrade-selected-copy"><span className="g-upgrade-check">✓</span><span><small>ĐÃ CHỌN NÂNG CẤP</small><strong>{upgrade.name}</strong></span><b>{money(unit)}</b></div>
-          <button type="button" className="g-upgrade-reset" onClick={()=>setUpgrade(null)}><ArrowLeftOutlined /> Quay về {coffee.name}</button>
+        {suggestion && <div className="g-suggestion-selected">
+          <div className="g-suggestion-selected-copy"><span className="g-suggestion-check">✓</span><span><small>ĐÃ CHỌN MÓN GỢI Ý</small><strong>{suggestion.name}</strong></span><b>{money(unit)}</b></div>
+          <button type="button" className="g-suggestion-reset" onClick={()=>setSuggestion(null)}><ArrowLeftOutlined /> Giữ món {coffee.name}</button>
         </div>}
         <div className="g-modal-foot">
           <div className="g-stepper">
@@ -69,7 +69,7 @@ export function AddToCartModal({ coffee, onClose }: { coffee: MenuCoffee | null;
             {submitting || add.isPending ? 'Đang thêm…' : !chosen.available ? 'Đã hết món' : `Thêm vào giỏ · ${money(unit * qty)}`}
           </button>
         </div>
-        <UpsellSuggestions anchor={coffee} cartTotal={cart?.subtotal ?? 0} onPick={choice=>{setUpgrade(choice);setQty(1)}} />
+        <UpsellSuggestions anchor={coffee} onPick={choice=>{setSuggestion(choice);setQty(1)}} />
         <RecommendationSuggestions anchor={coffee} onPick={(pick, tracking)=>{setRelated(pick);setRelatedTracking(tracking)}} />
       </div>
       {related && <div className="cross-sell-selection">{relatedTracking?.source === 'cross-sell' ? 'Thêm món bán kèm:' : 'Thêm món gợi ý:'} <strong>{related.name}</strong><button type="button" onClick={async()=>{try{await add.mutateAsync({coffeeId:related.id,quantity:1});if(relatedTracking?.source==='recommendation' && relatedTracking.coffeeId===related.id){recommendationApi.event(relatedTracking.ruleId,related.id,relatedTracking.impressionId,'ADD_TO_CART').catch(()=>{})}setRelated(null);setRelatedTracking(null)}catch{/* Error already shown by useCart. */}}} disabled={add.isPending || !related.available}>Thêm vào giỏ</button><button type="button" onClick={()=>{setRelated(null);setRelatedTracking(null)}}>Bỏ chọn</button></div>}
