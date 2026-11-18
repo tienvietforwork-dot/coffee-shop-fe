@@ -4,6 +4,7 @@ import { Alert, App, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Po
 import { DeleteOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { coreApi } from '@/api/core'
+import { errorMessage } from '@/api/client'
 import type { DeliveryArea } from '@/api/types'
 import { money } from '@/lib/format'
 import { VnAddressInput } from '@/components/VnAddressInput'
@@ -37,8 +38,9 @@ type ShopForm = {
 }
 
 function ShopCard() {
-  const { data, isLoading } = useQuery({ queryKey: ['delivery-settings'], queryFn: coreApi.deliverySettings })
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: ['delivery-settings'], queryFn: coreApi.deliverySettings })
   const save = useAction(coreApi.saveDeliverySettings, [['delivery-settings'], ['delivery-settings-public']], 'Đã lưu')
+  if (error && !data) return <Card title="Cửa hàng" size="small" style={{ marginBottom: 16 }}><LoadError error={error} retry={refetch} /></Card>
   if (isLoading || !data) return <Card loading style={{ marginBottom: 16 }} />
   return (
     <Card title="Cửa hàng" size="small" style={{ marginBottom: 16 }}>
@@ -72,13 +74,19 @@ type WardRow = { name: string; blocked: boolean; custom: boolean; fee?: number |
 
 const mins = (m?: number | null) => (m == null ? '—' : `${m} phút`)
 
+/** lỗi tải dữ liệu, thay cho khung loading mãi / bảng "Trống" gây hiểu nhầm */
+function LoadError({ error, retry }: { error: unknown; retry: () => void }) {
+  return <Alert type="error" showIcon style={{ marginBottom: 12 }} message={errorMessage(error, 'Không tải được dữ liệu')}
+    action={<Button size="small" onClick={() => retry()}>Thử lại</Button>} />
+}
+
 /** ô nhập số phút giao */
 function MinutesInput(props: { value?: number; onChange?: (v: number | null) => void; size?: 'small'; status?: 'error'; placeholder?: string; style?: React.CSSProperties }) {
   return <InputNumber min={1} max={600} step={5} precision={0} addonAfter="phút" style={{ width: '100%', ...props.style }} {...props} />
 }
 
 function AreasCard() {
-  const { data: areas = [], isLoading } = useQuery({ queryKey: ['delivery-areas'], queryFn: coreApi.deliveryAreas })
+  const { data: areas = [], isLoading, error, refetch } = useQuery({ queryKey: ['delivery-areas'], queryFn: coreApi.deliveryAreas })
   const [edit, setEdit] = useState<Partial<DeliveryArea> | null>(null)
   const keys = [['delivery-areas'], ['delivery-settings-public']]
   const toggle = useAction((a: DeliveryArea) => coreApi.saveDeliveryArea({ ...a, active: !a.active }), keys, 'Đã cập nhật')
@@ -87,7 +95,8 @@ function AreasCard() {
   return (
     <Card title="Khu vực giao hàng, phí ship & thời gian giao" size="small" style={{ marginBottom: 16 }}
       extra={<Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setEdit({})}>Thêm tỉnh / thành</Button>}>
-      {!isLoading && !areas.some((a) => a.active) && (
+      {error && <LoadError error={error} retry={refetch} />}
+      {!isLoading && !error && !areas.some((a) => a.active) && (
         <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="Chưa có khu vực nào đang giao — khách sẽ không đặt được đơn giao hàng" />
       )}
       <Table<DeliveryArea> rowKey="id" size="small" pagination={false} loading={isLoading} dataSource={areas}
