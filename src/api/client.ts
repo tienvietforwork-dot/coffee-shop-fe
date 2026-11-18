@@ -47,11 +47,6 @@ apiClient.interceptors.response.use(
 
 /** Human-readable message from app-core errors and Spring ProblemDetail responses. */
 export function errorMessage(err: unknown, fallback = 'Có lỗi xảy ra, vui lòng thử lại'): string {
-<<<<<<< HEAD
-  const e = err as AxiosError<{ error?: string; message?: string; fields?: Record<string, string> }>
-  const data = e?.response?.data
-  if (data?.fields) return Object.entries(data.fields).map(([k, v]) => `${k}: ${v}`).join('; ')
-=======
   const e = err as AxiosError<{ error?: string; fields?: Record<string, string>; detail?: string; message?: string; title?: string }>
   const data = e?.response?.data
   if (data?.fields) {
@@ -62,7 +57,6 @@ export function errorMessage(err: unknown, fallback = 'Có lỗi xảy ra, vui l
     return Object.entries(data.fields).map(([key, value]) => `${labels[key] || key}: ${value}`).join('; ')
   }
   if (data?.detail) return data.detail
->>>>>>> main
   if (data?.message) return data.message
   if (data?.error) return data.error
   if (data?.title) return data.title

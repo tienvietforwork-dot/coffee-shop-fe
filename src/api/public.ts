@@ -28,10 +28,7 @@ export const publicApi = {
     orderType: OrderType
     customerName?: string
     customerPhone?: string
-<<<<<<< HEAD
-=======
     /** địa chỉ trong sổ địa chỉ của khách đăng nhập */
->>>>>>> main
     addressId?: number
     delivery?: DeliveryAddress
     pickupTime?: string

@@ -11,13 +11,6 @@ export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'E_WALLET' | 'CARD'
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'REFUND_PENDING'
 /** quán tự giao: chờ giao → đang giao → đã giao / giao không thành công (BOOKED, DRIVER_ACCEPTED: dữ liệu cũ) */
 export type ShipmentStatus = 'PENDING' | 'BOOKED' | 'DRIVER_ACCEPTED' | 'DELIVERING' | 'DELIVERED' | 'FAILED'
-<<<<<<< HEAD
-export type MaterialStatus = 'ACTIVE' | 'INACTIVE'
-export type BatchStatus = 'PREPARING' | 'AVAILABLE' | 'DEPLETED' | 'EXPIRED'
-export type MaterialKind = 'RAW' | 'PREPARED'
-export type MaterialTransactionType = 'IMPORT' | 'EXPORT' | 'SALE' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCE'
-=======
->>>>>>> main
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'INACTIVE'
 export type WorkStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED'
 export type IncidentType = 'WRONG_ITEM' | 'QUALITY' | 'LATE' | 'SPILLED' | 'MISSING_ITEM' | 'OTHER'
@@ -172,35 +165,12 @@ export interface Material {
   id: number
   name: string
   unit: string
-<<<<<<< HEAD
-  stockQuantity: number
-  minStock: number
-  status: MaterialStatus
-  lowStock: boolean
-  kind: MaterialKind
-  /** PREPARED: one batch of the formula yields this much */
-  yieldQuantity?: number
-  /** minutes after the lot is made */
-  shelfLifeMinutes?: number
-  components?: { componentId: number; name: string; unit: string; quantity: number }[]
-  /** how to make one standard batch */
-  instructions?: string
-  /** coffees (per cup) and prepared materials (per standard batch) that use this material */
-  usedIn?: { kind: 'COFFEE' | 'PREPARED'; id: number; name: string; quantity: number }[]
-  /** earliest expiry among the lots still in stock (the lot used next) */
-  nextExpiryDate?: string
-  /** the next lot is inside the warning window */
-  expiringSoon?: boolean
-  /** warn this many days before a lot expires; empty = shop default (7), 0 = never */
-  expiryWarningDays?: number
-=======
   /** số lượng hiện có */
   quantity: number
   /** số ly pha được ít nhất trong các món dùng nguyên liệu này */
   cupsLeft?: number | null
   /** coffees whose active recipe uses this material (quantity per cup) */
   usedIn?: { kind: 'COFFEE'; id: number; name: string; quantity: number }[] | null
->>>>>>> main
 }
 
 /** one status change of an order; fromStatus empty = the order was placed */
@@ -214,49 +184,6 @@ export interface OrderStatusChange {
   at: string
 }
 
-<<<<<<< HEAD
-export interface Batch {
-  id: number
-  materialId: number
-  materialName: string
-  unit: string
-  importQuantity: number
-  remainingQuantity: number
-  unitCost?: number
-  expiryDate?: string
-  status: BatchStatus
-  createdAt?: string
-  /** prepared lot: when it was made */
-  readyAt?: string
-  /** prepared lot: exact expiry */
-  expiresAt?: string
-  /** prepared-material batch: the raw batches it was made from */
-  inputs?: { batchId: number; materialName: string; unit: string; quantity: number }[]
-}
-
-export interface MaterialTransaction {
-  id: number
-  batchId: number
-  materialId: number
-  materialName: string
-  unit: string
-  staffName?: string
-  orderItemId?: number
-  /** PRODUCTION_USE: the prepared-material batch it went into */
-  producedBatchId?: number
-  type: MaterialTransactionType
-  quantity: number
-  note?: string
-  createdAt: string
-}
-
-export interface InventoryAlerts {
-  lowStock: Material[]
-  expiringBatches: Batch[]
-}
-
-=======
->>>>>>> main
 export interface Staff {
   id: number
   fullName: string
@@ -359,8 +286,6 @@ export interface Shipment {
   status: ShipmentStatus
   deliveredAt?: string
   note?: string
-<<<<<<< HEAD
-=======
   orderStatus?: OrderStatus
   /** người giao được phân công */
   shipperId?: number; shipperName?: string; shipperPhone?: string; assignedAt?: string
@@ -389,7 +314,6 @@ export interface RouteStop {
 export interface RoutePlan {
   shopAddress: string; shopLat: number; shopLng: number; stops: RouteStop[]; unlocated: RouteStop[]
   path?: [number, number][] | null; km?: number; minutes?: number; googleMapsUrl?: string
->>>>>>> main
 }
 
 export interface OrderItem {
@@ -502,11 +426,6 @@ export interface DeliveryAddress {
   address: string
 }
 
-<<<<<<< HEAD
-export interface AccountAddress extends DeliveryAddress {
-  id: number
-  isDefault: boolean
-=======
 /** ca thu ngân; while open the sales figures are live */
 export interface CashShift {
   id: number
@@ -626,7 +545,6 @@ export interface NotificationTemplate { code: string; name: string; enabled: boo
 export interface NotificationMessage {
   id: number; orderCode?: string; templateCode: string; phone: string; status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED'
   channel?: 'ZNS' | 'SMS'; content?: string; attempts: number; providerRef?: string; error?: string; sentAt?: string; createdAt: string
->>>>>>> main
 }
 
 export type SubscriptionFrequency = 'DAILY' | 'WEEKLY'

@@ -33,19 +33,8 @@ export function FeedbackPage() {
         layout="vertical"
         className="g-panel"
         requiredMark={false}
-<<<<<<< HEAD
         initialValues={{ fullName: name, phone }}
         onFinish={(v) => send.mutate(v)}
-=======
-        initialValues={{ fullName: name, phone, orderCode: params.get('order') ?? undefined }}
-        onFinish={(v) => send.mutate({
-          fullName: v.fullName,
-          phone: v.phone,
-          topic: v.topic,
-          // app-crm's public form has no order field; keep the order code inside the content.
-          content: v.orderCode ? `[Đơn ${v.orderCode}] ${v.content}` : v.content,
-        })}
->>>>>>> main
       >
         <div className="g-form-row">
           <Form.Item name="fullName" label="Họ tên" rules={[{ max: 100, message: 'Họ tên tối đa 100 ký tự' }]}><Input maxLength={100} /></Form.Item>

@@ -1,9 +1,5 @@
 import apiClient from './client'
-<<<<<<< HEAD
-import type { AccountAddress, AccountInfo, LoginResponse, MyVoucher, Order, PermissionInfo, PointHistory, RoleInfo, User } from './types'
-=======
 import type { AccountInfo, LoginResponse, MyVoucher, Order, PermissionInfo, PointHistory, RoleInfo, Subscription, SubscriptionPayload, SubscriptionStatus, User } from './types'
->>>>>>> main
 
 const d = <T,>(p: Promise<{ data: T }>) => p.then((r) => r.data)
 
@@ -30,9 +26,6 @@ export const accountApi = {
   orders: () => d(apiClient.get<Order[]>('/account/orders')),
   vouchers: () => d(apiClient.get<MyVoucher[]>('/account/vouchers')),
   points: () => d(apiClient.get<PointHistory[]>('/account/points')),
-<<<<<<< HEAD
-  addresses: () => d(apiClient.get<AccountAddress[]>('/account/addresses')),
-=======
   /** địa chỉ giao hàng đã lưu, mặc định trước */
   addresses: () => d(apiClient.get<SavedAddress[]>('/account/addresses')),
   saveAddress: (b: Omit<SavedAddress, 'id'> & { id?: number }) =>
@@ -43,7 +36,6 @@ export const accountApi = {
   saveSubscription: (b: SubscriptionPayload & { id?: number }) =>
     d(b.id ? apiClient.put<Subscription>(`/account/subscriptions/${b.id}`, b) : apiClient.post<Subscription>('/account/subscriptions', b)),
   setSubscriptionStatus: (id: number, status: SubscriptionStatus) => d(apiClient.patch<Subscription>(`/account/subscriptions/${id}/status`, { status })),
->>>>>>> main
 }
 
 export interface SavedAddress { id: number; label?: string; recipientName: string; recipientPhone: string; address: string; isDefault: boolean }
