@@ -26,7 +26,7 @@ export function DeliveryFeeSettings() {
 // ---- cửa hàng ------------------------------------------------------------------
 
 type ShopForm = {
-  shopAddress: string; hours?: [Dayjs, Dayjs]; freeShipThreshold?: number; minOrderAmount?: number; speedKmh?: number; freeShipGroupIds?: number[]
+  shopAddress: string; hours?: [Dayjs, Dayjs]; freeShipThreshold?: number; minOrderAmount?: number; freeShipGroupIds?: number[]
 }
 
 function ShopCard() {
@@ -38,16 +38,14 @@ function ShopCard() {
       <Form<ShopForm> layout="vertical"
         initialValues={{ ...data, hours: data.openTime && data.closeTime ? [t(data.openTime), t(data.closeTime)] : undefined }}
         onFinish={(v) => save.mutate({
-          shopAddress: v.shopAddress, freeShipThreshold: v.freeShipThreshold, minOrderAmount: v.minOrderAmount, speedKmh: v.speedKmh,
+          shopAddress: v.shopAddress, freeShipThreshold: v.freeShipThreshold, minOrderAmount: v.minOrderAmount,
           openTime: v.hours?.[0]?.format('HH:mm'), closeTime: v.hours?.[1]?.format('HH:mm'), freeShipGroupIds: v.freeShipGroupIds ?? [],
         })}>
         <Form.Item name="shopAddress" label="Địa chỉ quán (điểm xuất phát của người giao)" rules={[vnAddressRule('quán')]}><VnAddressInput /></Form.Item>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0 12px' }}>
           <Form.Item name="hours" label="Giờ mở cửa"><TimePicker.RangePicker format="HH:mm" minuteStep={15} order={false} style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="freeShipThreshold" label="Miễn phí ship từ"><MoneyInput /></Form.Item>
-          <Form.Item name="minOrderAmount" label="Đơn tối thiểu"><MoneyInput /></Form.Item>
-          <Form.Item name="speedKmh" label="Tốc độ di chuyển (ước tính giờ tới)"><InputNumber min={1} max={120} step={5} addonAfter="km/h" style={{ width: '100%' }} /></Form.Item>
-        </div>
+          <Form.Item name="minOrderAmount" label="Đơn tối thiểu"><MoneyInput /></Form.Item>        </div>
         <Form.Item name="freeShipGroupIds" label="Nhóm khách được miễn phí giao hàng (nhóm khách CRM)"
           extra={data.groups?.length ? 'Khách thuộc một trong các nhóm này luôn được miễn phí ship' : 'Chưa có nhóm khách nào — tạo ở CRM → Nhóm khách hàng'}>
           <Select mode="multiple" allowClear placeholder="VD: Thân thiết, VIP"
@@ -62,8 +60,15 @@ function ShopCard() {
 
 // ---- khu vực giao ----------------------------------------------------------------
 
-/** một phường / xã trong bảng: không giao, hoặc giao với phí riêng (custom) */
-type WardRow = { name: string; blocked: boolean; custom: boolean; fee?: number | null }
+/** một phường / xã trong bảng: không giao, hoặc giao với phí riêng (custom) và / hoặc thời gian giao riêng (customTime) */
+type WardRow = { name: string; blocked: boolean; custom: boolean; fee?: number | null; customTime: boolean; minutes?: number | null }
+
+const mins = (m?: number | null) => (m == null ? '—' : `${m} phút`)
+
+/** ô nhập số phút giao */
+function MinutesInput(props: { value?: number; onChange?: (v: number | null) => void; size?: 'small'; status?: 'error'; placeholder?: string; style?: React.CSSProperties }) {
+  return <InputNumber min={1} max={600} step={5} precision={0} addonAfter="phút" style={{ width: '100%', ...props.style }} {...props} />
+}
 
 function AreasCard() {
   const { data: areas = [], isLoading } = useQuery({ queryKey: ['delivery-areas'], queryFn: coreApi.deliveryAreas })
@@ -73,7 +78,7 @@ function AreasCard() {
   const remove = useAction(coreApi.deleteDeliveryArea, keys, 'Đã xóa khu vực')
 
   return (
-    <Card title="Khu vực giao hàng & phí ship" size="small" style={{ marginBottom: 16 }}
+    <Card title="Khu vực giao hàng, phí ship & thời gian giao" size="small" style={{ marginBottom: 16 }}
       extra={<Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setEdit({})}>Thêm tỉnh / thành</Button>}>
       {!isLoading && !areas.some((a) => a.active) && (
         <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="Chưa có khu vực nào đang giao — khách sẽ không đặt được đơn giao hàng" />
@@ -82,13 +87,17 @@ function AreasCard() {
         columns={[
           { title: 'Tỉnh / thành phố', render: (_, a) => <b>{a.name}</b> },
           { title: 'Phí ship', width: 130, align: 'right', render: (_, a) => money(a.fee) },
+          { title: 'Thời gian giao', width: 120, align: 'right', render: (_, a) => mins(a.deliveryMinutes) },
           {
             title: 'Phường / xã riêng', render: (_, a) => {
-              const blocked = a.wards.filter((w) => w.blocked), custom = a.wards.filter((w) => !w.blocked)
-              if (!a.wards.length) return <span className="a-muted small">Mọi phường / xã cùng phí</span>
+              const blocked = a.wards.filter((w) => w.blocked)
+              const custom = a.wards.filter((w) => !w.blocked && w.fee != null)
+              const timed = a.wards.filter((w) => !w.blocked && w.deliveryMinutes != null)
+              if (!a.wards.length) return <span className="a-muted small">Mọi phường / xã cùng phí & thời gian</span>
               return <Space size={4} wrap>
                 {!!blocked.length && <Tooltip title={blocked.map((w) => w.name).join(', ')}><Tag color="red">{blocked.length} không giao</Tag></Tooltip>}
                 {!!custom.length && <Tooltip title={custom.map((w) => `${w.name}: ${money(w.fee)}`).join(' · ')}><Tag color="blue">{custom.length} phí riêng</Tag></Tooltip>}
+                {!!timed.length && <Tooltip title={timed.map((w) => `${w.name}: ${mins(w.deliveryMinutes)}`).join(' · ')}><Tag color="purple">{timed.length} thời gian riêng</Tag></Tooltip>}
               </Space>
             },
           },
@@ -108,43 +117,50 @@ function AreasCard() {
 }
 
 /**
- * Sửa một tỉnh: danh sách mọi phường / xã của tỉnh, mặc định đều giao với phí của tỉnh. Tích "Không giao" hoặc
- * "Phí riêng" (rồi nhập phí) cho từng dòng, hoặc chọn nhiều dòng để làm một lần. Lưu thì tự kiểm tra phí riêng còn trống.
+ * Sửa một tỉnh: danh sách mọi phường / xã của tỉnh, mặc định đều giao với phí và thời gian giao của tỉnh. Tích
+ * "Không giao", "Phí riêng" hoặc "Thời gian riêng" (rồi nhập giá trị) cho từng dòng, hoặc chọn nhiều dòng để làm một lần.
+ * Lưu thì tự kiểm tra phí / thời gian riêng còn trống.
  */
 function AreaModal({ area, used, onClose }: { area: Partial<DeliveryArea>; used: string[]; onClose: () => void }) {
   const { message } = App.useApp()
   const { data: units = [] } = useQuery({ queryKey: ['vn-units'], queryFn: loadVnUnits, staleTime: Infinity })
   const [province, setProvince] = useState<string | undefined>(area.name)
   const [fee, setFee] = useState<number | null>(area.fee ?? 15000)
+  const [minutes, setMinutes] = useState<number | null>(area.deliveryMinutes ?? 30)
   const [active, setActive] = useState(area.active ?? true)
   const [rules, setRules] = useState<Record<string, WardRow>>(() => Object.fromEntries((area.wards ?? []).map((w) =>
-    [unitKey(w.name), { name: w.name, blocked: w.blocked, custom: !w.blocked && w.fee != null, fee: w.fee }])))
+    [unitKey(w.name), {
+      name: w.name, blocked: w.blocked, custom: !w.blocked && w.fee != null, fee: w.fee,
+      customTime: !w.blocked && w.deliveryMinutes != null, minutes: w.deliveryMinutes,
+    }])))
   const [search, setSearch] = useState('')
-  const [show, setShow] = useState<'all' | 'blocked' | 'custom'>('all')
+  const [show, setShow] = useState<'all' | 'blocked' | 'custom' | 'time'>('all')
   const [selected, setSelected] = useState<string[]>([])
   const [bulkFee, setBulkFee] = useState<number | null>(null)
+  const [bulkMinutes, setBulkMinutes] = useState<number | null>(null)
   const [invalid, setInvalid] = useState<Set<string>>(new Set())
   const save = useAction((v: Omit<DeliveryArea, 'id'> & { id?: number }) => coreApi.saveDeliveryArea(v), [['delivery-areas'], ['delivery-settings-public']], 'Đã lưu khu vực')
 
   // mọi phường / xã của tỉnh + phường đã lưu mà danh mục không còn (đổi tên…)
   const names = units.find((p) => unitKey(p.n) === unitKey(province ?? ''))?.w.map(([, n]) => n) ?? []
   const all: WardRow[] = [
-    ...names.map((n) => rules[unitKey(n)] ?? { name: n, blocked: false, custom: false }),
+    ...names.map((n) => rules[unitKey(n)] ?? { name: n, blocked: false, custom: false, customTime: false }),
     ...Object.values(rules).filter((r) => !names.some((n) => unitKey(n) === unitKey(r.name))),
   ]
   const q = unitKey(search)
   const rows = all.filter((r) => (!q || unitKey(r.name).includes(q))
-    && (show === 'all' || (show === 'blocked' ? r.blocked : r.custom && !r.blocked)))
+    && (show === 'all' || (show === 'blocked' ? r.blocked : show === 'custom' ? r.custom && !r.blocked : r.customTime && !r.blocked)))
   const blockedCount = all.filter((r) => r.blocked).length
   const customCount = all.filter((r) => r.custom && !r.blocked).length
+  const timeCount = all.filter((r) => r.customTime && !r.blocked).length
 
   const patch = (list: string[], p: Partial<WardRow>) => {
     setRules((prev) => {
       const next = { ...prev }
       for (const name of list) {
         const k = unitKey(name)
-        const row = { ...(next[k] ?? { name, blocked: false, custom: false }), ...p }
-        if (!row.blocked && !row.custom) delete next[k]
+        const row = { ...(next[k] ?? { name, blocked: false, custom: false, customTime: false }), ...p }
+        if (!row.blocked && !row.custom && !row.customTime) delete next[k]
         else next[k] = row
       }
       return next
@@ -159,25 +175,37 @@ function AreaModal({ area, used, onClose }: { area: Partial<DeliveryArea>; used:
   const submit = () => {
     if (!province) return void message.error('Chọn tỉnh / thành phố')
     if (fee == null || fee < 0) return void message.error('Nhập phí ship mặc định của tỉnh')
+    if (minutes == null || minutes <= 0) return void message.error('Nhập thời gian giao mặc định của tỉnh')
+    const list = (rs: WardRow[]) => `${rs.slice(0, 3).map((r) => r.name).join(', ')}${rs.length > 3 ? '…' : ''}`
     const missing = all.filter((r) => r.custom && !r.blocked && (r.fee == null || r.fee < 0))
     if (missing.length) {
       setInvalid(new Set(missing.map((r) => unitKey(r.name))))
       setShow('custom')
-      return void message.error(`Nhập phí riêng cho ${missing.length} phường / xã: ${missing.slice(0, 3).map((r) => r.name).join(', ')}${missing.length > 3 ? '…' : ''}`)
+      return void message.error(`Nhập phí riêng cho ${missing.length} phường / xã: ${list(missing)}`)
+    }
+    const missingTime = all.filter((r) => r.customTime && !r.blocked && (r.minutes == null || r.minutes <= 0))
+    if (missingTime.length) {
+      setInvalid(new Set(missingTime.map((r) => unitKey(r.name))))
+      setShow('time')
+      return void message.error(`Nhập thời gian giao riêng cho ${missingTime.length} phường / xã: ${list(missingTime)}`)
     }
     save.mutate({
-      id: area.id, name: province, fee, active,
-      wards: all.filter((r) => r.blocked || r.custom).map((r) => ({ name: r.name, blocked: r.blocked, fee: r.blocked ? null : r.fee })),
+      id: area.id, name: province, fee, deliveryMinutes: minutes, active,
+      wards: all.filter((r) => r.blocked || r.custom || r.customTime).map((r) => ({
+        name: r.name, blocked: r.blocked,
+        fee: r.blocked || !r.custom ? null : r.fee,
+        deliveryMinutes: r.blocked || !r.customTime ? null : r.minutes,
+      })),
     }, { onSuccess: onClose })
   }
 
   return (
-    <Modal open title={area.id ? `Sửa khu vực · ${area.name}` : 'Thêm tỉnh / thành giao hàng'} onCancel={onClose} width={860}
+    <Modal open title={area.id ? `Sửa khu vực · ${area.name}` : 'Thêm tỉnh / thành giao hàng'} onCancel={onClose} width={1040}
       footer={<Space>
-        {province && <span className="a-muted small">Giao {all.length - blockedCount}/{all.length} phường / xã · {customCount} phí riêng</span>}
+        {province && <span className="a-muted small">Giao {all.length - blockedCount}/{all.length} phường / xã · {customCount} phí riêng · {timeCount} thời gian riêng</span>}
         <Button type="primary" loading={save.isPending} onClick={submit}>Lưu</Button>
       </Space>}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 220px 90px', gap: 12, alignItems: 'end', marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, alignItems: 'end', marginBottom: 12 }}>
         <div>
           <div className="small" style={{ marginBottom: 4 }}>Tỉnh / thành phố</div>
           <Select showSearch style={{ width: '100%' }} placeholder="Thành phố Hà Nội" value={province} loading={!units.length}
@@ -188,6 +216,10 @@ function AreaModal({ area, used, onClose }: { area: Partial<DeliveryArea>; used:
         <div>
           <div className="small" style={{ marginBottom: 4 }}>Phí ship mặc định</div>
           <MoneyInput value={fee ?? undefined} onChange={(v) => setFee(v ?? null)} />
+        </div>
+        <div>
+          <div className="small" style={{ marginBottom: 4 }}>Thời gian giao mặc định</div>
+          <MinutesInput value={minutes ?? undefined} onChange={setMinutes} />
         </div>
         <div>
           <div className="small" style={{ marginBottom: 4 }}>Đang giao</div>
@@ -201,15 +233,18 @@ function AreaModal({ area, used, onClose }: { area: Partial<DeliveryArea>; used:
           { value: 'all', label: `Tất cả (${all.length})` },
           { value: 'blocked', label: `Không giao (${blockedCount})` },
           { value: 'custom', label: `Phí riêng (${customCount})` },
+          { value: 'time', label: `Thời gian riêng (${timeCount})` },
         ]} />
       </Space>
       {!!selected.length && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 8, padding: '6px 10px', background: 'rgba(22,119,255,0.06)', borderRadius: 6 }}>
           <b>Đã chọn {selected.length}:</b>
           <Button size="small" danger onClick={() => patch(selected, { blocked: true })}>Không giao</Button>
-          <Button size="small" onClick={() => patch(selected, { blocked: false, custom: false, fee: null })}>Giao, phí mặc định</Button>
+          <Button size="small" onClick={() => patch(selected, { blocked: false, custom: false, fee: null, customTime: false, minutes: null })}>Giao, theo mặc định</Button>
           <MoneyInput size="small" style={{ width: 150 }} placeholder="Phí riêng" value={bulkFee ?? undefined} onChange={(v) => setBulkFee(v ?? null)} />
           <Button size="small" type="primary" disabled={bulkFee == null} onClick={() => patch(selected, { blocked: false, custom: true, fee: bulkFee })}>Đặt phí riêng</Button>
+          <MinutesInput size="small" style={{ width: 140 }} placeholder="Phút" value={bulkMinutes ?? undefined} onChange={setBulkMinutes} />
+          <Button size="small" type="primary" disabled={bulkMinutes == null} onClick={() => patch(selected, { blocked: false, customTime: true, minutes: bulkMinutes })}>Đặt thời gian riêng</Button>
           <Button size="small" type="link" onClick={() => setSelected([])}>Bỏ chọn</Button>
         </div>
       )}
@@ -231,6 +266,16 @@ function AreaModal({ area, used, onClose }: { area: Partial<DeliveryArea>; used:
               : r.custom ? <MoneyInput size="small" status={invalid.has(unitKey(r.name)) ? 'error' : undefined} placeholder="Nhập phí"
                 value={r.fee ?? undefined} onChange={(v) => patch([r.name], { fee: v ?? null })} />
               : <span className="a-muted">{money(fee ?? 0)}</span>,
+          },
+          {
+            title: 'TG riêng', width: 80, align: 'center',
+            render: (_, r) => <Checkbox checked={r.customTime} disabled={r.blocked} onChange={(e) => patch([r.name], { customTime: e.target.checked })} />,
+          },
+          {
+            title: 'Thời gian giao', width: 150, render: (_, r) => r.blocked ? null
+              : r.customTime ? <MinutesInput size="small" status={invalid.has(unitKey(r.name)) ? 'error' : undefined} placeholder="Phút"
+                value={r.minutes ?? undefined} onChange={(v) => patch([r.name], { minutes: v })} />
+              : <span className="a-muted">{mins(minutes)}</span>,
           },
         ]} />
     </Modal>
