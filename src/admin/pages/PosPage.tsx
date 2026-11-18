@@ -157,7 +157,7 @@ export function PosPage() {
                 <Form.Item name="address" label="Địa chỉ giao" rules={[vnAddressRule('nơi nhận')]}
                   extra={area?.outside ? <span style={{ color: '#cf1322' }}>{area.message ?? 'Ngoài khu vực giao hàng'}</span>
                     : quote.isError ? <span style={{ color: '#cf1322' }}>{errorMessage(quote.error)}</span>
-                    : q?.deliveryZone ? `Giao tới ${q.deliveryZone}${q.deliveryDistanceKm != null ? ` · ~${num(q.deliveryDistanceKm)} km` : ''}` : undefined}>
+                    : q?.deliveryZone ? `Giao tới ${q.deliveryZone}${q.deliveryDistanceKm != null ? ` · ~${num(q.deliveryDistanceKm)} km` : ''}${q.deliveryMinutes ? ` · giao ~${q.deliveryMinutes} phút` : ''}` : undefined}>
                   <VnAddressInput deliveryOnly />
                 </Form.Item>
               </>}

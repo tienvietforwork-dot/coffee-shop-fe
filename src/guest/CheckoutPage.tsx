@@ -135,10 +135,9 @@ export function CheckoutPage() {
   }
 
   const q = quote.data
-  // dự kiến: giờ hẹn (hoặc bây giờ khi "Sớm nhất") + thời gian pha chế các món (+ km ÷ tốc độ km/h khi giao)
+  // dự kiến: giờ hẹn (hoặc bây giờ khi "Sớm nhất") + thời gian pha chế các món (+ thời gian giao của khu vực khi giao)
   const prepMin = q?.prepMinutes ?? 0
-  const travelMin = orderType === 'DELIVERY' && deliveryAddress && q?.deliveryDistanceKm != null && shipping?.speedKmh
-    ? Math.max(1, Math.round(q.deliveryDistanceKm / shipping.speedKmh * 60)) : undefined
+  const travelMin = orderType === 'DELIVERY' && deliveryAddress && q?.deliveryMinutes ? q.deliveryMinutes : undefined
   const at = (d: Dayjs) => d.format(d.isSame(dayjs(), 'day') ? 'HH:mm' : 'HH:mm DD/MM')
   const eta = (from: Dayjs, min: number) => `${at(from.add(min, 'minute'))} (${min} phút)`
   // hẹn giờ: quán canh giờ pha + chạy xe để giao đúng giờ hẹn (chỉ trễ hơn khi giờ hẹn quá sát bây giờ)
