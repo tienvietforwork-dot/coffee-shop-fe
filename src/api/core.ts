@@ -3,7 +3,7 @@ import type {
   Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
   IncidentSeverity, IncidentType, IncidentVoucherOption, Material,
   Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
-  Staff, TableStatus, User, WorkStatus,
+  Staff, TableBoard, TableStatus, User, WorkStatus,
   CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliverySettings, DeliveryArea, ShipmentEvent, ShipperStat, RoutePlan, ScheduleRow, Subscription, SubscriptionPayload, SubscriptionStatus,
   Invoice, InvoiceBuyer, InvoiceSettings, NotificationTemplate, NotificationMessage,
 } from './types'
@@ -40,7 +40,7 @@ export interface StaffPayload {
   fullName: string; position?: string; phone: string; email?: string; hireDate?: string
   workStatus?: WorkStatus
 }
-export interface TablePayload { tableNo: string; area?: string; capacity?: number; status?: TableStatus }
+export interface TablePayload { tableNo: string; floor?: string; area?: string; capacity?: number; status?: TableStatus }
 export interface UserPayload {
   username: string; password?: string; fullName?: string; email?: string; phone?: string; active?: boolean
   roles: User['roles']; staffId?: number; customerId?: number
@@ -132,6 +132,11 @@ export const coreApi = {
   updateTable: (id: number, b: TablePayload) => put<DiningTable>(`/tables/${id}`, b),
   regenerateQr: (id: number) => post<DiningTable>(`/tables/${id}/regenerate-qr`),
   deleteTable: (id: number) => del(`/tables/${id}`),
+  tableBoard: () => get<TableBoard[]>('/tables/board'),
+  tableOrders: (id: number) => get<Order[]>(`/tables/${id}/orders`),
+  checkoutTable: (id: number, paymentMethod: PaymentMethod) => post<Order[]>(`/tables/${id}/checkout`, { paymentMethod }),
+  tableByQr: (qr: string) => get<TableBoard>(`/tables/qr/${encodeURIComponent(qr)}`),
+  setTableStatus: (id: number, status: TableStatus) => post<TableBoard>(`/tables/${id}/status`, { status }),
 
   users: () => get<User[]>('/users'),
   createUser: (b: UserPayload) => post<User>('/users', b),

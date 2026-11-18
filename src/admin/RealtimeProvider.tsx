@@ -39,9 +39,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           }
           qc.invalidateQueries({ queryKey: ['orders'] })
           qc.invalidateQueries({ queryKey: ['order', order.id] })
+          if (order.tableId) qc.invalidateQueries({ queryKey: ['tables'] }) // sơ đồ bàn: bàn có khách / trống lại
           qc.invalidateQueries({ queryKey: ['dashboard'] })
           qc.invalidateQueries({ queryKey: ['shipments'] })
         })
+        // nhân viên đổi trạng thái bàn bằng tay (sơ đồ bàn / quét QR trên điện thoại)
+        client.subscribe('/topic/tables', () => qc.invalidateQueries({ queryKey: ['tables'] }))
       },
       onWebSocketClose: () => setConnected(false),
       onStompError: () => setConnected(false),

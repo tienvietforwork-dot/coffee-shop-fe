@@ -1,7 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { App as AntApp, ConfigProvider, Spin } from 'antd'
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { App as AntApp, ConfigProvider, Spin, message } from 'antd'
+import type { AxiosError } from 'axios'
+import { errorMessage } from '@/api/client'
 import viVN from 'antd/locale/vi_VN'
 import dayjs from 'dayjs'
 import 'dayjs/locale/vi'
@@ -58,6 +60,15 @@ const PromotionAnalyticsPage = lazy(() => import('@/admin/pages/promotions/Promo
 dayjs.locale('vi')
 
 const queryClient = new QueryClient({
+  // Mọi lần tải dữ liệu thất bại (máy chủ tắt, 5xx, 403…) đều báo cho người dùng, kể cả trang không tự hiện lỗi.
+  // Cùng nội dung lỗi chỉ hiện một thông báo; 401 đã có luồng đăng nhập lại; meta.silentError để trang tự xử lý.
+  queryCache: new QueryCache({
+    onError: (err, query) => {
+      if (query.meta?.silentError || (err as AxiosError)?.response?.status === 401) return
+      const text = errorMessage(err, 'Không tải được dữ liệu')
+      message.error({ content: text, key: `query-error:${text}`, duration: 5 })
+    },
+  }),
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 10_000 } },
 })
 
