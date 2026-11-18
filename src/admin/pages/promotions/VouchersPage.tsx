@@ -165,17 +165,16 @@ export function VouchersPage() {
   });
 
   const {
-    data: customerPage,
+    data: customers = [],
     isFetching: isLoadingCustomers,
     error: customerError,
   } = useQuery({
     queryKey: ["crm-customers", "voucher", customerSearch],
     queryFn: () =>
-      crmApi.customers({ q: customerSearch || undefined, size: 20 }),
+      crmApi.customers(customerSearch || undefined),
     enabled: voucherForCustomer !== null,
     retry: false,
   });
-  const customers = customerPage?.content ?? [];
   const selectedVoucher =
     voucherForCustomer === null
       ? undefined
@@ -230,7 +229,6 @@ export function VouchersPage() {
       ? []
       : (() => {
           return customerGroupMembers
-            .filter((member) => !member.isExcluded)
             .map((member) => member.customerId)
             .filter(
               (customerId, index, ids) =>

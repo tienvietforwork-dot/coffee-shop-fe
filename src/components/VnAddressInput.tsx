@@ -9,9 +9,15 @@ import { composeVnAddress, loadVnUnits, parseVnAddress, unitKey, type VnAddress 
 /**
  * Địa chỉ chọn từng cấp: Tỉnh / Thành phố → Phường / Xã (combo box, gõ để lọc) → số nhà, tên đường (có gợi ý).
  * Dùng trong Form.Item: value / onChange là chuỗi đầy đủ "số nhà đường, Phường …, Tỉnh …".
+ * deliveryOnly: chỉ cho chọn các tỉnh quán đang giao (khu vực giao trong DB); chưa tải được cấu hình thì hiện đủ 34 tỉnh.
  */
-export function VnAddressInput({ value, onChange }: { value?: string; onChange?: (v: string) => void }) {
+export function VnAddressInput({ value, onChange, deliveryOnly }: { value?: string; onChange?: (v: string) => void; deliveryOnly?: boolean }) {
   const { data: units = [] } = useQuery({ queryKey: ['vn-units'], queryFn: loadVnUnits, staleTime: Infinity })
+  const { data: shipping } = useQuery({
+    queryKey: ['delivery-settings-public'], queryFn: publicApi.deliverySettings, staleTime: 5 * 60_000, enabled: !!deliveryOnly,
+  })
+  const served = deliveryOnly && shipping?.provinces ? new Set(shipping.provinces.map(unitKey)) : null
+  const choices = served ? units.filter((p) => served.has(unitKey(p.n))) : units
   const [addr, setAddr] = useState<VnAddress>({ street: '' })
   const emitted = useRef<string | undefined>(undefined)
 
@@ -51,7 +57,8 @@ export function VnAddressInput({ value, onChange }: { value?: string; onChange?:
       <div className="a-grid-2" style={{ marginBottom: 8 }}>
         <Select showSearch allowClear placeholder="Tỉnh / Thành phố" value={addr.province} loading={!units.length}
           filterOption={(input, o) => unitKey(String(o?.label ?? '')).includes(unitKey(input))}
-          options={units.map((p) => ({ value: p.n, label: p.n }))}
+          notFoundContent={served ? 'Quán chưa giao tới tỉnh / thành này' : undefined}
+          options={choices.map((p) => ({ value: p.n, label: p.n }))}
           onChange={(v?: string) => { if (v !== addr.province) update({ province: v, ward: undefined, street: '' }) }} />
         <Select showSearch allowClear placeholder="Phường / Xã" value={addr.ward} disabled={!province}
           filterOption={(input, o) => unitKey(String(o?.label ?? '')).includes(unitKey(input))}

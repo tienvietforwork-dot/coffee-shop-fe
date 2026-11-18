@@ -3,7 +3,7 @@ import type {
   Category, Coffee, CoffeeStatus, CustomerLookup, Dashboard, DeliveryAddress, DiningTable, Incident,
   IncidentSeverity, IncidentType, IncidentVoucherOption, Material,
   Order, OrderChannel, OrderStatus, OrderStatusChange, OrderType, Payment, PaymentMethod, PriceQuote, Recipe, Shipment, ShipmentStatus,
-  Staff, TableStatus, User, WorkStatus,
+  Staff, TableBoard, TableStatus, User, WorkStatus,
   CashShift, WorkShift, ShiftAssignment, Timesheet, AuditLog, PaymentTransaction, DeliverySettings, DeliveryArea, ShipmentEvent, ShipperStat, RoutePlan, ScheduleRow, Subscription, SubscriptionPayload, SubscriptionStatus,
   Invoice, InvoiceBuyer, InvoiceSettings, NotificationTemplate, NotificationMessage,
 } from './types'
@@ -24,7 +24,7 @@ export const download = async (url: string, params?: object) => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 
-export interface CategoryPayload { name: string; description?: string; displayOrder?: number }
+export interface CategoryPayload { name: string; description?: string; productType: import('./types').CategoryProductType; displayOrder?: number }
 export interface CoffeePayload {
   categoryId: number; code?: string; name: string; imageId?: number; imageUrl?: string; price: number; description?: string; status?: CoffeeStatus
 }
@@ -40,7 +40,7 @@ export interface StaffPayload {
   fullName: string; position?: string; phone: string; email?: string; hireDate?: string
   workStatus?: WorkStatus
 }
-export interface TablePayload { tableNo: string; area?: string; capacity?: number; status?: TableStatus }
+export interface TablePayload { tableNo: string; floor?: string; area?: string; capacity?: number; status?: TableStatus }
 export interface UserPayload {
   username: string; password?: string; fullName?: string; email?: string; phone?: string; active?: boolean
   roles: User['roles']; staffId?: number; customerId?: number
@@ -87,7 +87,6 @@ export const coreApi = {
   createMaterial: (b: MaterialPayload) => post<Material>('/materials', b),
   updateMaterial: (id: number, b: MaterialPayload) => put<Material>(`/materials/${id}`, b),
   deleteMaterial: (id: number) => del(`/materials/${id}`),
-  adjustMaterial: (id: number, delta: number) => patch<Material>(`/materials/${id}/quantity`, { delta }),
 
   /** null when no shift is open */
   currentShift: () => apiClient.get<CashShift | ''>('/cash-shifts/current').then((r) => r.data || null),
@@ -133,6 +132,11 @@ export const coreApi = {
   updateTable: (id: number, b: TablePayload) => put<DiningTable>(`/tables/${id}`, b),
   regenerateQr: (id: number) => post<DiningTable>(`/tables/${id}/regenerate-qr`),
   deleteTable: (id: number) => del(`/tables/${id}`),
+  tableBoard: () => get<TableBoard[]>('/tables/board'),
+  tableOrders: (id: number) => get<Order[]>(`/tables/${id}/orders`),
+  checkoutTable: (id: number, paymentMethod: PaymentMethod) => post<Order[]>(`/tables/${id}/checkout`, { paymentMethod }),
+  tableByQr: (qr: string) => get<TableBoard>(`/tables/qr/${encodeURIComponent(qr)}`),
+  setTableStatus: (id: number, status: TableStatus) => post<TableBoard>(`/tables/${id}/status`, { status }),
 
   users: () => get<User[]>('/users'),
   createUser: (b: UserPayload) => post<User>('/users', b),
@@ -150,7 +154,7 @@ export const coreApi = {
   cancel: (id: number, reason: string) => post<Order>(`/orders/${id}/cancel`, { reason }),
   prepare: (id: number) => post<Order>(`/orders/${id}/prepare`),
   ready: (id: number) => post<Order>(`/orders/${id}/ready`),
-  dispatch: (id: number) => post<Order>(`/orders/${id}/dispatch`),
+  dispatch: (id: number, shipperId?: number) => post<Order>(`/orders/${id}/dispatch`, shipperId ? { shipperId } : undefined),
   complete: (id: number) => post<Order>(`/orders/${id}/complete`),
   collectPayment: (id: number) => post<Order>(`/orders/${id}/collect-payment`),
   refund: (paymentId: number, amount: number) => post<Payment>(`/payments/${paymentId}/refund`, { amount }),

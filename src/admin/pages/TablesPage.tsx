@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space } from 'antd'
+import { AutoComplete, Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space } from 'antd'
 import { PlusOutlined, PrinterOutlined, ReloadOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import { coreApi, type TablePayload } from '@/api/core'
@@ -12,6 +12,7 @@ import { useAction } from '../components/useCrud'
 import { P, usePerm } from '@/lib/perm'
 
 const tableUrl = (qr: string) => `${window.location.origin}/t/${qr}`
+const distinct = (vs: (string | undefined)[]) => [...new Set(vs.filter((v): v is string => !!v))].map((value) => ({ value }))
 
 export function TablesPage() {
   const isAdmin = usePerm().can(P.TABLES_EDIT)
@@ -39,7 +40,7 @@ export function TablesPage() {
               ]}>
               <div className="a-table-no">{t.tableNo}</div>
               <QRCodeSVG value={tableUrl(t.qrCode)} size={96} />
-              <div className="a-muted">{t.area} · {t.capacity} chỗ</div>
+              <div className="a-muted">{[t.floor, t.area].filter(Boolean).join(' · ')}{t.capacity ? ` · ${t.capacity} chỗ` : ''}</div>
               <StatusTag label={TABLE_STATUS[t.status]} />
             </Card>
           </Col>
@@ -51,7 +52,14 @@ export function TablesPage() {
             <Form.Item name="tableNo" label="Số bàn" rules={[{ required: true }]}><Input maxLength={10} /></Form.Item>
             <Form.Item name="capacity" label="Sức chứa"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
           </div>
-          <Form.Item name="area" label="Khu vực"><Input /></Form.Item>
+          <div className="a-grid-2">
+            <Form.Item name="floor" label="Tầng" extra="Sơ đồ bàn ở màn order nhóm theo tầng">
+              <AutoComplete options={distinct(data.map((t) => t.floor))} placeholder="Tầng trệt, Lầu 1…" maxLength={50} />
+            </Form.Item>
+            <Form.Item name="area" label="Khu vực">
+              <AutoComplete options={distinct(data.map((t) => t.area))} placeholder="Trong nhà, Sân vườn…" maxLength={50} />
+            </Form.Item>
+          </div>
           <Form.Item name="status" label="Trạng thái"><Select options={options(TABLE_STATUS)} /></Form.Item>
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             {edit?.id ? <Popconfirm title="Xóa bàn?" onConfirm={() => del.mutate(edit.id!, { onSuccess: () => setEdit(null) })}><Button danger>Xóa</Button></Popconfirm> : <span />}

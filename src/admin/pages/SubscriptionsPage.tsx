@@ -26,7 +26,7 @@ export function SubscriptionsPage() {
   const [filter, setFilter] = useState<'ACTIVE' | 'PAUSED' | 'ALL'>('ACTIVE')
   const [search, setSearch] = useState('')
   const [edit, setEdit] = useState<Subscription | 'new' | null>(null)
-  const keys = [['subscriptions'], ['delivery-schedule']]
+  const keys = [['subscriptions'], ['orders']]
   const save = useAction((v: SubscriptionPayload & { id?: number }) => coreApi.saveSubscription(v), keys, 'Đã lưu gói')
   const status = useAction((v: { id: number; status: SubscriptionStatus }) => coreApi.setSubscriptionStatus(v.id, v.status), keys, 'Đã cập nhật')
   const q = search.trim().toLowerCase()

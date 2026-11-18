@@ -1,7 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { App as AntApp, ConfigProvider, Spin } from 'antd'
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { App as AntApp, ConfigProvider, Spin, message } from 'antd'
+import type { AxiosError } from 'axios'
+import { errorMessage } from '@/api/client'
 import viVN from 'antd/locale/vi_VN'
 import dayjs from 'dayjs'
 import 'dayjs/locale/vi'
@@ -23,7 +25,6 @@ const OrdersBoardPage = lazy(() => import('@/admin/pages/OrdersBoardPage').then(
 const PosPage = lazy(() => import('@/admin/pages/PosPage').then((m) => ({ default: m.PosPage })))
 const ShipmentsPage = lazy(() => import('@/admin/pages/ShipmentsPage').then((m) => ({ default: m.ShipmentsPage })))
 const MyDeliveriesPage = lazy(() => import('@/admin/pages/MyDeliveriesPage').then((m) => ({ default: m.MyDeliveriesPage })))
-const DeliverySchedulePage = lazy(() => import('@/admin/pages/DeliverySchedulePage').then((m) => ({ default: m.DeliverySchedulePage })))
 const SubscriptionsPage = lazy(() => import('@/admin/pages/SubscriptionsPage').then((m) => ({ default: m.SubscriptionsPage })))
 const IncidentsPage = lazy(() => import('@/admin/pages/IncidentsPage').then((m) => ({ default: m.IncidentsPage })))
 const CoffeesPage = lazy(() => import('@/admin/pages/CoffeesPage').then((m) => ({ default: m.CoffeesPage })))
@@ -51,7 +52,6 @@ const MerchandisingSchedulePage = lazy(() => import('@/admin/pages/Merchandising
 const ProductPlacementPage = lazy(() => import('@/admin/pages/ProductPlacementPage').then((m) => ({ default: m.ProductPlacementPage })))
 const RecommendationPage = lazy(() => import('@/admin/pages/RecommendationPage').then(m => ({ default: m.RecommendationPage })))
 const UpsellPage = lazy(() => import('@/admin/pages/UpsellPage').then(m => ({ default: m.UpsellPage })))
-const CrossSellPage = lazy(() => import('@/admin/pages/CrossSellPage').then(m => ({ default: m.CrossSellPage })))
 const ProductBundlesPage = lazy(() => import('@/admin/pages/ProductBundlesPage').then((m) => ({ default: m.ProductBundlesPage })))
 const PromotionsPage = lazy(() => import('@/admin/pages/promotions/PromotionsPage').then((m) => ({ default: m.PromotionsPage })))
 const VouchersPage = lazy(() => import('@/admin/pages/promotions/VouchersPage').then((m) => ({ default: m.VouchersPage })))
@@ -60,6 +60,15 @@ const PromotionAnalyticsPage = lazy(() => import('@/admin/pages/promotions/Promo
 dayjs.locale('vi')
 
 const queryClient = new QueryClient({
+  // Mọi lần tải dữ liệu thất bại (máy chủ tắt, 5xx, 403…) đều báo cho người dùng, kể cả trang không tự hiện lỗi.
+  // Cùng nội dung lỗi chỉ hiện một thông báo; 401 đã có luồng đăng nhập lại; meta.silentError để trang tự xử lý.
+  queryCache: new QueryCache({
+    onError: (err, query) => {
+      if (query.meta?.silentError || (err as AxiosError)?.response?.status === 401) return
+      const text = errorMessage(err, 'Không tải được dữ liệu')
+      message.error({ content: text, key: `query-error:${text}`, duration: 5 })
+    },
+  }),
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 10_000 } },
 })
 
@@ -101,7 +110,7 @@ export default function App() {
                   <Route path="/admin/pos" element={<Guard perm="pos"><PosPage /></Guard>} />
                   <Route path="/admin/shipments" element={<Guard perm="shipments"><ShipmentsPage /></Guard>} />
                   <Route path="/admin/my-deliveries" element={<Guard perm="my-deliveries"><MyDeliveriesPage /></Guard>} />
-                  <Route path="/admin/delivery-schedule" element={<Guard perm="delivery-schedule"><DeliverySchedulePage /></Guard>} />
+                  <Route path="/admin/delivery-schedule" element={<Navigate to="/admin/orders" replace />} />
                   <Route path="/admin/subscriptions" element={<Guard perm="subscriptions"><SubscriptionsPage /></Guard>} />
                   <Route path="/admin/incidents" element={<Guard perm="incidents"><IncidentsPage /></Guard>} />
                   <Route path="/admin/merchandising-analytics" element={<Guard perm="stats"><MerchandisingAnalyticsPage /></Guard>} />
@@ -109,7 +118,7 @@ export default function App() {
                   <Route path="/admin/product-placement" element={<Guard perm="menu"><ProductPlacementPage /></Guard>} />
                   <Route path="/admin/recommendation" element={<Guard perm="menu"><RecommendationPage /></Guard>} />
                   <Route path="/admin/upsell" element={<Guard perm="menu"><UpsellPage /></Guard>} />
-                  <Route path="/admin/cross-sell" element={<Guard perm="menu"><CrossSellPage /></Guard>} />
+                  <Route path="/admin/cross-sell" element={<Navigate to="/admin" replace />} />
                   <Route path="/admin/product-bundles" element={<Guard perm="menu"><ProductBundlesPage /></Guard>} />
                   <Route path="/admin/coffees" element={<Guard perm="menu"><CoffeesPage /></Guard>} />
                   <Route path="/admin/categories" element={<Guard perm="categories"><CategoriesPage /></Guard>} />

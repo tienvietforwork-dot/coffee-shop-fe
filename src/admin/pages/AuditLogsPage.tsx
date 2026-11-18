@@ -16,7 +16,7 @@ const MODULE: Record<string, string> = {
   roles: 'Phân quyền', auth: 'Đăng nhập', suppliers: 'Nhà cung cấp', 'purchase-orders': 'Phiếu đặt hàng', 'goods-receipts': 'Phiếu nhập',
   'supplier-returns': 'Trả hàng nhập', 'supplier-payments': 'Phiếu chi NCC', stocktakes: 'Kiểm kê', 'cash-shifts': 'Ca thu ngân',
   'work-shifts': 'Ca mẫu', 'shift-assignments': 'Phân ca', attendance: 'Chấm công', 'coffee-costs': 'Giá vốn', reports: 'Báo cáo',
-  'delivery-zones': 'Khu vực giao hàng', 'delivery-settings': 'Phí giao hàng', invoices: 'Hóa đơn điện tử', 'payment-transactions': 'Đối soát thanh toán', notifications: 'Tin nhắn',
+  'delivery-zones': 'Khu vực giao hàng', 'delivery-settings': 'Cấu hình giao hàng', 'delivery-areas': 'Khu vực giao hàng', invoices: 'Hóa đơn điện tử', 'payment-transactions': 'Đối soát thanh toán', notifications: 'Tin nhắn',
 }
 const ACTION: Record<string, string> = { CREATE: 'Thêm', UPDATE: 'Sửa', DELETE: 'Xóa' }
 const moduleName = (m: string) => (m.startsWith('public/') ? `Khách · ${m.slice(7)}` : MODULE[m] ?? m)

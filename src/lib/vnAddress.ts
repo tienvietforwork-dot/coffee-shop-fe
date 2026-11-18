@@ -1,15 +1,15 @@
 /**
  * Đơn vị hành chính Việt Nam 2 cấp (từ 1/7/2025): 34 tỉnh / thành phố → phường / xã / đặc khu.
- * Dữ liệu: public/data/vn-units.json (provinces.open-api.vn v2), tải 1 lần khi cần.
+ * Dữ liệu: danh mục trong DB (bảng vn_provinces, vn_wards) qua GET /api/public/vn-units, tải 1 lần khi cần.
  * Địa chỉ vẫn lưu thành một chuỗi "số nhà đường, Phường …, Tỉnh/Thành phố …" để app-core đo km như cũ.
  */
+import apiClient from '@/api/client'
+
 export interface VnProvince { c: number; n: string; w: [number, string][] }
 
 let units: Promise<VnProvince[]> | null = null
-export const loadVnUnits = () => (units ??= fetch('/data/vn-units.json').then((r) => {
-  if (!r.ok) throw new Error('Không tải được danh sách tỉnh / phường')
-  return r.json() as Promise<VnProvince[]>
-}))
+export const loadVnUnits = () => (units ??= apiClient.get<VnProvince[]>('/public/vn-units').then((r) => r.data)
+  .catch((e) => { units = null; throw e })) // lỗi thì lần sau tải lại
 
 /** "Thành phố Hồ Chí Minh" = "TP. HCM" = "ho chi minh": accents, prefixes and case ignored */
 export const unitKey = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
