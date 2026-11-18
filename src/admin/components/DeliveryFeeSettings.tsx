@@ -11,6 +11,13 @@ import { loadVnUnits, unitKey, vnAddressRule } from '@/lib/vnAddress'
 import { MoneyInput } from './MoneyInput'
 import { useAction } from './useCrud'
 
+/** bỏ dấu, chữ thường, gộp khoảng trắng — giữ nguyên tiền tố phường / xã để lọc được theo loại */
+const searchKey = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').replace(/[đĐ]/g, 'd').toLowerCase().replace(/\s+/g, ' ').trim()
+
+/** loại đơn vị theo tiền tố tên: "Phường …", "Xã …", "Đặc khu …" */
+const wardKind = (name: string) => /^(phuong|xa|dac khu|thi tran)\b/.exec(searchKey(name))?.[1] ?? 'khac'
+const KIND_LABEL: Record<string, string> = { phuong: 'Phường', xa: 'Xã', 'dac khu': 'Đặc khu', 'thi tran': 'Thị trấn', khac: 'Khác' }
+
 const t = (s?: string) => (s ? dayjs(s.slice(0, 5), 'HH:mm') : undefined)
 
 /** Phí giao hàng: cửa hàng (địa chỉ, giờ mở cửa, miễn phí ship), khu vực giao theo tỉnh + phường. */
@@ -134,6 +141,7 @@ function AreaModal({ area, used, onClose }: { area: Partial<DeliveryArea>; used:
       customTime: !w.blocked && w.deliveryMinutes != null, minutes: w.deliveryMinutes,
     }])))
   const [search, setSearch] = useState('')
+  const [kind, setKind] = useState<string>('all')
   const [show, setShow] = useState<'all' | 'blocked' | 'custom' | 'time'>('all')
   const [selected, setSelected] = useState<string[]>([])
   const [bulkFee, setBulkFee] = useState<number | null>(null)
@@ -147,8 +155,14 @@ function AreaModal({ area, used, onClose }: { area: Partial<DeliveryArea>; used:
     ...names.map((n) => rules[unitKey(n)] ?? { name: n, blocked: false, custom: false, customTime: false }),
     ...Object.values(rules).filter((r) => !names.some((n) => unitKey(n) === unitKey(r.name))),
   ]
-  const q = unitKey(search)
-  const rows = all.filter((r) => (!q || unitKey(r.name).includes(q))
+  // tìm theo cả tên đầy đủ ("Xã …", "Phường …"): unitKey bỏ tiền tố nên gõ "xã" sẽ ra hết
+  const q = searchKey(search)
+  // bộ lọc loại chỉ hiện khi tỉnh có từ 2 loại trở lên (vd. vừa phường vừa xã)
+  const kindCounts = all.reduce<Record<string, number>>((m, r) => { const k = wardKind(r.name); m[k] = (m[k] ?? 0) + 1; return m }, {})
+  const kinds = Object.keys(kindCounts).sort((a, b) => Object.keys(KIND_LABEL).indexOf(a) - Object.keys(KIND_LABEL).indexOf(b))
+  const kindFilter = kinds.length > 1 && kinds.includes(kind) ? kind : 'all'
+  const rows = all.filter((r) => (!q || searchKey(r.name).includes(q))
+    && (kindFilter === 'all' || wardKind(r.name) === kindFilter)
     && (show === 'all' || (show === 'blocked' ? r.blocked : show === 'custom' ? r.custom && !r.blocked : r.customTime && !r.blocked)))
   const blockedCount = all.filter((r) => r.blocked).length
   const customCount = all.filter((r) => r.custom && !r.blocked).length
@@ -229,6 +243,12 @@ function AreaModal({ area, used, onClose }: { area: Partial<DeliveryArea>; used:
 
       <Space wrap style={{ marginBottom: 8 }}>
         <Input allowClear prefix={<SearchOutlined />} placeholder="Tìm phường / xã" style={{ width: 220 }} value={search} onChange={(e) => setSearch(e.target.value)} />
+        {kinds.length > 1 && (
+          <Select style={{ width: 150 }} value={kindFilter} onChange={setKind} options={[
+            { value: 'all', label: `Mọi loại (${all.length})` },
+            ...kinds.map((k) => ({ value: k, label: `${KIND_LABEL[k]} (${kindCounts[k]})` })),
+          ]} />
+        )}
         <Segmented value={show} onChange={(v) => setShow(v as typeof show)} options={[
           { value: 'all', label: `Tất cả (${all.length})` },
           { value: 'blocked', label: `Không giao (${blockedCount})` },
