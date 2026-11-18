@@ -16,8 +16,9 @@ const fallback = DEFAULT_IMAGE
 const itemAvailable = (item: Bundle['items'][number]) => item.coffee.status === 'AVAILABLE' && !item.coffee.autoSoldOut
 
 function bundleAvailable(bundle: Bundle) {
-  return bundle.items.length === 2
-    && new Set(bundle.items.map((item) => item.coffee.id)).size === 2
+  return bundle.items.length >= 2
+    && bundle.items.length <= 5
+    && new Set(bundle.items.map((item) => item.coffee.id)).size === bundle.items.length
     && bundle.items.every((item) => !item.optional && !item.choiceGroup
       && item.coffee.categoryType === 'DRINK' && itemAvailable(item))
 }
@@ -68,10 +69,11 @@ export function MerchandisingSections() {
       <div className="merch-section-title"><div><span className="merch-eyebrow"> </span><h2>Combo tiết kiệm</h2></div><span className="merch-count">Kết hợp món yêu thích</span></div>
       <div className="g-grid">{bundles.data.filter(b => b.availableNow && b.status === 'ACTIVE' && bundleAvailable(b)).map(b => {
         const cover = b.imageUrl || b.items.find(i => i.coffee.imageUrl)?.coffee.imageUrl
+        const discount = b.standalonePrice > 0 ? Math.round(Math.max(0, b.savingAmount) / b.standalonePrice * 100) : 0
         return <article key={b.id} className="g-card merch-bundle" tabIndex={0} role="button" onKeyDown={e => { if (e.key === 'Enter') openBundle(b) }} onClick={() => openBundle(b)}>
           <div className="g-card-img"><img src={imageSrc(cover) || fallback} alt={b.name} loading="lazy"/><span className="merch-bundle-label">COMBO</span></div>
           <div className="g-card-body"><h3>{b.name}</h3><p>{b.description || b.items.map(i => `${i.quantity}× ${i.coffee.name}`).join(' · ')}</p>
-            <div className="g-card-foot"><div className="g-price"><span className="g-price-now">{money(b.bundlePrice)}</span>{b.savingAmount > 0 && <span className="merch-saving">Tiết kiệm đến {money(b.savingAmount)}</span>}</div><button type="button" className="g-add" aria-label={`Xem combo ${b.name}`} onClick={e => { e.stopPropagation(); openBundle(b) }}><PlusOutlined /></button></div>
+            <div className="g-card-foot"><div className="g-price"><span className="g-price-old">Giá lẻ {money(b.standalonePrice)}</span><span className="g-price-now">{money(b.bundlePrice)}</span>{b.savingAmount > 0 && <span className="merch-saving">Tiết kiệm {money(b.savingAmount)} · {discount}%</span>}</div><button type="button" className="g-add" aria-label={`Xem combo ${b.name}`} onClick={e => { e.stopPropagation(); openBundle(b) }}><PlusOutlined /></button></div>
           </div>
         </article>
       })}</div>
@@ -79,7 +81,7 @@ export function MerchandisingSections() {
     <AddToCartModal coffee={picked} onClose={() => setPicked(null)} />
     <Modal open={!!pickedBundle} footer={null} onCancel={() => setPickedBundle(null)} width={480} centered className="g-modal merch-detail" destroyOnHidden>
       {pickedBundle && <><img className="g-modal-img" src={imageSrc(pickedBundle.imageUrl || pickedBundle.items.find(i => i.coffee.imageUrl)?.coffee.imageUrl) || fallback} alt={pickedBundle.name}/>
-          <div className="g-modal-body"><span className="merch-eyebrow">COMBO COFFEEHOLIC</span><h3>{pickedBundle.name}</h3><p className="g-muted">{pickedBundle.description || 'Combo gồm hai loại cà phê khác nhau, được tính chung trong giá ưu đãi.'}</p>
+          <div className="g-modal-body"><span className="merch-eyebrow">COMBO COFFEEHOLIC</span><h3>{pickedBundle.name}</h3><p className="g-muted">{pickedBundle.description || 'Combo gồm nhiều loại cà phê khác nhau, được tính chung trong giá ưu đãi.'}</p>
               <div className="merch-detail-coffee-pair">
                 {pickedBundle.items.map((item) => <article className="merch-detail-coffee" key={item.id}>
                   <img src={imageSrc(item.coffee.imageUrl) || fallback} alt={item.coffee.name} />
@@ -89,7 +91,12 @@ export function MerchandisingSections() {
                   </div>
                 </article>)}
               </div>
-              {pickedBundle.savingAmount > 0 && <p className="merch-saving">Tiết kiệm đến {money(pickedBundle.savingAmount)} so với mua lẻ</p>}
+              <div className="merch-price-summary">
+                <div><span>Giá mua lẻ</span><del>{money(pickedBundle.standalonePrice)}</del></div>
+                <div><span>Giá combo</span><strong>{money(pickedBundle.bundlePrice)}</strong></div>
+                {pickedBundle.savingAmount > 0 && <p className="merch-saving">Tiết kiệm {money(pickedBundle.savingAmount)} ({pickedBundle.standalonePrice > 0 ? Math.round(pickedBundle.savingAmount / pickedBundle.standalonePrice * 100) : 0}%) mỗi combo</p>}
+                <small>Với {quantity} combo: mua lẻ {money(pickedBundle.standalonePrice * quantity)} · giá combo {money(pickedBundle.bundlePrice * quantity)} · tiết kiệm {money(Math.max(0, pickedBundle.savingAmount * quantity))}</small>
+              </div>
               <div className="g-modal-foot"><div className="g-stepper"><button aria-label="Giảm số lượng" onClick={() => setQuantity(q => Math.max(1,q-1))}><MinusOutlined/></button><span>{quantity}</span><button aria-label="Tăng số lượng" onClick={() => setQuantity(q => Math.min(99,q+1))}><PlusOutlined/></button></div>
                 <button className="g-cta g-cta-block" disabled={addBundle.isPending || !bundleAvailable(pickedBundle)}
                   onClick={() => addBundle.mutate({bundleId:pickedBundle.id, quantity, optionalItemIds:[]}, {onSuccess:()=>setPickedBundle(null)})}>
