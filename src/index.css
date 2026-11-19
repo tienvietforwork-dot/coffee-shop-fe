@@ -552,7 +552,7 @@ img { max-width: 100%; }
 /* Cross-sell suggestions inside product detail */
 .cross-sell-guest{margin-top:18px;padding-top:16px;border-top:1px solid #eaded2}.cross-sell-guest>strong{font-size:15px;color:#362219}.cross-sell-guest>p{font-size:12px;color:#967b6a;margin:4px 0 12px}.cross-sell-items{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cross-sell-choice{display:flex;align-items:center;gap:9px;text-align:left;border:1px solid #e9ddd0;background:#fffdfa;border-radius:12px;padding:8px;cursor:pointer}.cross-sell-choice:hover{border-color:#ac7b53;background:#fcf5ee}.cross-sell-choice img{width:45px;height:45px;object-fit:cover;border-radius:8px}.cross-sell-choice span{min-width:0;flex:1;font-weight:600;font-size:12px}.cross-sell-choice small{display:block;color:#8b6a50;margin-top:3px}.cross-sell-choice b{font-size:19px;color:#6f4e37}.cross-sell-selection{padding:10px 24px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.cross-sell-selection button{border:0;border-radius:9px;padding:7px 10px;cursor:pointer;background:#6f4e37;color:white}@media(max-width:480px){.cross-sell-items{grid-template-columns:1fr}}
 
-/* Product-to-product upsell with a photo comparison and a clear taste-match explanation. */
+/* Product suggestions inside the product detail. */
 .upsell-guest{margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
 .upsell-guest-heading{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
 .upsell-kicker{color:var(--caramel);font-size:10px;font-weight:800;letter-spacing:.12em}
@@ -571,33 +571,25 @@ img { max-width: 100%; }
 .upsell-suggestion-copy{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:3px}
 .upsell-suggestion-label{color:var(--caramel);font-size:9px;font-weight:800;letter-spacing:.08em}
 .upsell-suggestion-copy>strong{overflow:hidden;max-width:100%;color:var(--espresso);font-size:13px;text-overflow:ellipsis;white-space:nowrap}
-.upsell-suggestion-reason{display:-webkit-box;overflow:hidden;color:var(--muted);font-size:10px;line-height:1.45;-webkit-box-orient:vertical;-webkit-line-clamp:2}
-.upsell-suggestion-price{display:flex;align-items:center;gap:7px;margin-top:2px;color:var(--roast);font-size:11px;font-weight:800}
-.upsell-suggestion-price i{padding:3px 6px;border-radius:999px;background:var(--caramel-soft);color:#765026;font-size:9px;font-style:normal;font-weight:700}
-.upsell-compare-link{display:flex;align-items:center;gap:5px;padding:7px 8px;border-radius:10px;background:#f7eee2;color:var(--roast);font-size:10px;font-weight:700;white-space:nowrap}
+.upsell-suggestion-price{margin-top:2px;color:var(--roast);font-size:11px;font-weight:800}
+.upsell-action-link{display:flex;align-items:center;gap:5px;padding:7px 8px;border-radius:10px;background:#f7eee2;color:var(--roast);font-size:10px;font-weight:700;white-space:nowrap}
 .upsell-detail-modal .ant-modal-content{overflow:hidden;padding:0;border-radius:22px;background:var(--cream)}
 .upsell-detail{padding:26px}
 .upsell-detail h3{margin:5px 0;color:var(--espresso);font-family:var(--display);font-size:25px}
 .upsell-detail-intro{margin:0 0 17px;color:var(--muted);font-size:13px;line-height:1.5}
-.upsell-comparison{display:grid;grid-template-columns:minmax(0,1fr) 30px minmax(0,1fr);align-items:center;gap:9px}
-.upsell-comparison-product{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:4px;padding:9px;border:1px solid var(--line);border-radius:16px;background:#fff}
-.upsell-comparison-product img{width:100%;height:128px;margin-bottom:5px;object-fit:cover;border-radius:11px;background:var(--latte)}
-.upsell-comparison-product small{color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.07em}
-.upsell-comparison-product strong{overflow:hidden;max-width:100%;color:var(--espresso);font-size:13px;text-overflow:ellipsis;white-space:nowrap}
-.upsell-comparison-product>span{color:var(--roast);font-size:12px;font-weight:700}
-.upsell-comparison-product.is-suggestion{border-color:#d8bb91;box-shadow:0 6px 18px rgba(200,135,58,.12)}
-.upsell-comparison-arrow{justify-self:center;color:var(--caramel);font-size:17px}
-.upsell-match-reason{display:flex;gap:11px;margin-top:14px;padding:14px;border:1px solid #dce9dc;border-radius:14px;background:#f1f7ef}
-.upsell-match-reason>.anticon{margin-top:2px;color:#4d8b57;font-size:17px}
-.upsell-match-reason strong{color:#315c38;font-size:12px}
-.upsell-match-reason p{margin:4px 0 0;color:#49634b;font-size:12px;line-height:1.6}
+.upsell-product-detail{display:flex;align-items:center;gap:14px;padding:11px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.upsell-product-detail img{width:112px;height:112px;flex:none;object-fit:cover;border-radius:12px;background:var(--latte)}
+.upsell-product-detail>div{display:flex;min-width:0;flex-direction:column;gap:6px}
+.upsell-product-detail small{color:var(--caramel);font-size:9px;font-weight:800;letter-spacing:.08em}
+.upsell-product-detail strong{color:var(--espresso);font-size:15px}
+.upsell-product-detail>div>span{color:var(--roast);font-size:13px;font-weight:800}
 .upsell-suggestion-description{margin:10px 2px 0;color:var(--muted);font-size:12px;line-height:1.5}
 .upsell-confirm{display:flex;width:100%;justify-content:space-between;align-items:center;gap:10px;margin-top:17px;padding:13px 16px;border:0;border-radius:13px;background:var(--roast);color:white;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .upsell-confirm:hover{background:var(--espresso)}
 .upsell-confirm span{color:#f2d5aa}
 .upsell-keep-current{display:block;margin:10px auto 0;padding:5px 8px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
 .upsell-keep-current:hover{color:var(--roast)}
-@media(max-width:480px){.upsell-suggestion-card{grid-template-columns:62px minmax(0,1fr);gap:9px}.upsell-suggestion-photo{width:62px;height:76px}.upsell-compare-link{grid-column:2;justify-self:start;padding:4px 7px}.upsell-detail{padding:20px}.upsell-comparison{grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);gap:6px}.upsell-comparison-product{padding:7px}.upsell-comparison-product img{height:98px}.upsell-comparison-product strong{font-size:11px}.upsell-comparison-arrow{font-size:14px}}
+@media(max-width:480px){.upsell-suggestion-card{grid-template-columns:62px minmax(0,1fr);gap:9px}.upsell-suggestion-photo{width:62px;height:76px}.upsell-action-link{grid-column:2;justify-self:start;padding:4px 7px}.upsell-detail{padding:20px}.upsell-product-detail img{width:88px;height:88px}}
 
 /* lịch hẹn giao: đơn trễ giờ pha */
 .a-row-danger > td { background: #fff1f0 !important; }

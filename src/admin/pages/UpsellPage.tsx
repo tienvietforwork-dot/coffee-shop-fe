@@ -5,10 +5,10 @@ export function UpsellPage() {
   return (
     <div style={{ padding: 24 }}>
       <Typography.Title level={3} style={{ marginBottom: 0 }}>
-        Đề xuất món cho khách
+        Gợi ý sản phẩm cho khách hàng
       </Typography.Title>
       <Typography.Text type="secondary">
-        Giới thiệu món khác phù hợp với gu khách; món gợi ý có thể đắt hơn, rẻ hơn hoặc cùng giá.
+        Quản lý sản phẩm được giới thiệu khi khách đang xem một sản phẩm khác.
       </Typography.Text>
       <UpsellProductsSection />
     </div>
