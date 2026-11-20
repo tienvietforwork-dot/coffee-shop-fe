@@ -1,3 +1,4 @@
+import type { VoucherDiscountType } from '@/lib/voucher'
 // Types mirroring the app-core DTOs (com.coffeeshop.dto.response.*).
 
 /** The only 3 roles: Quản lý, Nhân viên, Khách hàng. */
@@ -76,6 +77,7 @@ export interface MyVoucher {
   id: number
   code: string
   discountValue: number
+  discountType?: VoucherDiscountType
   minOrderValue: number
   status: 'ISSUED' | 'USED' | 'EXPIRED' | 'REVOKED'
   issuedAt: string
@@ -386,7 +388,7 @@ export interface Incident {
   reportedAt: string
   reportedBy?: string
   resolvedAt?: string
-  vouchers: { code: string; discountValue: number; expiresAt?: string }[]
+  vouchers: { code: string; discountValue: number; discountType?: VoucherDiscountType; expiresAt?: string }[]
 }
 
 /** Loại voucher đang phát được, để chọn khi đền bù sự cố */
@@ -394,6 +396,7 @@ export interface IncidentVoucherOption {
   id: number
   name: string
   discountValue: number
+  discountType?: VoucherDiscountType
   minOrderValue: number
   quantity: number
   validDays?: number

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Drawer, Empty, Input } from 'antd'
 import { CheckCircleFilled, RightOutlined, TagOutlined } from '@ant-design/icons'
-import { useVoucherOptions } from './voucherOptions'
+import { estimateDiscounts, useVoucherOptions, type VoucherOption } from './voucherOptions'
 import { date, money } from '@/lib/format'
+import { voucherLabel, voucherOff } from '@/lib/voucher'
 
 /**
  * Checkout row "Voucher & khuyến mãi" + a sheet listing what can lower the order, like Shopee:
@@ -25,7 +26,11 @@ export function VoucherPicker({ subtotal, applied, promotionName, voucherDiscoun
   useEffect(() => { if (open) { setPicked(applied); setTyped('') } }, [open, applied])
 
   const missing = (min?: number) => Math.max(0, (min ?? 0) - subtotal)
-  const sorted = [...vouchers].sort((a, b) => Number(missing(a.minOrderValue) > 0) - Number(missing(b.minOrderValue) > 0) || b.discountValue - a.discountValue)
+  // rank by what each voucher actually takes off this order (19% of what is left after the shop's promotion, not "19")
+  const afterPromotion = estimateDiscounts(subtotal, promotions, []).afterPromotion
+  const off = (v: VoucherOption) => (missing(v.minOrderValue) > 0 ? 0 : voucherOff(v, afterPromotion))
+  const sorted = [...vouchers].sort((a, b) => Number(missing(a.minOrderValue) > 0) - Number(missing(b.minOrderValue) > 0) || off(b) - off(a))
+  const best = sorted.length && off(sorted[0]) > 0 ? sorted[0].code : undefined
   const confirm = (code?: string) => { onApply(code); setOpen(false) }
 
   return (
@@ -85,11 +90,13 @@ export function VoucherPicker({ subtotal, applied, promotionName, voucherDiscoun
           return (
             <button type="button" key={v.code} disabled={need > 0} onClick={() => setPicked(sel ? undefined : v.code)}
               className={`g-offer ${need > 0 ? 'is-off' : ''} ${sel ? 'is-picked' : ''}`}>
-              <div className="g-offer-badge">-{money(v.discountValue)}</div>
+              <div className="g-offer-badge">{voucherLabel(v)}</div>
               <div className="g-offer-body">
                 <b>{v.code}</b>
                 <span>{v.minOrderValue ? `Đơn từ ${money(v.minOrderValue)}` : 'Mọi đơn hàng'}{v.expiresAt ? ` · HSD ${date(v.expiresAt)}` : ''}</span>
-                {need > 0 && <em>Mua thêm {money(need)} để dùng</em>}
+                {need > 0
+                  ? <em>Mua thêm {money(need)} để dùng</em>
+                  : <em className={v.code === best ? 'is-on' : ''}>Giảm {money(off(v))} cho đơn này{v.code === best ? ' · giảm nhiều nhất' : ''}</em>}
               </div>
               <span className={`g-offer-radio ${sel ? 'is-on' : ''}`} />
             </button>

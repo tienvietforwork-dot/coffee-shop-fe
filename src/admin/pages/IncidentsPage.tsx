@@ -15,6 +15,7 @@ import { P, usePerm } from '@/lib/perm'
 import { PageHeader } from '../components/PageHeader'
 import { StatusTag } from '../components/StatusTag'
 import { useAction } from '../components/useCrud'
+import { voucherLabel } from '@/lib/voucher'
 import { OrderDetailDrawer } from '../components/OrderDetailDrawer'
 
 /**
@@ -108,7 +109,7 @@ function IncidentList({ onOpenOrder }: { onOpenOrder: (id: number) => void }) {
                   options={(voucherOptions.data ?? []).map((o) => ({
                     value: o.id,
                     disabled: o.remaining <= 0,
-                    label: `${o.name} · giảm ${money(o.discountValue)}${o.minOrderValue > 0 ? ` · đơn từ ${money(o.minOrderValue)}` : ''} · còn ${o.remaining} lượt`,
+                    label: `${o.name} · giảm ${voucherLabel(o).slice(1)}${o.minOrderValue > 0 ? ` · đơn từ ${money(o.minOrderValue)}` : ''} · còn ${o.remaining} lượt`,
                   }))}
                 />
               </Form.Item>

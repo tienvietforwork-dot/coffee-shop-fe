@@ -16,6 +16,7 @@ import { useCart } from './useCart'
 import { VoucherPicker } from './VoucherPicker'
 import { useGuestStore } from '@/store/guestStore'
 import { useAuthStore } from '@/store/authStore'
+import { itemPromo } from '@/lib/itemPromo'
 
 const PAYMENTS: { value: PaymentMethod; title: string; desc: string }[] = [
   { value: 'CASH', title: 'Tiền mặt', desc: 'Thanh toán khi nhận đồ uống' },
@@ -36,7 +37,7 @@ function openingHours(open?: string, close?: string) {
 }
 
 export function CheckoutPage() {
-  const { cart, loading, update, remove, removeBundle } = useCart()
+  const { cart, loading, update, remove, updateBundle, removeBundle } = useCart()
   const store = useGuestStore()
   const authUser = useAuthStore((s) => s.user)
   const isCustomer = !!authUser?.customerId
@@ -135,6 +136,7 @@ export function CheckoutPage() {
   }
 
   const q = quote.data
+  const itemOff = itemPromo(q?.lines)
   // dự kiến: giờ hẹn (hoặc bây giờ khi "Sớm nhất") + thời gian pha chế các món (+ thời gian giao của khu vực khi giao)
   const prepMin = q?.prepMinutes ?? 0
   const travelMin = orderType === 'DELIVERY' && deliveryAddress && q?.deliveryMinutes ? q.deliveryMinutes : undefined
@@ -267,12 +269,23 @@ export function CheckoutPage() {
             {(cart.bundles ?? []).map((b) => (
               <li key={`bundle-${b.id}`} style={{ alignItems: 'center' }}>
                 <span style={{ flex: 1 }}>
-                  <b>{b.quantity}×</b> 🎁 {b.name}
+                  🎁 {b.name}
                   {b.components?.map((component) => <small key={`${b.id}-${component.coffeeId}`} style={{ display: 'block', color: '#8b7567' }}>
                     {component.quantity * b.quantity} × {component.name}{component.choiceGroup ? ` · ${component.choiceGroup}` : ''}
                   </small>)}
                 </span>
-                <span>{money(b.total)}</span>
+                <div className="g-stepper g-stepper-sm">
+                  <button type="button" aria-label="Giảm combo"
+                    onClick={() => (b.quantity > 1 ? updateBundle.mutate({ lineId: b.id, quantity: b.quantity - 1 }) : removeBundle.mutate(b.id))}>
+                    <MinusOutlined />
+                  </button>
+                  <span>{b.quantity}</span>
+                  <button type="button" aria-label="Tăng combo" disabled={b.quantity >= 99}
+                    onClick={() => updateBundle.mutate({ lineId: b.id, quantity: b.quantity + 1 })}>
+                    <PlusOutlined />
+                  </button>
+                </div>
+                <span style={{ minWidth: 84, textAlign: 'right' }}>{money(b.total)}</span>
                 <button type="button" className="g-icon-btn" aria-label="Xóa combo" onClick={() => removeBundle.mutate(b.id)}><DeleteOutlined /></button>
               </li>
             ))}
@@ -283,7 +296,10 @@ export function CheckoutPage() {
           {q?.voucherMessage && <Alert type="warning" showIcon message={q.voucherMessage} />}
 
           <div className="g-totals">
-            <div className="g-row"><span>Tạm tính</span><span>{money(q?.subtotal ?? cart.subtotal)}</span></div>
+            <div className="g-row"><span>Tạm tính</span><span>{money((q?.subtotal ?? cart.subtotal) + itemOff.discount)}</span></div>
+            {!!itemOff.discount && (
+              <div className="g-row g-green"><span>{itemOff.label}</span><span>-{money(itemOff.discount)}</span></div>
+            )}
             {!!q?.promotionDiscount && (
               <div className="g-row g-green"><span>{q.promotionName}</span><span>-{money(q.promotionDiscount)}</span></div>
             )}

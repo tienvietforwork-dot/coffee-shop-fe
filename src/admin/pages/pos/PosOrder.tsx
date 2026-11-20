@@ -10,6 +10,7 @@ import type { CustomerLookup, Order, OrderType, PaymentMethod, TableBoard } from
 import { ORDER_STATUS, PAYMENT_METHOD, money, num, options, photoSrc } from '@/lib/format'
 import { useDebounced } from '@/lib/useDebounced'
 import { useDeliveryArea } from '@/lib/useDeliveryArea'
+import { itemPromo } from '@/lib/itemPromo'
 import { VnAddressInput } from '@/components/VnAddressInput'
 import { isCompleteVnAddress, vnAddressRule } from '@/lib/vnAddress'
 import { MoneyInput } from '../../components/MoneyInput'
@@ -76,6 +77,7 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
     enabled: lines.length > 0,
   })
   const q = quote.data
+  const itemOff = itemPromo(q?.lines)
   // đơn giao tối thiểu: tiền hàng (sau giảm giá) chưa đạt thì chưa tạo được
   const minDelivery = isDelivery ? shipping?.minOrderAmount ?? undefined : undefined
   const goods = q ? q.total - q.shippingFee : lines.reduce((a, l) => a + l.price * l.quantity, 0)
@@ -271,7 +273,8 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
 
             {lines.length > 0 && (
               <div className="a-pos-total">
-                <div className="a-line"><span>Tạm tính</span><span>{money(q?.subtotal ?? 0)}</span></div>
+                <div className="a-line"><span>Tạm tính</span><span>{money((q?.subtotal ?? 0) + itemOff.discount)}</span></div>
+                {!!itemOff.discount && <div className="a-line a-green"><span>{itemOff.label}</span><span>-{money(itemOff.discount)}</span></div>}
                 {!!q?.promotionDiscount && <div className="a-line a-green"><span>{q.promotionName}</span><span>-{money(q.promotionDiscount)}</span></div>}
                 {!!q?.voucherDiscount && <div className="a-line a-green"><span>Voucher</span><span>-{money(q.voucherDiscount)}</span></div>}
                 {q?.voucherMessage && <div className="a-line a-red"><span>{q.voucherMessage}</span></div>}

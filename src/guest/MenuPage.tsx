@@ -252,7 +252,7 @@ export function MenuPage() {
 
                 <span>
                   {p.discountPercent
-                    ? `Giảm ${p.discountPercent}%`
+                    ? p.discountType === 'FIXED_AMOUNT' ? `Giảm ${money(p.discountPercent)}` : `Giảm ${p.discountPercent}%`
                     : ''}
 
                   {p.minOrderAmount
