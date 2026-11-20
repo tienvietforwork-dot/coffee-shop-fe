@@ -167,7 +167,7 @@ export const coreApi = {
     post<Incident>(`/orders/${orderId}/incidents`, b),
   incidents: () => get<Incident[]>('/incidents'),
   incidentVoucherOptions: () => get<IncidentVoucherOption[]>('/incidents/voucher-options'),
-  resolveIncident: (id: number, b: { resolution: string; voucherId?: number; voucherCount?: number; voucherValidDays?: number }) =>
+  resolveIncident: (id: number, b: { resolution: string; voucherId?: number; voucherCount?: number }) =>
     post<Incident>(`/incidents/${id}/resolve`, b),
 
   shipments: () => get<Shipment[]>('/shipments'),

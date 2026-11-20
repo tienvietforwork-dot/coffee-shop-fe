@@ -39,7 +39,8 @@ export function GuestLayout() {
             <span>Coffeeholic</span>
           </Link>
           <nav className="g-nav">
-            <NavLink to="/" end>Thực đơn</NavLink>
+            <NavLink to="/" end>Trang chủ</NavLink>
+            <NavLink to="/menu">Thực đơn</NavLink>
             <NavLink to="/orders">Đơn của tôi</NavLink>
             <NavLink to="/feedback">Góp ý</NavLink>
           </nav>
