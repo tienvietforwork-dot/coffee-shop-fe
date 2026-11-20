@@ -58,7 +58,7 @@ export interface VoucherDetail {
   orderCode?: string;
   customerId: number;
   customerName: string;
-  customerPhone: number;
+  customerPhone: string;
   incidentId?: string;
   incidentType?: IncidentType;
   incidentSeverity?: IncidentSeverity;
