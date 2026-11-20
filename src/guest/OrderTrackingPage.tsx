@@ -61,7 +61,7 @@ export function OrderTrackingPage() {
   })
 
   if (isLoading) return <div className="g-container g-page g-center"><Spin size="large" /></div>
-  if (isError || !order) return <Result status="404" title="Không tìm thấy đơn hàng" extra={<Link to="/" className="g-cta">Về thực đơn</Link>} />
+  if (isError || !order) return <Result status="404" title="Không tìm thấy đơn hàng" extra={<Link to="/menu" className="g-cta">Về thực đơn</Link>} />
 
   const closed = order.status === 'CANCELLED' || order.status === 'REJECTED'
   const st = steps(order)
@@ -151,7 +151,7 @@ export function OrderTrackingPage() {
           <button className="g-btn-ghost g-danger" onClick={() => setCancelOpen(true)}>Hủy đơn</button>
         )}
         {order.status === 'COMPLETED' && <Link to={`/feedback?order=${order.orderCode}`} className="g-btn-ghost">Đánh giá đơn hàng</Link>}
-        <Link to="/" className="g-cta">Đặt thêm món</Link>
+        <Link to="/menu" className="g-cta">Đặt thêm món</Link>
       </div>
 
       <Modal

@@ -110,7 +110,7 @@ export function CheckoutPage() {
     return (
       <div className="g-container g-page g-center">
         <h2>Giỏ hàng đang trống</h2>
-        <Link to="/" className="g-cta">Chọn món ngay</Link>
+        <Link to="/menu" className="g-cta">Chọn món ngay</Link>
       </div>
     )
   }
@@ -152,7 +152,7 @@ export function CheckoutPage() {
     : prepMin > 0 ? `Dự kiến xong: ${eta(dayjs(), prepMin)}` : undefined
   return (
     <div className="g-container g-page">
-      <Link to="/" className="g-back"><ArrowLeftOutlined /> Tiếp tục chọn món</Link>
+      <Link to="/menu" className="g-back"><ArrowLeftOutlined /> Tiếp tục chọn món</Link>
       <h1 className="g-page-title">Đặt hàng</h1>
       <div className="g-checkout">
         <Form
@@ -318,7 +318,7 @@ export function CheckoutPage() {
                 {!!shipping?.freeShipThreshold && (
                   <div className="g-muted" style={{ fontSize: 12, marginTop: -4 }}>
                     Miễn phí giao hàng cho đơn từ {money(shipping.freeShipThreshold)}
-                    {goods < shipping.freeShipThreshold && <> · <Link to="/" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Mua thêm {money(shipping.freeShipThreshold - goods)} ›</Link></>}
+                    {goods < shipping.freeShipThreshold && <> · <Link to="/menu" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Mua thêm {money(shipping.freeShipThreshold - goods)} ›</Link></>}
                   </div>
                 )}
                 {q.deliveryNote && <div className="g-muted" style={{ fontSize: 12, color: '#d46b08' }}><ExclamationCircleFilled /> {q.deliveryNote}</div>}

@@ -8,7 +8,7 @@ import { coreApi } from '@/api/core'
 import { errorMessage } from '@/api/client'
 import type { Incident, Order, OrderStatus } from '@/api/types'
 import {
-  INCIDENT_SEVERITY, INCIDENT_STATUS, INCIDENT_TYPE, ORDER_CHANNEL, ORDER_STATUS, ORDER_TYPE, dateTime, money, options,
+  INCIDENT_SEVERITY, INCIDENT_STATUS, INCIDENT_TYPE, ORDER_CHANNEL, ORDER_STATUS, ORDER_TYPE, date, dateTime, money, options,
 } from '@/lib/format'
 import { customerText, itemCodes } from '@/lib/orderInfo'
 import { P, usePerm } from '@/lib/perm'
@@ -88,7 +88,7 @@ function IncidentList({ onOpenOrder }: { onOpenOrder: (id: number) => void }) {
         <Form layout="vertical" initialValues={{ voucherCount: 1 }}
           onFinish={(v) => resolve.mutate({
             id: resolving!.id, resolution: compensateOnly ? resolving!.resolution ?? '' : v.resolution,
-            ...(withVoucher ? { voucherId: v.voucherId, voucherCount: v.voucherCount, voucherValidDays: v.voucherValidDays ?? undefined } : {}),
+            ...(withVoucher ? { voucherId: v.voucherId, voucherCount: v.voucherCount } : {}),
           }, { onSuccess: () => setResolving(null) })}>
           {compensateOnly
             ? <p><span className="a-muted">Phương án đã xử lý:</span> {resolving?.resolution}</p>
@@ -117,9 +117,13 @@ function IncidentList({ onOpenOrder }: { onOpenOrder: (id: number) => void }) {
                 <Form.Item name="voucherCount" label="Số voucher">
                   <InputNumber min={1} max={Math.max(1, Math.min(5, picked?.remaining ?? 5))} style={{ width: '100%' }} />
                 </Form.Item>
-                <Form.Item name="voucherValidDays" label="Hạn (ngày)">
-                  <InputNumber min={1} style={{ width: '100%' }}
-                    placeholder={picked ? (picked.validDays ? `Mặc định ${picked.validDays} ngày` : 'Không hết hạn') : 'Theo loại voucher'} />
+                <Form.Item label="Hạn sử dụng">
+                  <div className="a-muted" style={{ lineHeight: '32px' }}>
+                    {!picked ? 'Theo cài đặt loại voucher'
+                      : picked.validDays
+                        ? `${picked.validDays} ngày từ lúc phát · đến ${date(dayjs().add(picked.validDays, 'day').toISOString())}`
+                        : 'Không hết hạn'}
+                  </div>
                 </Form.Item>
               </div>
             </div>

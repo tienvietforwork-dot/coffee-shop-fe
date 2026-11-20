@@ -32,7 +32,7 @@ function GuestEntry({ qr }: { qr: string }) {
     if (data.status === 'INACTIVE') return
     if (tableQr !== qr) setCart(null)
     setTable(qr, data.tableNo)
-    navigate('/', { replace: true })
+    navigate('/menu', { replace: true })
   }, [data, qr, tableQr, setTable, setCart, navigate])
 
   if (isError) return <Result status="warning" title="Mã QR không hợp lệ" subTitle="Vui lòng nhờ nhân viên hỗ trợ." />
