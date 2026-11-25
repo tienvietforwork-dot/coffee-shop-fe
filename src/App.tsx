@@ -9,6 +9,7 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/vi'
 import { GuestLayout } from '@/guest/GuestLayout'
 import { MenuPage } from '@/guest/MenuPage'
+import { HomePage } from '@/guest/HomePage'
 import { CheckoutPage } from '@/guest/CheckoutPage'
 import { OrderTrackingPage } from '@/guest/OrderTrackingPage'
 import { PaymentResultPage } from '@/guest/PaymentResultPage'
@@ -90,7 +91,8 @@ export default function App() {
             <Routes>
               {/* Guest ordering site – no login */}
               <Route element={<GuestLayout />}>
-                <Route path="/" element={<MenuPage />} />
+                <Route path="/" element={<HomePage />} />
+                <Route path="/menu" element={<MenuPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order/:code" element={<OrderTrackingPage />} />
                 <Route path="/payment/result" element={<PaymentResultPage />} />

@@ -9,9 +9,10 @@ import { useDebounced } from '@/lib/useDebounced'
 import { useCart } from './useCart'
 import { money, photoSrc } from '@/lib/format'
 import { useGuestStore } from '@/store/guestStore'
+import { itemPromo } from '@/lib/itemPromo'
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { cart, update, remove, removeBundle } = useCart()
+  const { cart, update, remove, updateBundle, removeBundle } = useCart()
   const { tableNo, tableQr, voucherCode, setVoucher } = useGuestStore()
   const navigate = useNavigate()
   const items = cart?.items ?? []
@@ -33,6 +34,10 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   const exact = quote.data && quote.data.subtotal === subtotal && (quote.data.voucherCode ?? null) === (quote.data.voucherMessage ? null : voucherCode)
     ? quote.data : undefined
   const est = estimateDiscounts(subtotal, promotions, vouchers, voucherCode ?? undefined)
+  // item promotions are already inside each line's price — show them as their own row so the bill reads from list price
+  const lines = (exact ?? quote.data)?.lines
+  const itemOff = itemPromo(lines)
+  const listPrice = new Map((lines ?? []).filter((l) => l.promotionName).map((l) => [l.coffeeId, l.listPrice]))
   const shown = exact
     ? { promoName: exact.promotionName, promo: exact.promotionDiscount, voucher: exact.voucherDiscount, total: exact.total }
     : (() => {
@@ -55,7 +60,8 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
               voucherDiscount={shown.voucher} onApply={(code) => setVoucher(code ?? null)} />
             {exact?.voucherMessage && <div className="g-warn-text">{exact.voucherMessage}</div>}
             <div className={`g-cart-totals ${exact ? '' : 'is-busy'}`}>
-              <div className="g-row"><span>Tạm tính</span><span>{money(subtotal)}</span></div>
+              <div className="g-row"><span>Tạm tính</span><span>{money(subtotal + itemOff.discount)}</span></div>
+              {!!itemOff.discount && <div className="g-row g-green"><span>{itemOff.label}</span><span>-{money(itemOff.discount)}</span></div>}
               {!!shown.promo && <div className="g-row g-green"><span>{shown.promoName}</span><span>-{money(shown.promo)}</span></div>}
               {!!shown.voucher && <div className="g-row g-green"><span>Voucher {voucherCode}</span><span>-{money(shown.voucher)}</span></div>}
               <div className="g-row g-total"><span>Sau giảm</span><strong>{money(shown.total)}</strong></div>
@@ -76,13 +82,28 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       ) : (
         <ul className="g-cart-list">
           {bundles.map((bundle) => <li key={`bundle-${bundle.id}`}>
+            <img src={photoSrc(bundle.imageUrl)} alt="" />
             <div className="g-cart-info">
               <strong>🎁 {bundle.name}</strong>
               <span>{bundle.quantity} combo · {money(bundle.unitPrice)}/combo</span>
               {bundle.components?.map((component) => <span key={`${bundle.id}-${component.coffeeId}`}>
                 {component.quantity * bundle.quantity} × {component.name}{component.choiceGroup ? ` · ${component.choiceGroup}` : ''}
               </span>)}
-              <div className="g-cart-row"><span>Giá combo</span><strong>{money(bundle.total)}</strong></div>
+              <div className="g-cart-row">
+                <div className="g-stepper g-stepper-sm">
+                  <button
+                    onClick={() => (bundle.quantity > 1 ? updateBundle.mutate({ lineId: bundle.id, quantity: bundle.quantity - 1 }) : removeBundle.mutate(bundle.id))}
+                    aria-label="Giảm combo"
+                  >
+                    <MinusOutlined />
+                  </button>
+                  <span>{bundle.quantity}</span>
+                  <button onClick={() => updateBundle.mutate({ lineId: bundle.id, quantity: bundle.quantity + 1 })} disabled={bundle.quantity >= 99} aria-label="Tăng combo">
+                    <PlusOutlined />
+                  </button>
+                </div>
+                <span className="g-cart-price">{money(bundle.total)}</span>
+              </div>
             </div>
             <button className="g-icon-btn" onClick={() => removeBundle.mutate(bundle.id)} aria-label="Xóa combo"><DeleteOutlined /></button>
           </li>)}
@@ -106,7 +127,10 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                       <PlusOutlined />
                     </button>
                   </div>
-                  <span className="g-cart-price">{money(i.subtotal)}</span>
+                  <span className="g-cart-price">
+                    {(listPrice.get(i.coffeeId) ?? 0) > i.unitPrice && <s>{money(listPrice.get(i.coffeeId)! * i.quantity)}</s>}
+                    {money(i.subtotal)}
+                  </span>
                 </div>
               </div>
               <button className="g-icon-btn" onClick={() => remove.mutate(i.id)} aria-label="Xóa">

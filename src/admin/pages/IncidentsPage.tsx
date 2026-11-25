@@ -15,6 +15,7 @@ import { P, usePerm } from '@/lib/perm'
 import { PageHeader } from '../components/PageHeader'
 import { StatusTag } from '../components/StatusTag'
 import { useAction } from '../components/useCrud'
+import { voucherLabel } from '@/lib/voucher'
 import { OrderDetailDrawer } from '../components/OrderDetailDrawer'
 
 /**
@@ -87,7 +88,7 @@ function IncidentList({ onOpenOrder }: { onOpenOrder: (id: number) => void }) {
         <Form layout="vertical" initialValues={{ voucherCount: 1 }}
           onFinish={(v) => resolve.mutate({
             id: resolving!.id, resolution: compensateOnly ? resolving!.resolution ?? '' : v.resolution,
-            ...(withVoucher ? { voucherId: v.voucherId, voucherCount: v.voucherCount, voucherValidDays: v.voucherValidDays ?? undefined } : {}),
+            ...(withVoucher ? { voucherId: v.voucherId, voucherCount: v.voucherCount } : {}),
           }, { onSuccess: () => setResolving(null) })}>
           {compensateOnly
             ? <p><span className="a-muted">Phương án đã xử lý:</span> {resolving?.resolution}</p>
@@ -108,19 +109,13 @@ function IncidentList({ onOpenOrder }: { onOpenOrder: (id: number) => void }) {
                   options={(voucherOptions.data ?? []).map((o) => ({
                     value: o.id,
                     disabled: o.remaining <= 0,
-                    label: `${o.name} · giảm ${money(o.discountValue)}${o.minOrderValue > 0 ? ` · đơn từ ${money(o.minOrderValue)}` : ''} · còn ${o.remaining} lượt`,
+                    label: `${o.name} · giảm ${voucherLabel(o).slice(1)}${o.minOrderValue > 0 ? ` · đơn từ ${money(o.minOrderValue)}` : ''} · còn ${o.remaining} lượt`,
                   }))}
                 />
               </Form.Item>
-              <div className="a-grid-2">
-                <Form.Item name="voucherCount" label="Số voucher">
-                  <InputNumber min={1} max={Math.max(1, Math.min(5, picked?.remaining ?? 5))} style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item name="voucherValidDays" label="Hạn (ngày)">
-                  <InputNumber min={1} style={{ width: '100%' }}
-                    placeholder={picked ? (picked.validDays ? `Mặc định ${picked.validDays} ngày` : 'Không hết hạn') : 'Theo loại voucher'} />
-                </Form.Item>
-              </div>
+              <Form.Item name="voucherCount" label="Số voucher">
+                <InputNumber min={1} max={Math.max(1, Math.min(5, picked?.remaining ?? 5))} style={{ width: '100%' }} />
+              </Form.Item>
             </div>
           )}
           <Button type="primary" htmlType="submit" block loading={resolve.isPending} style={{ marginTop: 12 }}>

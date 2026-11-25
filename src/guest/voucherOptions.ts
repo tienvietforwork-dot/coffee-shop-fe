@@ -2,9 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { publicApi } from '@/api/public'
 import { accountApi } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
+import { voucherOff, type VoucherDiscountType } from '@/lib/voucher'
 
 /** A voucher the guest can pick (one per order). */
-export interface VoucherOption { code: string; discountValue: number; minOrderValue: number; expiresAt?: string }
+export interface VoucherOption { code: string; discountValue: number; discountType?: VoucherDiscountType; minOrderValue: number; expiresAt?: string }
 /** An order promotion: applied by the shop automatically when the order qualifies. */
 export interface PromotionOption { id: number; name: string; description?: string; discountType?: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'SPECIAL'; discountPercent?: number; minOrderAmount?: number; endDate: string }
 
@@ -39,6 +40,6 @@ export function estimateDiscounts(subtotal: number, promotions: PromotionOption[
   }
   const afterPromotion = subtotal - (promotion?.discount ?? 0)
   const v = code ? vouchers.find((x) => x.code === code) : undefined
-  const voucherDiscount = v && v.minOrderValue <= subtotal ? Math.min(v.discountValue, afterPromotion) : code ? undefined : 0
-  return { promotion, voucherDiscount }
+  const voucherDiscount = v && v.minOrderValue <= subtotal ? voucherOff(v, afterPromotion) : code ? undefined : 0
+  return { promotion, afterPromotion, voucherDiscount }
 }

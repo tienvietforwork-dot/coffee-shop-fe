@@ -47,6 +47,8 @@ export interface UserPayload {
 }
 export interface CounterOrderPayload {
   items: { coffeeId: number; quantity: number; note?: string }[]
+  /** combos (product_bundles) */
+  bundles?: { bundleId: number; quantity: number }[]
   orderType: OrderType
   tableId?: number
   customerName?: string
@@ -146,7 +148,7 @@ export const coreApi = {
   orders: (p: { status?: OrderStatus; channel?: OrderChannel; from?: string; to?: string }) => get<Order[]>('/orders', p),
   order: (id: number) => get<Order>(`/orders/${id}`),
   orderHistory: (id: number) => get<OrderStatusChange[]>(`/orders/${id}/history`),
-  quote: (b: { items: { coffeeId: number; quantity: number }[]; orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryAddress?: string }) =>
+  quote: (b: { items: { coffeeId: number; quantity: number }[]; bundles?: { bundleId: number; quantity: number }[]; orderType: OrderType; customerPhone?: string; voucherCode?: string; deliveryAddress?: string }) =>
     post<PriceQuote>('/orders/quote', b),
   createOrder: (b: CounterOrderPayload) => post<Order>('/orders', b),
   confirm: (id: number) => post<Order>(`/orders/${id}/confirm`),
@@ -167,7 +169,7 @@ export const coreApi = {
     post<Incident>(`/orders/${orderId}/incidents`, b),
   incidents: () => get<Incident[]>('/incidents'),
   incidentVoucherOptions: () => get<IncidentVoucherOption[]>('/incidents/voucher-options'),
-  resolveIncident: (id: number, b: { resolution: string; voucherId?: number; voucherCount?: number; voucherValidDays?: number }) =>
+  resolveIncident: (id: number, b: { resolution: string; voucherId?: number; voucherCount?: number }) =>
     post<Incident>(`/incidents/${id}/resolve`, b),
 
   shipments: () => get<Shipment[]>('/shipments'),

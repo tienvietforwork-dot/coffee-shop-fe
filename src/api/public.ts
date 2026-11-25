@@ -17,6 +17,8 @@ export const publicApi = {
     apiClient.delete<Cart>(`/public/carts/${code}/items/${itemId}`).then((r) => r.data),
   addBundle: (code: string, body: { bundleId: number; quantity: number; optionalItemIds: number[] }) =>
     apiClient.post<Cart>(`/public/carts/${code}/bundles`,body).then(r=>r.data),
+  updateBundle: (code: string, lineId: number, quantity: number) =>
+    apiClient.put<Cart>(`/public/carts/${code}/bundles/${lineId}`, { quantity }).then((r) => r.data),
   removeBundle: (code: string, lineId: number) =>
     apiClient.delete<Cart>(`/public/carts/${code}/bundles/${lineId}`).then(r=>r.data),
   recommended: () => apiClient.get<number[]>('/public/recommendations').then(r=>r.data),

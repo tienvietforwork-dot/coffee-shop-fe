@@ -75,6 +75,11 @@ export function useCart() {
     onSuccess: (cart) => { setData(cart); qc.invalidateQueries({queryKey:['quote']}); message.success('Đã thêm combo vào giỏ') },
     onError: (e) => message.error(errorMessage(e)),
   })
+  const updateBundle = useMutation({
+    mutationFn: (v: { lineId: number; quantity: number }) => publicApi.updateBundle(cartCode!, v.lineId, v.quantity),
+    onSuccess: setData,
+    onError: (e) => message.error(errorMessage(e)),
+  })
   const removeBundle = useMutation({
     mutationFn: (id: number) => publicApi.removeBundle(cartCode!,id),
     onSuccess: setData,
@@ -126,5 +131,5 @@ export function useCart() {
     ...pending.filter(Boolean),
   ], [cart, pending])
   const count = lines.reduce((n, l) => n + l.quantity, 0) + (cart?.bundles ?? []).reduce((n,b)=>n+b.quantity,0)
-  return { cart, count, lines, loading: query.isLoading, add, addBundle, removeBundle, update, remove }
+  return { cart, count, lines, loading: query.isLoading, add, addBundle, updateBundle, removeBundle, update, remove }
 }

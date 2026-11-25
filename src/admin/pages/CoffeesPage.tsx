@@ -25,7 +25,10 @@ export function CoffeesPage() {
   const [printing, setPrinting] = useState(false)
   const [cat, setCat] = useState<number>()
   const [q, setQ] = useState('')
-  const save = useAction((v: CoffeePayload & { id?: number }) => (v.id ? coreApi.updateCoffee(v.id, v) : coreApi.createCoffee(v)), [['coffees'], ['menu']])
+  const save = useAction(
+    (v: CoffeePayload & { id?: number }) => (v.id ? coreApi.updateCoffee(v.id, v) : coreApi.createCoffee(v)),
+    [['coffees'], ['menu'], ['merch-coffees'], ['merch-bundles'], ['merch-public-bundles']],
+  )
   const setStatus = useAction((v: { id: number; status: CoffeeStatus }) => coreApi.setCoffeeStatus(v.id, v.status), [['coffees'], ['menu']], 'Đã cập nhật')
 
   const rows = useMemo(() => {

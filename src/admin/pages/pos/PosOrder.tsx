@@ -5,11 +5,14 @@ import { ArrowLeftOutlined, CarOutlined, DeleteOutlined, ExclamationCircleFilled
 import dayjs from 'dayjs'
 import { coreApi } from '@/api/core'
 import { publicApi } from '@/api/public'
+import { merchandisingApi } from '@/api/merchandising'
+import { sellableBundles } from '@/guest/bundles'
 import { errorMessage } from '@/api/client'
 import type { CustomerLookup, Order, OrderType, PaymentMethod, TableBoard } from '@/api/types'
 import { ORDER_STATUS, PAYMENT_METHOD, money, num, options, photoSrc } from '@/lib/format'
 import { useDebounced } from '@/lib/useDebounced'
 import { useDeliveryArea } from '@/lib/useDeliveryArea'
+import { itemPromo } from '@/lib/itemPromo'
 import { VnAddressInput } from '@/components/VnAddressInput'
 import { isCompleteVnAddress, vnAddressRule } from '@/lib/vnAddress'
 import { MoneyInput } from '../../components/MoneyInput'
@@ -18,7 +21,8 @@ import { StatusTag } from '../../components/StatusTag'
 /** Đơn đang làm ở màn order tại quầy: một bàn (trả sau), mang về, hoặc giao hàng. */
 export type PosTarget = { kind: 'TABLE'; table: TableBoard } | { kind: 'TAKE_AWAY' } | { kind: 'DELIVERY' }
 
-interface Line { key: string; coffeeId: number; name: string; price: number; quantity: number }
+/** one line of the order being taken: a coffee, or a combo when bundleId is set */
+interface Line { key: string; coffeeId?: number; bundleId?: number; name: string; price: number; quantity: number }
 
 const PHONE = /^0\d{9,10}$/
 const unpaidOf = (o: Order) => o.payments.filter((p) => p.status === 'PENDING').reduce((a, p) => a + Number(p.amount), 0)
@@ -37,7 +41,8 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
   const isDelivery = kind === 'DELIVERY'
 
   const { data: menu } = useQuery({ queryKey: ['menu'], queryFn: publicApi.menu })
-  const [cat, setCat] = useState<number | 'all'>('all')
+  const { data: bundleData } = useQuery({ queryKey: ['merch-public-bundles'], queryFn: merchandisingApi.publicBundles, retry: 1 })
+  const [cat, setCat] = useState<number | 'all' | 'combo'>('all')
   const [search, setSearch] = useState('')
   const [lines, setLines] = useState<Line[]>([])
   const [payment, setPayment] = useState<PaymentMethod>('CASH')
@@ -67,15 +72,20 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
     .filter((c) => cat === 'all' || c.id === cat)
     .flatMap((c) => c.coffees)
     .filter((c) => !search || c.name.toLowerCase().includes(search.toLowerCase())), [menu, cat, search])
+  const allBundles = useMemo(() => sellableBundles(bundleData), [bundleData])
+  const bundles = useMemo(() => (cat === 'all' || cat === 'combo' ? allBundles : [])
+    .filter((b) => !search || b.name.toLowerCase().includes(search.toLowerCase())), [allBundles, cat, search])
 
-  const items = lines.map((l) => ({ coffeeId: l.coffeeId, quantity: l.quantity }))
+  const items = lines.filter((l) => l.coffeeId != null).map((l) => ({ coffeeId: l.coffeeId!, quantity: l.quantity }))
+  const comboLines = lines.filter((l) => l.bundleId != null).map((l) => ({ bundleId: l.bundleId!, quantity: l.quantity }))
   const quote = useQuery({
-    queryKey: ['pos-quote', items, orderType, voucher, phone, address ?? null],
-    queryFn: () => coreApi.quote({ items, orderType, voucherCode: voucher || undefined, customerPhone: phone && PHONE.test(phone) ? phone : undefined, deliveryAddress: address }),
+    queryKey: ['pos-quote', items, comboLines, orderType, voucher, phone, address ?? null],
+    queryFn: () => coreApi.quote({ items, bundles: comboLines, orderType, voucherCode: voucher || undefined, customerPhone: phone && PHONE.test(phone) ? phone : undefined, deliveryAddress: address }),
     retry: false,
     enabled: lines.length > 0,
   })
   const q = quote.data
+  const itemOff = itemPromo(q?.lines)
   // đơn giao tối thiểu: tiền hàng (sau giảm giá) chưa đạt thì chưa tạo được
   const minDelivery = isDelivery ? shipping?.minOrderAmount ?? undefined : undefined
   const goods = q ? q.total - q.shippingFee : lines.reduce((a, l) => a + l.price * l.quantity, 0)
@@ -135,15 +145,16 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
     onError: (e) => message.error(errorMessage(e)),
   })
 
-  const add = (id: number, name: string, price: number) =>
+  const add = (id: number, name: string, price: number, combo = false) =>
     setLines((ls) => {
-      const ex = ls.find((l) => l.coffeeId === id)
-      return ex ? ls.map((l) => (l === ex ? { ...l, quantity: l.quantity + 1 } : l)) : [...ls, { key: `${id}-${Date.now()}`, coffeeId: id, name, price, quantity: 1 }]
+      const ex = ls.find((l) => (combo ? l.bundleId === id : l.coffeeId === id))
+      return ex ? ls.map((l) => (l === ex ? { ...l, quantity: l.quantity + 1 } : l))
+        : [...ls, { key: `${combo ? 'b' : 'c'}${id}-${Date.now()}`, ...(combo ? { bundleId: id } : { coffeeId: id }), name, price, quantity: 1 }]
     })
   const patch = (key: string, p: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...p } : l)))
 
   const submit = () => form.validateFields().then((v) => create.mutate({
-    items, orderType, tableId: table?.id,
+    items, bundles: comboLines, orderType, tableId: table?.id,
     customerName: v.customerName || undefined, customerPhone: v.customerPhone || undefined,
     delivery: isDelivery ? { recipientName: v.customerName, recipientPhone: v.customerPhone, address: v.address } : undefined,
     // bàn: trả sau (thu khi thanh toán bàn); mang về: thu ngay; giao: thu ngay hoặc thu khi giao
@@ -170,8 +181,9 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
         <Col xs={24} lg={14}>
           <Card>
             <Space wrap style={{ marginBottom: 12 }}>
-              <Segmented<number | 'all'> value={cat} onChange={setCat}
-                options={[{ value: 'all', label: 'Tất cả' }, ...(menu?.categories ?? []).map((c) => ({ value: c.id, label: c.name }))]} />
+              <Segmented<number | 'all' | 'combo'> value={cat} onChange={setCat}
+                options={[{ value: 'all', label: 'Tất cả' }, ...(menu?.categories ?? []).map((c) => ({ value: c.id, label: c.name })),
+                  ...(allBundles.length ? [{ value: 'combo' as const, label: 'Combo' }] : [])]} />
               <Input prefix={<SearchOutlined />} placeholder="Tìm món" allowClear value={search} onChange={(e) => setSearch(e.target.value)} />
             </Space>
             <div className="a-pos-grid">
@@ -181,6 +193,13 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
                   <b>{c.name}</b>
                   <span>{money(c.salePrice ?? c.price)}{c.salePrice != null && <s> {money(c.price)}</s>}</span>
                   {!c.available && <Tag>Hết</Tag>}
+                </button>
+              ))}
+              {bundles.map((b) => (
+                <button key={`b${b.id}`} className="a-pos-item" onClick={() => add(b.id, b.name, b.bundlePrice, true)}>
+                  <img src={photoSrc(b.imageUrl || b.items.find((i) => i.coffee.imageUrl)?.coffee.imageUrl)} alt="" />
+                  <b><Tag color="gold" bordered={false} style={{ marginInlineEnd: 4 }}>Combo</Tag>{b.name}</b>
+                  <span>{money(b.bundlePrice)}{b.standalonePrice > b.bundlePrice && <s> {money(b.standalonePrice)}</s>}</span>
                 </button>
               ))}
             </div>
@@ -239,7 +258,7 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
                 : lines.map((l) => (
                   <div key={l.key} className="a-pos-line">
                     <div className="a-pos-line-top">
-                      <span><b>{l.name}</b><br /><span className="a-muted small">{money(l.price)}</span></span>
+                      <span><b>{l.bundleId != null && <Tag color="gold" bordered={false} style={{ marginInlineEnd: 4 }}>Combo</Tag>}{l.name}</b><br /><span className="a-muted small">{money(l.price)}</span></span>
                       <Space>
                         <InputNumber min={1} max={99} size="small" value={l.quantity} onChange={(v) => v && patch(l.key, { quantity: v })} />
                         <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} />
@@ -271,7 +290,8 @@ export function PosOrder({ target, onBack }: { target: PosTarget; onBack: () => 
 
             {lines.length > 0 && (
               <div className="a-pos-total">
-                <div className="a-line"><span>Tạm tính</span><span>{money(q?.subtotal ?? 0)}</span></div>
+                <div className="a-line"><span>Tạm tính</span><span>{money((q?.subtotal ?? 0) + itemOff.discount)}</span></div>
+                {!!itemOff.discount && <div className="a-line a-green"><span>{itemOff.label}</span><span>-{money(itemOff.discount)}</span></div>}
                 {!!q?.promotionDiscount && <div className="a-line a-green"><span>{q.promotionName}</span><span>-{money(q.promotionDiscount)}</span></div>}
                 {!!q?.voucherDiscount && <div className="a-line a-green"><span>Voucher</span><span>-{money(q.voucherDiscount)}</span></div>}
                 {q?.voucherMessage && <div className="a-line a-red"><span>{q.voucherMessage}</span></div>}

@@ -32,6 +32,13 @@ const isSellable = (coffee: { status: string; autoSoldOut?: boolean }) =>
 const discountPercent = (saving: number, original: number) =>
   original > 0 ? Math.round((Math.max(0, saving) / original) * 100) : 0
 const MAX_BUNDLE_COMPONENTS = 5
+const componentSignature = (items: { coffeeId: number; quantity: number }[]) =>
+  items.map((item) => `${item.coffeeId}:${item.quantity}`).sort().join('|')
+const bundleSignature = (bundle: Bundle) => {
+  if (bundle.items.length < 2 || bundle.items.length > MAX_BUNDLE_COMPONENTS
+    || bundle.items.some((item) => item.optional || item.choiceGroup?.trim())) return null
+  return componentSignature(bundle.items.map((item) => ({ coffeeId: item.coffee.id, quantity: item.quantity })))
+}
 
 export function ProductBundlesPage() {
   const { message } = App.useApp()
@@ -44,6 +51,19 @@ export function ProductBundlesPage() {
   })
   const drinkCoffees = coffees.filter((coffee) => coffee.categoryType === 'DRINK')
   const coffeeById = useMemo(() => new Map(coffees.map((coffee) => [coffee.id, coffee])), [coffees])
+  const duplicateBundleIds = useMemo(() => {
+    const grouped = new Map<string, Bundle[]>()
+    for (const bundle of data) {
+      const signature = bundleSignature(bundle)
+      if (!signature) continue
+      grouped.set(signature, [...(grouped.get(signature) ?? []), bundle])
+    }
+    return new Set(
+      [...grouped.values()]
+        .filter((group) => group.length > 1)
+        .flatMap((group) => group.map((bundle) => bundle.id)),
+    )
+  }, [data])
   const [form] = Form.useForm<BundleForm>()
   const watchedItems = Form.useWatch('items', form) ?? []
   const watchedBundlePrice = Form.useWatch('bundlePrice', form) ?? 0
@@ -123,6 +143,14 @@ export function ProductBundlesPage() {
         form.setFields([{ name: ['items', invalidIndex, 'coffeeId'], errors: ['Chọn cà phê/đồ uống có công thức đang áp dụng'] }])
         return
       }
+      const duplicateBundle = data.find((bundle) => bundle.id !== editing?.id
+        && bundleSignature(bundle) === componentSignature(items.map((item) => ({
+          coffeeId: Number(item.coffeeId), quantity: Number(item.quantity),
+        }))))
+      if (duplicateBundle) {
+        message.error(`Cấu hình món và số lượng này đã có trong “${duplicateBundle.name}”. Hãy chọn thành phần khác.`)
+        return
+      }
       const calculatedStandalone = selected.reduce((total, item) =>
         total + Number(item.coffee!.price) * item.quantity, 0)
       if (Number(value.bundlePrice) > calculatedStandalone) {
@@ -195,11 +223,22 @@ export function ProductBundlesPage() {
     {isError && <Card><Button onClick={() => void refetch()}>Không tải được combo — Thử lại</Button></Card>}
 
     <Card>
+      {duplicateBundleIds.size > 0 && <Alert
+        type="warning"
+        showIcon
+        message="Có combo đang trùng thành phần và số lượng"
+        description="Các combo cũ bị trùng sẽ chỉ hiển thị một combo có giá thấp nhất cho khách. Hãy tạm dừng, xóa hoặc sửa cấu hình các combo được đánh dấu."
+        style={{ marginBottom: 16 }}
+      />}
       <Table rowKey="id" loading={isLoading} dataSource={data} scroll={{ x: 1280 }} pagination={{ pageSize: 10 }} columns={[
         {
           title: 'Combo', dataIndex: 'name', render: (name: string, bundle: Bundle) => <Space>
             <Avatar shape="square" size={48} src={imageSrc(bundle.imageUrl)}>🎁</Avatar>
-            <span><strong>{name}</strong><br /><Typography.Text type="secondary">{bundle.items.length} sản phẩm</Typography.Text></span>
+            <span>
+              <strong>{name}</strong>
+              {duplicateBundleIds.has(bundle.id) && <> <Tag color="warning" title="Có combo khác dùng cùng thành phần và số lượng">Trùng cấu hình</Tag></>}
+              <br /><Typography.Text type="secondary">{bundle.items.length} sản phẩm</Typography.Text>
+            </span>
           </Space>,
         },
         { title: 'Giá lẻ trước', dataIndex: 'standalonePrice', render: (value: number) => <Typography.Text delete>{money(value)}</Typography.Text> },
@@ -223,7 +262,7 @@ export function ProductBundlesPage() {
         {
           title: 'Thao tác', width: 330, render: (_: unknown, bundle: Bundle) => <Space wrap>
             <Button size="small" onClick={() => setAnalyticsId(bundle.id)}>Doanh số</Button>
-            <Button size="small" onClick={() => open(bundle)} disabled={bundle.status === 'ACTIVE'}>Sửa combo & thành phần</Button>
+            <Button size="small" onClick={() => open(bundle)} disabled={bundle.status === 'ACTIVE'}>Sửa combo</Button>
             {bundle.status !== 'ACTIVE'
               ? <Button size="small" type="primary" loading={pending.isPending} onClick={() => run(() => merchandisingApi.activateBundle(bundle.id))}>Kích hoạt</Button>
               : <Button size="small" loading={pending.isPending} onClick={() => run(() => merchandisingApi.pauseBundle(bundle.id))}>Tạm dừng</Button>}
@@ -254,7 +293,7 @@ export function ProductBundlesPage() {
           </Space>}
     </Modal>
 
-    <Modal className="bundle-editor-modal" title={editing ? 'Sửa combo và thành phần' : 'Tạo combo'} open={dialog} onCancel={() => setDialog(false)} onOk={() => void submit()} confirmLoading={saving} okText={editing ? 'Lưu combo' : 'Lưu nháp'} destroyOnClose width={820}>
+    <Modal className="bundle-editor-modal" title={editing ? 'Sửa combo' : 'Tạo combo'} open={dialog} onCancel={() => setDialog(false)} onOk={() => void submit()} confirmLoading={saving} okText={editing ? 'Lưu combo' : 'Lưu nháp'} destroyOnClose width={820}>
       <Form
         form={form}
         layout="vertical"

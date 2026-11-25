@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore'
 import { usePerm, P } from '@/lib/perm'
 import { ORDER_STATUS, date, dateTime, money } from '@/lib/format'
 import { ChangePasswordModal } from '@/admin/components/ChangePasswordModal'
+import { voucherLabel } from '@/lib/voucher'
 import { MySubscriptions } from './MySubscriptions'
 
 const VOUCHER: Record<string, { t: string; c: string }> = {
@@ -103,7 +104,7 @@ export function AccountPage() {
               <div className="g-vouchers">
                 {vouchers.data.map((v) => (
                   <div key={v.id} className={`g-voucher-card ${v.status !== 'ISSUED' ? 'is-off' : ''}`}>
-                    <div className="g-voucher-value">-{money(v.discountValue)}</div>
+                    <div className="g-voucher-value">{voucherLabel(v)}</div>
                     <div>
                       <code>{v.code}</code> <Tag color={VOUCHER[v.status].c}>{VOUCHER[v.status].t}</Tag>
                       <div className="g-muted small">
