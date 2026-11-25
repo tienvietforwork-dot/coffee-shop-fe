@@ -455,15 +455,6 @@ export function PromotionsPage() {
           className="promotions-table"
           rowKey="id"
           dataSource={visiblePromotions}
-          rowClassName={(promotion) => {
-            if (promotion.status === "ACTIVE") {
-              return "promotion-row-activate";
-            }
-            if (promotion.status === "PAUSE" || promotion.status === "PAUSED") {
-              return "promotion-row-paused";
-            }
-            return "";
-          }}
           locale={{
             emptyText: hasPromotionFilters
               ? "Không tìm thấy khuyến mãi phù hợp"
@@ -584,7 +575,7 @@ export function PromotionsPage() {
                             ? [{ key: "clone", label: "Nhân bản" }]
                             : []),
                           ...(p.status === "DRAFT"
-                            ? [{ key: "remove", label: "Xóa bản nháp" }]
+                            ? [{ key: "remove", label: "Xóa bản nháp", danger: true }]
                             : []),
                         ],
                         onClick: ({ key }) => {
