@@ -19,6 +19,13 @@ export type IncidentType =
 export type IncidentSeverity = "LOW" | "MEDIUM" | "HIGH";
 export type VoucherType = "PERCENTAGE" | "FIXED_AMOUNT";
 export type VoucherTypeStatus = "DRAFT" | "ACTIVE" | "ENDED";
+export type VoucherTemplateCustomerType = "ALL" | "CUSTOMER_GROUP";
+export type VoucherTemplateOrderType =
+  | "ALL"
+  | "COUNT"
+  | "AMOUNT"
+  | "COUNT_AMOUNT";
+export type VoucherTemplateStatus = "DRAFT" | "ACTIVE" | "ENDED";
 
 export interface PromotionItem {
   id?: number;
@@ -118,6 +125,63 @@ export interface PromotionAnalyticsResponse {
   }>;
 }
 
+export interface Customer {
+  id: number;
+  fullName?: string;
+  phone: string;
+  email?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  description?: string;
+  loyaltyPoints: number;
+  registeredAt: string;
+}
+
+export interface CustomerGroup {
+  id: number;
+  name: string;
+  description?: string;
+  groupType: string;
+  classificationCode?: string;
+  criteriaRule?: Record<string, unknown> | unknown;
+  recalculatedAt?: string;
+}
+
+export interface CustomerGroupMember {
+  id: number;
+  groupId: number;
+  customerId: number;
+  isManual: boolean;
+  isExcluded: boolean;
+  addedAt: string;
+}
+
+export interface VoucherTemplates {
+  id: number;
+  name: string;
+  voucherId: number;
+  voucherName: string;
+  customerType: VoucherTemplateCustomerType;
+  customerGroupId: number | null;
+  customerGroupName: string;
+  orderType: VoucherTemplateOrderType;
+  completedOrderCount: number | null;
+  minOrderAmount: number | null;
+  requiredPoints: number;
+  maxQuantity: number;
+  redeemedQuantity?: number;
+  voucherQuantity?: number;
+  voucherMaxQuantity?: number;
+  startDate: string;
+  endDate: string;
+  status: VoucherTemplateStatus | string;
+}
+
+export type VoucherTemplatePayload = Omit<
+  VoucherTemplates,
+  "id" | "voucherName" | "customerGroupName" | "status"
+>;
+
 const base = "/promotions";
 const base_2 = "/vouchers";
 
@@ -172,6 +236,17 @@ export const promotionsApi = {
       .put<Voucher>(`${base_2}/${b.id}/voucher-detail`, b)
       .then((r) => r.data),
 
+  customers: () =>
+    apiClient.get<Customer[]>(`${base_2}/customers`).then((r) => r.data),
+  customerGroups: () =>
+    apiClient
+      .get<CustomerGroup[]>(`${base_2}/customer-group`)
+      .then((r) => r.data),
+  customerGroupMembers: () =>
+    apiClient
+      .get<CustomerGroupMember[]>(`${base_2}/customer-group-member`)
+      .then((r) => r.data),
+
   createVoucherDetails: (
     id: number,
     requests: Pick<VoucherDetailRequest, "customerId">[],
@@ -201,10 +276,45 @@ export const promotionsApi = {
       }
 
       return apiClient
-        .put<VoucherDetailIssueResponse[]>(
-          `${base_2}/${id}/voucher-detail`,
-          uniqueRequests,
-        )
+        .put<
+          VoucherDetailIssueResponse[]
+        >(`${base_2}/${id}/voucher-detail`, uniqueRequests)
         .then((r) => r.data);
     })(),
+
+  voucherTemplates: () =>
+    apiClient
+      .get<VoucherTemplates[]>(`${base_2}/voucher-templates`)
+      .then((r) => r.data),
+  activeVoucherTemplate: (id: number) =>
+    apiClient
+      .post(`${base_2}/voucher-templates/${id}/active`)
+      .then((r) => r.data),
+  endVoucherTemplate: (id: number) =>
+    apiClient.post(`${base_2}/voucher-templates/${id}/end`).then((r) => r.data),
+  cloneVoucherTemplate: (id: number) =>
+    apiClient
+      .post<VoucherTemplates>(`${base_2}/voucher-templates/${id}/clone`)
+      .then((r) => r.data),
+  saveVoucherTemplate: (body: VoucherTemplatePayload & { id?: number }) =>
+    (body.id
+      ? apiClient.put<VoucherTemplates>(
+          `${base_2}/voucher-templates/${body.id}`,
+          body,
+        )
+      : apiClient.post<VoucherTemplates>(`${base_2}/voucher-templates`, body)
+    ).then((r) => r.data),
+  removeVoucherTemplate: (id: number) =>
+    apiClient.delete(`${base_2}/voucher-templates/${id}`).then((r) => r.data),
+
+  availableVoucherTemplates: (customerGroupId?: number | null) =>
+    apiClient
+      .get<VoucherTemplates[]>(`${base_2}/voucher-templates/available`, {
+        params: customerGroupId != null ? { customerGroupId } : undefined,
+      })
+      .then((r) => r.data),
+  redeemVoucherTemplate: (id: number) =>
+    apiClient
+      .post<VoucherDetail>(`${base_2}/voucher-templates/${id}/redeem`)
+      .then((r) => r.data),
 };

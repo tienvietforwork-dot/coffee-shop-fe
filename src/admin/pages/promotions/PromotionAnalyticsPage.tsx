@@ -51,7 +51,7 @@ export function PromotionAnalyticsPage() {
                 <Card>
                   <Statistic
                     title="Tỷ lệ sử dụng"
-                    value={data.vouchers.usageRate * 100}
+                    value={data.vouchers.usageRate}
                     precision={1}
                     suffix="%"
                   />

@@ -211,7 +211,7 @@ export function CheckoutPage() {
                 disabledDate={(d) => d.isBefore(dayjs().startOf('day')) || d.isAfter(dayjs().add(2, 'day'))}
                 disabledTime={(d) => ({
                   disabledHours: () => Array.from({ length: 24 }, (_, h) => h).filter((h) => !Array.from({ length: 4 }, (_, q) => (d ?? dayjs()).hour(h).minute(q * 15)).some((x) => (!hours || hours.isOpen(x)) && x.isAfter(dayjs()))),
-                  disabledMinutes: (h) => Array.from({ length: 60 }, (_, m) => m).filter((m) => { const x = (d ?? dayjs()).hour(h).minute(m); return (!!hours && !hours.isOpen(x)) || !x.isAfter(dayjs()) }),
+                  disabledMinutes: (h) => Array.from({ length: 60 }, (_, m) => m).filter((m) => { const x = (d ?? dayjs()).hour(h ?? dayjs().hour()).minute(m); return (!!hours && !hours.isOpen(x)) || !x.isAfter(dayjs()) }),
                 })}
                 style={{ width: '100%' }}
               />

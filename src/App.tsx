@@ -16,6 +16,7 @@ import { PaymentResultPage } from '@/guest/PaymentResultPage'
 import { MyOrdersPage } from '@/guest/MyOrdersPage'
 import { TableEntryPage } from '@/guest/TableEntryPage'
 import { FeedbackPage } from '@/guest/FeedbackPage'
+import { RewardsPage } from '@/guest/RewardsPage'
 import { AdminLayout } from '@/admin/AdminLayout'
 import { LoginPage } from '@/admin/LoginPage'
 import { AdminHome, Guard, RequireAdmin } from '@/admin/ProtectedRoute'
@@ -97,6 +98,7 @@ export default function App() {
                 <Route path="/order/:code" element={<OrderTrackingPage />} />
                 <Route path="/payment/result" element={<PaymentResultPage />} />
                 <Route path="/orders" element={<MyOrdersPage />} />
+                <Route path="/rewards" element={<RewardsPage />} />
                 <Route path="/feedback" element={<FeedbackPage />} />
                 <Route path="/account" element={<AccountPage />} />
               </Route>
@@ -140,6 +142,7 @@ export default function App() {
                   <Route path="/admin/crm/insights" element={<Guard perm="crm.insights"><InsightsPage /></Guard>} />
                   <Route path="/admin/promotions" element={<Guard perm="promotions"><PromotionsPage /></Guard>} />
                   <Route path="/admin/vouchers" element={<Guard perm="vouchers"><VouchersPage /></Guard>} />
+                  <Route path="/admin/vouchers/voucher-templates" element={<Guard perm="vouchers"><VouchersPage /></Guard>} />
                   <Route path="/admin/promotions/analytics" element={<Guard perm="promotions.analytics"><PromotionAnalyticsPage /></Guard>} />
                   <Route path="/admin/stats" element={<Guard perm="stats"><StatsPage /></Guard>} />
                   <Route path="/admin/stats/customers" element={<Guard perm="stats"><CustomerAnalyticsPage /></Guard>} />
