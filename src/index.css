@@ -280,6 +280,7 @@ img { max-width: 100%; }
   .g-hero-art { display: none; }
 }
 @media (max-width: 640px) {
+<<<<<<< Updated upstream
   .g-survey { padding: 14px; }
   .g-survey-nps { gap: 4px; }
   .g-survey-nps .ant-btn { height: 38px; font-size: 12px; border-radius: 8px; }
@@ -400,7 +401,6 @@ img { max-width: 100%; }
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-  margin-bottom: 12px;
 }
 .promotion-coffee-filters {
   display: grid;
@@ -544,3 +544,9 @@ img { max-width: 100%; }
 /* khuyến mãi tạm dừng */
 .promotions-table .ant-table-tbody > tr.promotion-row-paused > td { background-color: #fff1b8 !important; }
 .promotions-table .ant-table-tbody > tr.promotion-row-paused:hover > td { background-color: #ffe58f !important; }
+.promotion-items-table .ant-table-cell {padding-inline: 20px !important;}
+.promotion-form-layout {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;}
+.promotion-coffee-controls {display: grid;grid-template-columns: repeat(2, minmax(0, 1fr));gap: 16px;margin-bottom: 12px;}
+.promotion-coffee-filters {display: grid;grid-template-columns: repeat(2, minmax(0, 1fr));gap: 8px; min-width: 0;}
+.promotion-bulk-actions {box-sizing: border-box;padding: 10px 12px; border: 1px solid #91caff;border-radius: 8px; background: #e6f4ff;}
+@media (max-width: 768px) {.promotion-form-layout {grid-template-columns: 1fr; gap: 0; }.promotion-coffee-controls {grid-template-columns: 1fr;}.promotion-coffee-filters {grid-template-columns: 1fr; }}
