@@ -387,6 +387,7 @@ img { max-width: 100%; }
 .promotions-table .ant-table-tbody > tr.promotion-row-paused:hover > td {
   background-color: #ffe58f !important;
 }
+/* khuyến mãi tạm dừng */
 .promotion-items-table .ant-table-cell {
   padding-inline: 20px !important;
 }
